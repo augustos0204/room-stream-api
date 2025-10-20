@@ -1,3 +1,5 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 export interface Room {
   id: string;
   name: string;
@@ -15,5 +17,10 @@ export interface RoomMessage {
 }
 
 export class CreateRoomDto {
+  @ApiProperty({
+    description: 'The name of the chat room',
+    example: 'General Chat',
+    minLength: 1,
+  })
   name: string;
 }
