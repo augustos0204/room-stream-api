@@ -10,13 +10,11 @@ import { ViewsModule } from './views/views.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    EventsModule,
-    RoomModule,
-    MetricsModule,
+    ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
+    EventsModule,
+    MetricsModule,
+    RoomModule,
     ViewsModule,
   ],
   controllers: [AppController],
