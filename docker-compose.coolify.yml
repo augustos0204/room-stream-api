@@ -7,10 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: room-stream-api
     restart: unless-stopped
-    ports:
-      - "${PORT:-3000}:3000"
     expose:
-      - "3000"  # Expor para Traefik, não publicar porta
+      - "3000"
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -25,10 +23,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    labels:
-      # Labels para Traefik (Coolify configura automaticamente)
-      - "traefik.enable=true"
-      - "traefik.http.services.room-stream-api.loadbalancer.server.port=3000"
-      # WebSocket support
-      - "traefik.http.middlewares.websocket.headers.customrequestheaders.Upgrade=websocket"
-      - "traefik.http.middlewares.websocket.headers.customrequestheaders.Connection=Upgrade"
