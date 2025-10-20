@@ -94,20 +94,11 @@
     scrollbar-color: #a855f7 rgba(31, 41, 55, 0.4);
 }
 
-/* Logo Animations */
+/* Logo Container */
 .logo-icon {
     position: relative;
     display: inline-block;
-}
-
-.logo-icon::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    background: linear-gradient(45deg, #3b82f6, #8b5cf6, #06b6d4, #8b5cf6);
-    border-radius: 8px;
-    z-index: -1;
-    animation: spin-slow 4s linear infinite;
+    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.4));
 }
 
 .tech-grid {
