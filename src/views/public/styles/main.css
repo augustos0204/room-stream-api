@@ -224,3 +224,56 @@
     animation: rotateBorder 2.8s linear infinite;
     background-size: 200% 200%;
 }
+
+/* Accessibility - Screen Reader Only */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+.sr-only.focus\:not-sr-only:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0.5rem 1rem;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+}
+
+/* Focus visible improvements */
+*:focus-visible {
+    outline: 2px solid #a855f7;
+    outline-offset: 2px;
+}
+
+button:focus-visible {
+    outline: 2px solid #a855f7;
+    outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+    outline: none;
+    border-color: #a855f7;
+    ring: 2px solid rgba(168, 85, 247, 0.2);
+}
+
+/* Loading spinner */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
