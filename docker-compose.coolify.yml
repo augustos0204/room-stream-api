@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: room-stream-api
+    restart: unless-stopped
+    expose:
+      - "3000"  # Expor para Traefik, não publicar porta
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # CORS - configure com seu domínio no Coolify
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      WEBSOCKET_NAMESPACE: ${WEBSOCKET_NAMESPACE:-/ws/rooms}
+      APP_NAME: ${APP_NAME:-NestJS WebSocket Room API}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      # Labels para Traefik (Coolify configura automaticamente)
+      - "traefik.enable=true"
+      - "traefik.http.services.room-stream-api.loadbalancer.server.port=3000"
+      # WebSocket support
+      - "traefik.http.middlewares.websocket.headers.customrequestheaders.Upgrade=websocket"
+      - "traefik.http.middlewares.websocket.headers.customrequestheaders.Connection=Upgrade"
