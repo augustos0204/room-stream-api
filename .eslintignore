@@ -1,0 +1,11 @@
+# Node modules
+node_modules/
+dist/
+
+# Build output
+coverage/
+
+# Static assets and views (served by NestJS, not part of TS project)
+src/views/public/**/*.js
+src/views/public/**/*.html
+src/views/public/**/*.css
