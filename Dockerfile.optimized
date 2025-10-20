@@ -1,0 +1,66 @@
+# Build stage
+FROM node:18-alpine AS builder
+
+# Instalar dependências do sistema necessárias
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copiar arquivos de dependências
+COPY package.json pnpm-lock.yaml ./
+
+# Instalar pnpm globalmente
+RUN npm install -g pnpm
+
+# Instalar APENAS dependências necessárias para build
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Copiar código fonte
+COPY . .
+
+# Build da aplicação
+RUN pnpm run build
+
+# Remover devDependencies e limpar cache
+RUN pnpm prune --prod && \
+    pnpm store prune && \
+    rm -rf /root/.pnpm-store /root/.npm
+
+# Production stage - AINDA MAIS OTIMIZADO
+FROM node:18-alpine AS runner
+
+# Instalar apenas dumb-init para melhor gerenciamento de processos (opcional)
+RUN apk add --no-cache dumb-init
+
+# Criar usuário não-root para segurança
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nestjs
+
+WORKDIR /app
+
+# Copiar apenas node_modules de produção (já limpo)
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+
+# Copiar código compilado
+COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+
+# Copiar package.json (mínimo necessário)
+COPY --from=builder --chown=nestjs:nodejs /app/package.json ./
+
+# Mudar para usuário não-root
+USER nestjs
+
+# Expor porta
+EXPOSE 3000
+
+# Variáveis de ambiente
+ENV NODE_ENV=production \
+    NODE_OPTIONS="--max-old-space-size=512"
+
+# Health check otimizado
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Usar dumb-init para melhor gerenciamento de sinais (opcional)
+# CMD ["dumb-init", "node", "dist/main.js"]
+CMD ["node", "dist/main.js"]

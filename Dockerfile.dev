@@ -1,0 +1,26 @@
+# Development Dockerfile com hot-reload
+FROM node:18-alpine
+
+# Instalar dependências do sistema
+RUN apk add --no-cache libc6-compat
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Instalar pnpm globalmente
+RUN npm install -g pnpm
+
+# Copiar arquivos de dependências
+COPY package.json pnpm-lock.yaml ./
+
+# Instalar todas as dependências (incluindo dev)
+RUN pnpm install --frozen-lockfile
+
+# Copiar código fonte
+COPY . .
+
+# Expor porta da aplicação e porta de debug
+EXPOSE 3000 9229
+
+# Comando padrão (pode ser sobrescrito no docker-compose)
+CMD ["pnpm", "run", "start:dev"]

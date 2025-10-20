@@ -1,0 +1,56 @@
+# Dependências
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build
+dist/
+build/
+coverage/
+
+# Testes
+*.spec.ts
+test/
+
+# Arquivos de desenvolvimento
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Documentação
+*.md
+!README.md
+LICENSE
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Misc
+requests/
