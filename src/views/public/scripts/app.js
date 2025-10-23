@@ -561,6 +561,13 @@ function socketTester() {
                 if (response.ok) {
                     this.rooms = await response.json();
                     this.log(`📋 Listadas ${this.rooms.length} salas`, 'info');
+
+                    // Reinitialize Lucide icons after DOM update
+                    this.$nextTick(() => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    });
                 } else {
                     this.log('❌ Erro ao listar salas', 'error');
                 }
@@ -571,44 +578,71 @@ function socketTester() {
             }
         },
 
-        async deleteRoom() {
-            if (!this.deleteRoomId.trim()) {
+        async deleteRoom(roomId = null) {
+            // Use provided roomId or fallback to deleteRoomId input field
+            const targetRoomId = roomId || this.deleteRoomId.trim();
+
+            if (!targetRoomId) {
                 this.log('❌ ID da sala é obrigatório', 'error');
-                return;
+                if (typeof Toast !== 'undefined') {
+                    Toast.error('ID da sala é obrigatório');
+                }
+                return { success: false, error: 'ID da sala é obrigatório' };
             }
 
-            if (!confirm(`Tem certeza que deseja deletar a sala ${this.deleteRoomId}?`)) {
-                return;
+            // Only show confirmation dialog if called from the form (no roomId parameter)
+            if (!roomId && !confirm(`Tem certeza que deseja deletar a sala ${targetRoomId}?`)) {
+                return { success: false, error: 'Ação cancelada pelo usuário' };
             }
 
             try {
-                const response = await fetch(`/room/${this.deleteRoomId}`, {
+                const response = await fetch(`/room/${targetRoomId}`, {
                     method: 'DELETE'
                 });
 
                 if (response.ok) {
                     const result = await response.json();
                     this.log(`✅ ${result.message}`, 'success');
-                    this.deleteRoomId = '';
+
+                    // Clear the input field only if called from form
+                    if (!roomId) {
+                        this.deleteRoomId = '';
+                    }
+
+                    // Refresh rooms list
                     this.listRooms();
 
-                    if (typeof Toast !== 'undefined') {
-                        Toast.success('Sala deletada');
+                    // Close room if we're deleting the current room
+                    if (this.currentRoomId === targetRoomId) {
+                        this.leaveCurrentRoom();
                     }
-                } else {
-                    const error = await response.json();
-                    this.log(`❌ Erro ao deletar sala: ${Sanitizer.escapeHtml(error.message)}`, 'error');
 
                     if (typeof Toast !== 'undefined') {
-                        Toast.error('Erro ao deletar sala');
+                        Toast.success('Sala deletada com sucesso');
                     }
+
+                    return { success: true, message: result.message };
+                } else {
+                    const error = await response.json();
+                    const errorMessage = error.message || 'Erro ao deletar sala';
+
+                    this.log(`❌ Erro ao deletar sala: ${Sanitizer.escapeHtml(errorMessage)}`, 'error');
+
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error(errorMessage);
+                    }
+
+                    return { success: false, error: errorMessage, statusCode: response.status };
                 }
             } catch (error) {
-                this.log(`❌ Erro de rede: ${Sanitizer.escapeHtml(error.message)}`, 'error');
+                const errorMessage = `Erro de rede: ${error.message}`;
+                this.log(`❌ ${Sanitizer.escapeHtml(errorMessage)}`, 'error');
 
                 if (typeof Toast !== 'undefined') {
                     Toast.error('Erro de conexão');
                 }
+
+                return { success: false, error: errorMessage };
             }
         },
 
