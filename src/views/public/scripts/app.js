@@ -11,7 +11,8 @@ function socketTester() {
         intentionalDisconnect: false,
 
         // Form data
-        namespace: new URL("ws/rooms", window.location.origin).toString(),
+        baseUrl: window.location.origin,
+        wsNamespace: '/ws/rooms',
         newRoomName: '',
         deleteRoomId: '',
         roomId: 'test-room',
@@ -244,24 +245,23 @@ function socketTester() {
             this.connecting = true;
             this.isConnected = false;
             this.reconnectAttempts = 0;
-            this.log(`Conectando ao namespace: ${this.namespace}`, 'info');
 
             try {
-                // Extract namespace from full URL if provided
-                let socketUrl, namespace;
-                if (this.namespace.startsWith('http')) {
-                    const url = new URL(this.namespace);
-                    socketUrl = `${url.protocol}//${url.host}`;
-                    namespace = url.pathname;
-                } else {
-                    socketUrl = window.location.origin;
-                    namespace = this.namespace;
-                }
+                // Remove trailing slash from baseUrl
+                const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
 
-                console.log('Connecting to:', socketUrl, 'namespace:', namespace);
+                // Ensure namespace starts with /
+                const namespace = this.wsNamespace.trim().startsWith('/')
+                    ? this.wsNamespace.trim()
+                    : `/${this.wsNamespace.trim()}`;
+
+                const fullUrl = baseUrl + namespace;
+
+                this.log(`Conectando ao WebSocket: ${fullUrl}`, 'info');
+                console.log('Connecting to:', fullUrl);
 
                 // Connect to namespace directly
-                this.socket = io(socketUrl + namespace, {
+                this.socket = io(fullUrl, {
                     forceNew: true,
                     timeout: 5000,
                     transports: ['websocket', 'polling'],
@@ -272,8 +272,8 @@ function socketTester() {
 
             } catch (e) {
                 this.connecting = false;
-                this.log('❌ URL inválida. Use formato: http://localhost:4000/ws/rooms', 'error');
-                console.error('URL parsing error:', e);
+                this.log('❌ URL inválida. Verifique a Base URL e o namespace', 'error');
+                console.error('Connection error:', e);
 
                 if (typeof Toast !== 'undefined') {
                     Toast.error('URL inválida');
@@ -526,7 +526,8 @@ function socketTester() {
             this.isCreatingRoom = true;
 
             try {
-                const response = await fetch('/room', {
+                const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
+                const response = await fetch(`${baseUrl}/room`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: this.newRoomName.trim() })
@@ -564,7 +565,8 @@ function socketTester() {
             this.isLoadingRooms = true;
 
             try {
-                const response = await fetch('/room');
+                const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
+                const response = await fetch(`${baseUrl}/room`);
                 if (response.ok) {
                     this.rooms = await response.json();
                     this.log(`📋 Listadas ${this.rooms.length} salas`, 'info');
@@ -603,7 +605,8 @@ function socketTester() {
             }
 
             try {
-                const response = await fetch(`/room/${targetRoomId}`, {
+                const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
+                const response = await fetch(`${baseUrl}/room/${targetRoomId}`, {
                     method: 'DELETE'
                 });
 
