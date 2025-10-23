@@ -8,6 +8,7 @@ function socketTester() {
         maxReconnectAttempts: 5,
         reconnectDelay: 2000,
         reconnectTimer: null,
+        intentionalDisconnect: false,
 
         // Form data
         namespace: new URL("ws/rooms", window.location.origin).toString(),
@@ -239,6 +240,7 @@ function socketTester() {
                 this.socket = null;
             }
 
+            this.intentionalDisconnect = false;
             this.connecting = true;
             this.isConnected = false;
             this.reconnectAttempts = 0;
@@ -314,9 +316,12 @@ function socketTester() {
                     Toast.warning('Desconectado do WebSocket');
                 }
 
-                // Auto-reconnect logic
+                if (this.intentionalDisconnect) {
+                    this.log('ℹ️ Desconexão manual - reconexão automática desabilitada', 'info');
+                    return;
+                }
+
                 if (reason === 'io server disconnect') {
-                    // Server disconnected us, don't reconnect
                     return;
                 }
 
@@ -492,6 +497,8 @@ function socketTester() {
         },
 
         disconnect() {
+            this.intentionalDisconnect = true;
+
             if (this.reconnectTimer) {
                 clearTimeout(this.reconnectTimer);
                 this.reconnectTimer = null;
