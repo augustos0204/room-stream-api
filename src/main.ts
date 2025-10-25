@@ -32,9 +32,6 @@ async function bootstrap() {
       methodKey,
   });
 
-  // Carregar CSS customizado
-  // Em desenvolvimento: src/views/public/styles/swagger.css
-  // Em produção: dist/views/public/styles/swagger.css
   const customCssPath = path.join(
     __dirname,
     'views',
