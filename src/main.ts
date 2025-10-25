@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as fs from 'fs';
+import * as path from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -30,12 +32,29 @@ async function bootstrap() {
       methodKey,
   });
 
+  // Carregar CSS customizado
+  // Em desenvolvimento: src/views/public/styles/swagger.css
+  // Em produção: dist/views/public/styles/swagger.css
+  const customCssPath = path.join(
+    __dirname,
+    'views',
+    'public',
+    'styles',
+    'swagger.css',
+  );
+  const customCss = fs.existsSync(customCssPath)
+    ? fs.readFileSync(customCssPath, 'utf8')
+    : '';
+
   SwaggerModule.setup('api-docs', app, document, {
     customSiteTitle: 'RoomStream API Documentation',
-    customCss: '.swagger-ui .topbar { display: none }',
+    customCss,
+    customfavIcon: '/admin/assets/media/favicon.svg',
     swaggerOptions: {
-      tagsSorter: 'alpha', // Ordenar tags alfabeticamente
-      operationsSorter: 'alpha', // Ordenar operações alfabeticamente
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+      persistAuthorization: true,
+      displayRequestDuration: true,
     },
   });
 
@@ -49,7 +68,7 @@ async function bootstrap() {
   console.log(`📱 Interface de teste: http://localhost:${port}/admin`);
   console.log(`📚 Documentação API: http://localhost:${port}/api-docs`);
   console.log(
-    `🔌 WebSocket namespace: ${process.env.WEBSOCKET_NAMESPACE || '/room'}`,
+    `🔌 WebSocket namespace: ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'}`,
   );
 }
 bootstrap();
