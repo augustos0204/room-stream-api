@@ -1,27 +1,23 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import type { Response } from 'express';
 
-@Controller('admin')
+@Controller('view')
 export class ViewsController {
-  // Rota principal - serve index.html em /admin
   @Get()
   getAdminIndex(@Res() res: Response) {
     return res.sendFile('index.html', { root: './src/views/public' });
   }
 
-  // Estilos CSS - /admin/assets/styles/:filename
   @Get('assets/styles/:filename')
   getStyleFile(@Param('filename') filename: string, @Res() res: Response) {
     return res.sendFile(filename, { root: './src/views/public/styles' });
   }
 
-  // Scripts JavaScript - /admin/assets/scripts/:filename
   @Get('assets/scripts/:filename')
   getScriptFile(@Param('filename') filename: string, @Res() res: Response) {
     return res.sendFile(filename, { root: './src/views/public/scripts' });
   }
 
-  // Mídias (SVG, PNG, ICO, etc) - /admin/assets/media/:filename
   @Get('assets/media/:filename')
   getMediaFile(@Param('filename') filename: string, @Res() res: Response) {
     // Set correct Content-Type based on file extension
@@ -40,7 +36,6 @@ export class ViewsController {
     return res.sendFile(filename, { root: './src/views/public/media' });
   }
 
-  // Views HTML - /admin/:viewName
   @Get(':viewName')
   getView(@Param('viewName') viewName: string, @Res() res: Response) {
     const fileName = `${viewName}.html`;
