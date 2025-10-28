@@ -1,7 +1,7 @@
 // Room types
 export * from './room.types';
 
-// Metrics types  
+// Metrics types
 export * from './metrics.types';
 
 // Event types

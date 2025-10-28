@@ -26,8 +26,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config, {
-    operationIdFactory: (controllerKey: string, methodKey: string) =>
-      methodKey,
+    operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
   });
 
   SwaggerModule.setup('api-docs', app, document, {
@@ -52,4 +51,4 @@ async function bootstrap() {
     `🔌 WebSocket namespace: ${process.env.WEBSOCKET_NAMESPACE || '/room'}`,
   );
 }
-bootstrap();
+bootstrap().catch((err) => console.error('Erro ao iniciar aplicação:', err));

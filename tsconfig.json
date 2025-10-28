@@ -23,12 +23,12 @@
     "noFallthroughCasesInSwitch": false
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "test/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "test",
     "src/views/public/**/*.js",
     "src/views/public/**/*.html",
     "src/views/public/**/*.css"

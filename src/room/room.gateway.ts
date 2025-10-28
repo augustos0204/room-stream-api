@@ -34,8 +34,10 @@ export class RoomGateway
     private readonly eventsService: EventsService,
   ) {}
 
-  afterInit(_server: Server) {
-    this.logger.log(`Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'}`);
+  afterInit() {
+    this.logger.log(
+      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'}`,
+    );
   }
 
   handleConnection(client: Socket) {
@@ -45,7 +47,9 @@ export class RoomGateway
       namespace,
       timestamp: new Date(),
     });
-    this.logger.log(`Cliente conectado no namespace ${namespace}: ${client.id}`);
+    this.logger.log(
+      `Cliente conectado no namespace ${namespace}: ${client.id}`,
+    );
   }
 
   handleDisconnect(client: Socket) {
@@ -55,7 +59,9 @@ export class RoomGateway
       namespace,
       timestamp: new Date(),
     });
-    this.logger.log(`Cliente desconectado do namespace ${namespace}: ${client.id}`);
+    this.logger.log(
+      `Cliente desconectado do namespace ${namespace}: ${client.id}`,
+    );
 
     // Remove o cliente de todas as salas ao desconectar
     const rooms = this.roomService.getAllRooms();
@@ -91,7 +97,7 @@ export class RoomGateway
     }
 
     // Join no Socket.IO room
-    client.join(roomId);
+    client.join(roomId) as void;
 
     // Adicionar ao serviço
     this.roomService.joinRoom(roomId, client.id, participantName || null);
@@ -124,7 +130,7 @@ export class RoomGateway
     const { roomId } = data;
 
     // Leave no Socket.IO room
-    client.leave(roomId);
+    client.leave(roomId) as void;
 
     // Remover do serviço
     const success = this.roomService.leaveRoom(roomId, client.id);

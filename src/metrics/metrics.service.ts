@@ -5,7 +5,10 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
-import { calculateUptime, calculateUptimeMs } from '../common/utils/uptime.util';
+import {
+  calculateUptime,
+  calculateUptimeMs,
+} from '../common/utils/uptime.util';
 import {
   ClientEventPayload,
   RoomEventPayload,
@@ -40,31 +43,41 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
   private setupEventListeners(): void {
     this.eventsService.onMetricsEvent(
       'metrics:client-connected',
-      this.handleClientConnected.bind(this),
+      this.handleClientConnected.bind(this) as (
+        payload: ClientEventPayload,
+      ) => void,
     );
     this.eventsService.onMetricsEvent(
       'metrics:client-disconnected',
-      this.handleClientDisconnected.bind(this),
+      this.handleClientDisconnected.bind(this) as (
+        payload: ClientEventPayload,
+      ) => void,
     );
     this.eventsService.onMetricsEvent(
       'metrics:room-created',
-      this.handleRoomCreated.bind(this),
+      this.handleRoomCreated.bind(this) as (payload: RoomEventPayload) => void,
     );
     this.eventsService.onMetricsEvent(
       'metrics:room-deleted',
-      this.handleRoomDeleted.bind(this),
+      this.handleRoomDeleted.bind(this) as (payload: RoomEventPayload) => void,
     );
     this.eventsService.onMetricsEvent(
       'metrics:user-joined-room',
-      this.handleUserJoinedRoom.bind(this),
+      this.handleUserJoinedRoom.bind(this) as (
+        payload: UserRoomEventPayload,
+      ) => void,
     );
     this.eventsService.onMetricsEvent(
       'metrics:user-left-room',
-      this.handleUserLeftRoom.bind(this),
+      this.handleUserLeftRoom.bind(this) as (
+        payload: UserRoomEventPayload,
+      ) => void,
     );
     this.eventsService.onMetricsEvent(
       'metrics:message-sent',
-      this.handleMessageSent.bind(this),
+      this.handleMessageSent.bind(this) as (
+        payload: MessageEventPayload,
+      ) => void,
     );
   }
 
@@ -142,8 +155,8 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
     const uptime = calculateUptimeMs(this.startTime);
     const roomsArray: RoomMetrics[] = [];
 
-    this.rooms.forEach((metrics, roomId) => {
-      roomsArray.push({ 
+    this.rooms.forEach((metrics) => {
+      roomsArray.push({
         ...metrics,
         uptime: calculateUptime(metrics.createdAt),
       });
