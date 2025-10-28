@@ -58,7 +58,7 @@ body {
   display: inline-block !important;
   width: 40px !important;
   height: 40px !important;
-  background-image: url('/admin/assets/media/favicon.svg') !important;
+  background-image: url('/view/assets/media/favicon.svg') !important;
   background-size: contain !important;
   background-repeat: no-repeat !important;
   background-position: center !important;

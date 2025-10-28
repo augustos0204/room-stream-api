@@ -2,7 +2,7 @@
 
 A robust and scalable WebSocket API built with **NestJS** and **Socket.IO** for creating and managing real-time chat rooms.
 
-> **⚠️ Note**: This project focuses on **backend implementation**. The web interface at `/admin` is a **basic prototype** for development testing and API validation purposes only.
+> **⚠️ Note**: This project focuses on **backend implementation**. The web interface at `/view` is a **basic prototype** for development testing and API validation purposes only.
 
 ## 📋 Table of Contents
 
@@ -138,7 +138,7 @@ pnpm run start:dev
 The server will be available at:
 - **🎯 REST API**: `http://localhost:3000`
 - **🔌 WebSocket**: `ws://localhost:3000/ws/rooms`
-- **🧪 Testing Interface**: `http://localhost:3000/admin` (development tool)
+- **🧪 Testing Interface**: `http://localhost:3000/view` (development tool)
 
 ## 📚 API Endpoints
 
@@ -300,7 +300,7 @@ socket.on('error', (error) => {
 
 ## 🧪 Development Testing Interface
 
-### Basic WebSocket Tester (`/admin`)
+### Basic WebSocket Tester (`/view`)
 Simple testing interface for API validation during development:
 
 - **Connection testing** - Verify WebSocket connectivity
@@ -385,7 +385,7 @@ GET http://localhost:3000/room
 GET http://localhost:3000/room/{{roomId}}
 ```
 
-The `/admin` interface can also be used for quick visual testing during development.
+The `/view` interface can also be used for quick visual testing during development.
 
 ## 📊 Monitoring
 

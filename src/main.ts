@@ -45,7 +45,7 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, document, {
     customSiteTitle: 'RoomStream API Documentation',
     customCss,
-    customfavIcon: '/admin/assets/media/favicon.svg',
+    customfavIcon: '/view/assets/media/favicon.svg',
     swaggerOptions: {
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',
@@ -61,7 +61,7 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`🚀 Aplicação rodando na porta ${port}`);
-  console.log(`📱 Interface de teste: http://localhost:${port}/admin`);
+  console.log(`📱 Interface de teste: http://localhost:${port}/view`);
   console.log(`📚 Documentação API: http://localhost:${port}/api-docs`);
   console.log(
     `🔌 WebSocket namespace: ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'}`,
