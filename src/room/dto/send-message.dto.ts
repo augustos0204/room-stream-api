@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
 
 /**
  * DTO for sending a message via WebSocket
