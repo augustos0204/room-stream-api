@@ -35,12 +35,35 @@ export class RoomGateway
   ) {}
 
   afterInit() {
+    const apiKeyStatus = process.env.API_KEY ? 'enabled' : 'disabled';
     this.logger.log(
-      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'}`,
+      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'} (API Key auth: ${apiKeyStatus})`,
     );
   }
 
   handleConnection(client: Socket) {
+    // Validate API key if configured
+    const API_KEY = process.env.API_KEY;
+
+    if (API_KEY) {
+      const apiKey =
+        client.handshake.auth?.apiKey ||
+        client.handshake.headers['x-api-key'] ||
+        client.handshake.query?.apiKey;
+
+      if (!apiKey || apiKey !== API_KEY) {
+        this.logger.warn(
+          `WebSocket connection rejected: invalid or missing API key from ${client.handshake.address}`,
+        );
+        client.emit('error', {
+          message:
+            'Authentication failed: Invalid or missing API key. Provide it via auth.apiKey, x-api-key header, or apiKey query parameter',
+        });
+        client.disconnect();
+        return;
+      }
+    }
+
     const namespace = client.nsp.name;
     this.eventsService.emitMetricsEvent('metrics:client-connected', {
       clientId: client.id,
