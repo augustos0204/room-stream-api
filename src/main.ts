@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -28,6 +29,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Aplicar filtro global de exceções para padronizar respostas de erro
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   if (process.env.API_KEY) {
     const reflector = app.get(Reflector);

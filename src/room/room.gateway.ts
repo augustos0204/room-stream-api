@@ -8,7 +8,7 @@ import {
   WebSocketServer,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Logger, UsePipes, ValidationPipe, UseFilters } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { RoomService } from './room.service';
 import { EventsService } from '../events/events.service';
@@ -19,6 +19,7 @@ import {
   UpdateParticipantNameDto,
   GetRoomInfoDto,
 } from './dto';
+import { WsExceptionFilter } from '../common/filters/websocket-exception.filter';
 
 @WebSocketGateway({
   namespace: process.env.WEBSOCKET_NAMESPACE || '/ws/rooms', // Namespace específico para salas
@@ -30,6 +31,7 @@ import {
   },
   transports: ['websocket', 'polling'],
 })
+@UseFilters(new WsExceptionFilter())
 export class RoomGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
