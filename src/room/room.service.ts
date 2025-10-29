@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
-import { Room, RoomMessage } from '../types/room.types';
+import type { Room, RoomMessage, RoomParticipant } from './interfaces';
 
 @Injectable()
 export class RoomService {
@@ -176,9 +176,7 @@ export class RoomService {
     return true;
   }
 
-  getParticipantsWithNames(
-    roomId: string,
-  ): Array<{ clientId: string; name: string | null }> {
+  getParticipantsWithNames(roomId: string): RoomParticipant[] {
     const room = this.rooms.get(roomId);
     if (!room) {
       return [];

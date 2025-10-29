@@ -8,10 +8,18 @@ import {
   WebSocketServer,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { Logger, UsePipes, ValidationPipe, UseFilters } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { RoomService } from './room.service';
 import { EventsService } from '../events/events.service';
+import {
+  JoinRoomDto,
+  LeaveRoomDto,
+  SendMessageDto,
+  UpdateParticipantNameDto,
+  GetRoomInfoDto,
+} from './dto';
+import { WsExceptionFilter } from '../common/filters/websocket-exception.filter';
 
 @WebSocketGateway({
   namespace: process.env.WEBSOCKET_NAMESPACE || '/ws/rooms', // Namespace específico para salas
@@ -23,6 +31,7 @@ import { EventsService } from '../events/events.service';
   },
   transports: ['websocket', 'polling'],
 })
+@UseFilters(new WsExceptionFilter())
 export class RoomGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -35,12 +44,35 @@ export class RoomGateway
   ) {}
 
   afterInit() {
+    const apiKeyStatus = process.env.API_KEY ? 'enabled' : 'disabled';
     this.logger.log(
-      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'}`,
+      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'} (API Key auth: ${apiKeyStatus})`,
     );
   }
 
   handleConnection(client: Socket) {
+    // Validate API key if configured
+    const API_KEY = process.env.API_KEY;
+
+    if (API_KEY) {
+      const apiKey: string | undefined =
+        (client.handshake.auth?.apiKey as string) ||
+        (client.handshake.headers['x-api-key'] as string) ||
+        (client.handshake.query?.apiKey as string);
+
+      if (!apiKey || apiKey !== API_KEY) {
+        this.logger.warn(
+          `WebSocket connection rejected: invalid or missing API key from ${client.handshake.address}`,
+        );
+        client.emit('error', {
+          message:
+            'Authentication failed: Invalid or missing API key. Provide it via auth.apiKey, x-api-key header, or apiKey query parameter',
+        });
+        client.disconnect();
+        return;
+      }
+    }
+
     const namespace = client.nsp.name;
     this.eventsService.emitMetricsEvent('metrics:client-connected', {
       clientId: client.id,
@@ -84,8 +116,9 @@ export class RoomGateway
   }
 
   @SubscribeMessage('joinRoom')
+  @UsePipes(new ValidationPipe({ transform: true }))
   handleJoinRoom(
-    @MessageBody() data: { roomId: string; participantName?: string },
+    @MessageBody() data: JoinRoomDto,
     @ConnectedSocket() client: Socket,
   ): void {
     const { roomId, participantName } = data;
@@ -123,8 +156,9 @@ export class RoomGateway
   }
 
   @SubscribeMessage('leaveRoom')
+  @UsePipes(new ValidationPipe({ transform: true }))
   handleLeaveRoom(
-    @MessageBody() data: { roomId: string },
+    @MessageBody() data: LeaveRoomDto,
     @ConnectedSocket() client: Socket,
   ): void {
     const { roomId } = data;
@@ -159,8 +193,9 @@ export class RoomGateway
   }
 
   @SubscribeMessage('sendMessage')
+  @UsePipes(new ValidationPipe({ transform: true }))
   handleSendMessage(
-    @MessageBody() data: { roomId: string; message: string },
+    @MessageBody() data: SendMessageDto,
     @ConnectedSocket() client: Socket,
   ): void {
     const { roomId, message } = data;
@@ -188,8 +223,9 @@ export class RoomGateway
   }
 
   @SubscribeMessage('getRoomInfo')
+  @UsePipes(new ValidationPipe({ transform: true }))
   handleGetRoomInfo(
-    @MessageBody() data: { roomId: string },
+    @MessageBody() data: GetRoomInfoDto,
     @ConnectedSocket() client: Socket,
   ): void {
     const { roomId } = data;
@@ -211,8 +247,9 @@ export class RoomGateway
   }
 
   @SubscribeMessage('updateParticipantName')
+  @UsePipes(new ValidationPipe({ transform: true }))
   handleUpdateParticipantName(
-    @MessageBody() data: { roomId: string; participantName: string | null },
+    @MessageBody() data: UpdateParticipantNameDto,
     @ConnectedSocket() client: Socket,
   ): void {
     const { roomId, participantName } = data;

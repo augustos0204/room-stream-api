@@ -97,11 +97,16 @@ cp .env.example .env
 # 🚀 SERVER CONFIGURATION
 PORT=3000                    # Server port
 
-# 🌐 CORS CONFIGURATION  
+# 🌐 CORS CONFIGURATION
 CORS_ORIGIN=*               # Allowed origin (* for development)
 
 # 🔌 WEBSOCKET CONFIGURATION
 WEBSOCKET_NAMESPACE=/ws/rooms # Socket.IO namespace
+
+# 🔐 SECURITY CONFIGURATION
+# API_KEY=your-secret-key    # Optional API key for authentication
+                              # If not set, authentication is disabled
+                              # Generate with: openssl rand -hex 32
 
 # 📱 APPLICATION SETTINGS
 APP_NAME="NestJS WebSocket Room API"
@@ -191,6 +196,67 @@ GET /health
 GET /metrics
 ```
 
+## 🔐 Authentication
+
+### API Key Authentication (Optional)
+
+The API supports optional API key authentication for enhanced security. If `API_KEY` is set in your environment variables, all REST API requests and WebSocket connections will require authentication.
+
+#### REST API
+
+Provide the API key in one of three ways:
+
+**1. Header (Recommended)**
+```bash
+curl -H "x-api-key: your-api-key" http://localhost:3000/room
+```
+
+**2. Authorization Header**
+```bash
+curl -H "Authorization: Bearer your-api-key" http://localhost:3000/room
+```
+
+**3. Query Parameter**
+```bash
+curl http://localhost:3000/room?apiKey=your-api-key
+```
+
+#### WebSocket
+
+Provide the API key when connecting:
+
+**1. Auth Option (Recommended)**
+```javascript
+const socket = io('http://localhost:3000/ws/rooms', {
+  auth: { apiKey: 'your-api-key' }
+});
+```
+
+**2. Query Parameter**
+```javascript
+const socket = io('http://localhost:3000/ws/rooms?apiKey=your-api-key');
+```
+
+**3. Header**
+```javascript
+const socket = io('http://localhost:3000/ws/rooms', {
+  extraHeaders: { 'x-api-key': 'your-api-key' }
+});
+```
+
+#### Swagger/OpenAPI
+
+Access the interactive API documentation at `http://localhost:3000/api-docs`. When API key authentication is enabled, click the "Authorize" button (lock icon) and enter your API key to test endpoints.
+
+#### Generate Secure Key
+
+```bash
+# Generate a random 32-byte hex key
+openssl rand -hex 32
+```
+
+> **Note**: If `API_KEY` is not set, authentication is **disabled** (useful for development). Set it in production for security.
+
 ## 🔌 WebSocket Events
 
 ### Connection
@@ -198,6 +264,11 @@ Connect to the `/ws/rooms` namespace:
 
 ```javascript
 const socket = io('http://localhost:3000/ws/rooms');
+
+// With API key authentication (if enabled)
+const socket = io('http://localhost:3000/ws/rooms', {
+  auth: { apiKey: 'your-api-key' }
+});
 ```
 
 ### Client → Server Events
@@ -430,6 +501,7 @@ NODE_ENV=production
 PORT=3000
 CORS_ORIGIN=https://your-domain.com
 WEBSOCKET_NAMESPACE=/ws/rooms
+API_KEY=your-secure-api-key-here  # Generate with: openssl rand -hex 32
 ```
 
 ### Docker (Optional)

@@ -1,7 +1,9 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import { Public } from '../common/decorators';
 
 @Controller('view')
+@Public()
 export class ViewsController {
   @Get()
   getAdminIndex(@Res() res: Response) {
