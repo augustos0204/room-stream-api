@@ -1,8 +1,9 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ApiKeyGuard } from './common/guards/api-key.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -11,12 +12,22 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'Accept'],
     credentials: true,
   });
 
+  if (process.env.API_KEY) {
+    const reflector = app.get(Reflector);
+    app.useGlobalGuards(new ApiKeyGuard(reflector));
+    console.log('🔐 API Key authentication enabled');
+  } else {
+    console.log(
+      '⚠️  API Key authentication disabled - set API_KEY env var to enable',
+    );
+  }
+
   // Configurar Swagger
-  const config = new DocumentBuilder()
+  const configBuilder = new DocumentBuilder()
     .setTitle('RoomStream API')
     .setDescription(
       'Real-time WebSocket API for creating and managing chat rooms. Built with NestJS and Socket.IO.',
@@ -24,8 +35,21 @@ async function bootstrap() {
     .setVersion('0.0.1')
     .addTag('rooms', 'Chat room management endpoints')
     .addTag('health', 'Service health check')
-    .addTag('metrics', 'System monitoring and observability')
-    .build();
+    .addTag('metrics', 'System monitoring and observability');
+
+  if (process.env.API_KEY) {
+    configBuilder.addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-api-key',
+        in: 'header',
+        description: 'API key for authentication',
+      },
+      'api-key',
+    );
+  }
+
+  const config = configBuilder.build();
 
   const document = SwaggerModule.createDocument(app, config, {
     operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
