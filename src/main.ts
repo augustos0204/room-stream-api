@@ -1,6 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
@@ -15,6 +16,18 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'Accept'],
     credentials: true,
   });
+
+  // Habilitar validação global para DTOs em REST API
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, // Transforma payloads em DTOs
+      whitelist: true, // Remove propriedades não definidas no DTO
+      forbidNonWhitelisted: true, // Rejeita propriedades extras
+      transformOptions: {
+        enableImplicitConversion: true, // Converte tipos automaticamente
+      },
+    }),
+  );
 
   if (process.env.API_KEY) {
     const reflector = app.get(Reflector);

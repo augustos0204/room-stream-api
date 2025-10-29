@@ -39,13 +39,7 @@ export class RoomController {
   })
   @ApiResponse({ status: 400, description: 'Invalid room name' })
   createRoom(@Body() createRoomDto: CreateRoomDto): Room {
-    if (!createRoomDto.name || createRoomDto.name.trim().length === 0) {
-      throw new HttpException(
-        'Nome da sala é obrigatório',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
+    // Validation is now automatic via global ValidationPipe
     return this.roomService.createRoom(createRoomDto.name.trim());
   }
 
