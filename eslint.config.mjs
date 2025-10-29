@@ -40,4 +40,11 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-argument': 'off',
     },
   },
+  {
+    files: ['**/*.dto.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+    },
+  },
 );
