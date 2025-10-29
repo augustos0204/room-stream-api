@@ -8,9 +8,12 @@ function socketTester() {
         maxReconnectAttempts: 5,
         reconnectDelay: 2000,
         reconnectTimer: null,
+        intentionalDisconnect: false,
 
         // Form data
-        namespace: new URL("ws/rooms", window.location.origin).toString(),
+        baseUrl: window.location.origin,
+        wsNamespace: '/ws/rooms',
+        apiKey: '', // API Key for authentication
         newRoomName: '',
         deleteRoomId: '',
         roomId: 'test-room',
@@ -36,6 +39,13 @@ function socketTester() {
         // Mobile navigation
         mobileSection: 'rooms', // 'rooms', 'chat', 'participants'
         urlInputExpanded: false, // Control mobile URL input expansion
+
+        // Desktop config expansion states
+        configExpanded: {
+            apiKey: false,
+            baseUrl: false,
+            namespace: false
+        },
 
         // Initialize
         init() {
@@ -67,6 +77,19 @@ function socketTester() {
             } else {
                 localStorage.removeItem('participantName');
             }
+        },
+
+        // Get fetch headers with API key if provided
+        getFetchHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (this.apiKey && this.apiKey.trim()) {
+                headers['x-api-key'] = this.apiKey.trim();
+            }
+
+            return headers;
         },
 
         // Room management
@@ -239,39 +262,50 @@ function socketTester() {
                 this.socket = null;
             }
 
+            this.intentionalDisconnect = false;
             this.connecting = true;
             this.isConnected = false;
             this.reconnectAttempts = 0;
-            this.log(`Conectando ao namespace: ${this.namespace}`, 'info');
 
             try {
-                // Extract namespace from full URL if provided
-                let socketUrl, namespace;
-                if (this.namespace.startsWith('http')) {
-                    const url = new URL(this.namespace);
-                    socketUrl = `${url.protocol}//${url.host}`;
-                    namespace = url.pathname;
-                } else {
-                    socketUrl = window.location.origin;
-                    namespace = this.namespace;
-                }
+                // Remove trailing slash from baseUrl
+                const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
 
-                console.log('Connecting to:', socketUrl, 'namespace:', namespace);
+                // Ensure namespace starts with /
+                const namespace = this.wsNamespace.trim().startsWith('/')
+                    ? this.wsNamespace.trim()
+                    : `/${this.wsNamespace.trim()}`;
 
-                // Connect to namespace directly
-                this.socket = io(socketUrl + namespace, {
+                const fullUrl = baseUrl + namespace;
+
+                this.log(`Conectando ao WebSocket: ${fullUrl}`, 'info');
+                console.log('Connecting to:', fullUrl);
+
+                // Prepare socket.io options
+                const socketOptions = {
                     forceNew: true,
                     timeout: 5000,
                     transports: ['websocket', 'polling'],
                     reconnection: false // We handle reconnection manually
-                });
+                };
+
+                // Add API key if provided
+                if (this.apiKey && this.apiKey.trim()) {
+                    socketOptions.auth = {
+                        apiKey: this.apiKey.trim()
+                    };
+                    this.log('🔐 Usando autenticação via API Key', 'info');
+                }
+
+                // Connect to namespace directly
+                this.socket = io(fullUrl, socketOptions);
 
                 this.setupSocketListeners();
 
             } catch (e) {
                 this.connecting = false;
-                this.log('❌ URL inválida. Use formato: http://localhost:4000/ws/rooms', 'error');
-                console.error('URL parsing error:', e);
+                this.log('❌ URL inválida. Verifique a Base URL e o namespace', 'error');
+                console.error('Connection error:', e);
 
                 if (typeof Toast !== 'undefined') {
                     Toast.error('URL inválida');
@@ -314,9 +348,12 @@ function socketTester() {
                     Toast.warning('Desconectado do WebSocket');
                 }
 
-                // Auto-reconnect logic
+                if (this.intentionalDisconnect) {
+                    this.log('ℹ️ Desconexão manual - reconexão automática desabilitada', 'info');
+                    return;
+                }
+
                 if (reason === 'io server disconnect') {
-                    // Server disconnected us, don't reconnect
                     return;
                 }
 
@@ -492,6 +529,8 @@ function socketTester() {
         },
 
         disconnect() {
+            this.intentionalDisconnect = true;
+
             if (this.reconnectTimer) {
                 clearTimeout(this.reconnectTimer);
                 this.reconnectTimer = null;
@@ -519,9 +558,10 @@ function socketTester() {
             this.isCreatingRoom = true;
 
             try {
-                const response = await fetch('/room', {
+                const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
+                const response = await fetch(`${baseUrl}/room`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: this.getFetchHeaders(),
                     body: JSON.stringify({ name: this.newRoomName.trim() })
                 });
 
@@ -557,10 +597,20 @@ function socketTester() {
             this.isLoadingRooms = true;
 
             try {
-                const response = await fetch('/room');
+                const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
+                const response = await fetch(`${baseUrl}/room`, {
+                    headers: this.getFetchHeaders()
+                });
                 if (response.ok) {
                     this.rooms = await response.json();
                     this.log(`📋 Listadas ${this.rooms.length} salas`, 'info');
+
+                    // Reinitialize Lucide icons after DOM update
+                    this.$nextTick(() => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    });
                 } else {
                     this.log('❌ Erro ao listar salas', 'error');
                 }
@@ -571,44 +621,73 @@ function socketTester() {
             }
         },
 
-        async deleteRoom() {
-            if (!this.deleteRoomId.trim()) {
+        async deleteRoom(roomId = null) {
+            // Use provided roomId or fallback to deleteRoomId input field
+            const targetRoomId = roomId || this.deleteRoomId.trim();
+
+            if (!targetRoomId) {
                 this.log('❌ ID da sala é obrigatório', 'error');
-                return;
+                if (typeof Toast !== 'undefined') {
+                    Toast.error('ID da sala é obrigatório');
+                }
+                return { success: false, error: 'ID da sala é obrigatório' };
             }
 
-            if (!confirm(`Tem certeza que deseja deletar a sala ${this.deleteRoomId}?`)) {
-                return;
+            // Only show confirmation dialog if called from the form (no roomId parameter)
+            if (!roomId && !confirm(`Tem certeza que deseja deletar a sala ${targetRoomId}?`)) {
+                return { success: false, error: 'Ação cancelada pelo usuário' };
             }
 
             try {
-                const response = await fetch(`/room/${this.deleteRoomId}`, {
-                    method: 'DELETE'
+                const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
+                const response = await fetch(`${baseUrl}/room/${targetRoomId}`, {
+                    method: 'DELETE',
+                    headers: this.getFetchHeaders()
                 });
 
                 if (response.ok) {
                     const result = await response.json();
                     this.log(`✅ ${result.message}`, 'success');
-                    this.deleteRoomId = '';
+
+                    // Clear the input field only if called from form
+                    if (!roomId) {
+                        this.deleteRoomId = '';
+                    }
+
+                    // Refresh rooms list
                     this.listRooms();
 
-                    if (typeof Toast !== 'undefined') {
-                        Toast.success('Sala deletada');
+                    // Close room if we're deleting the current room
+                    if (this.currentRoomId === targetRoomId) {
+                        this.leaveCurrentRoom();
                     }
-                } else {
-                    const error = await response.json();
-                    this.log(`❌ Erro ao deletar sala: ${Sanitizer.escapeHtml(error.message)}`, 'error');
 
                     if (typeof Toast !== 'undefined') {
-                        Toast.error('Erro ao deletar sala');
+                        Toast.success('Sala deletada com sucesso');
                     }
+
+                    return { success: true, message: result.message };
+                } else {
+                    const error = await response.json();
+                    const errorMessage = error.message || 'Erro ao deletar sala';
+
+                    this.log(`❌ Erro ao deletar sala: ${Sanitizer.escapeHtml(errorMessage)}`, 'error');
+
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error(errorMessage);
+                    }
+
+                    return { success: false, error: errorMessage, statusCode: response.status };
                 }
             } catch (error) {
-                this.log(`❌ Erro de rede: ${Sanitizer.escapeHtml(error.message)}`, 'error');
+                const errorMessage = `Erro de rede: ${error.message}`;
+                this.log(`❌ ${Sanitizer.escapeHtml(errorMessage)}`, 'error');
 
                 if (typeof Toast !== 'undefined') {
                     Toast.error('Erro de conexão');
                 }
+
+                return { success: false, error: errorMessage };
             }
         },
 
