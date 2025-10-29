@@ -12,6 +12,6 @@ export class SendMessageDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Message cannot be empty' })
-  @MaxLength(1000, { message: 'Message too long (max 1000 characters)' })
+  // @MaxLength(1000, { message: 'Message too long (max 1000 characters)' })
   message: string;
 }
