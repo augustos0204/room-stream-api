@@ -13,6 +13,7 @@ function socketTester() {
         // Form data
         baseUrl: window.location.origin,
         wsNamespace: '/ws/rooms',
+        apiKey: '', // API Key for authentication
         newRoomName: '',
         deleteRoomId: '',
         roomId: 'test-room',
@@ -38,6 +39,13 @@ function socketTester() {
         // Mobile navigation
         mobileSection: 'rooms', // 'rooms', 'chat', 'participants'
         urlInputExpanded: false, // Control mobile URL input expansion
+
+        // Desktop config expansion states
+        configExpanded: {
+            apiKey: false,
+            baseUrl: false,
+            namespace: false
+        },
 
         // Initialize
         init() {
@@ -69,6 +77,19 @@ function socketTester() {
             } else {
                 localStorage.removeItem('participantName');
             }
+        },
+
+        // Get fetch headers with API key if provided
+        getFetchHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (this.apiKey && this.apiKey.trim()) {
+                headers['x-api-key'] = this.apiKey.trim();
+            }
+
+            return headers;
         },
 
         // Room management
@@ -260,13 +281,24 @@ function socketTester() {
                 this.log(`Conectando ao WebSocket: ${fullUrl}`, 'info');
                 console.log('Connecting to:', fullUrl);
 
-                // Connect to namespace directly
-                this.socket = io(fullUrl, {
+                // Prepare socket.io options
+                const socketOptions = {
                     forceNew: true,
                     timeout: 5000,
                     transports: ['websocket', 'polling'],
                     reconnection: false // We handle reconnection manually
-                });
+                };
+
+                // Add API key if provided
+                if (this.apiKey && this.apiKey.trim()) {
+                    socketOptions.auth = {
+                        apiKey: this.apiKey.trim()
+                    };
+                    this.log('🔐 Usando autenticação via API Key', 'info');
+                }
+
+                // Connect to namespace directly
+                this.socket = io(fullUrl, socketOptions);
 
                 this.setupSocketListeners();
 
@@ -529,7 +561,7 @@ function socketTester() {
                 const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
                 const response = await fetch(`${baseUrl}/room`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: this.getFetchHeaders(),
                     body: JSON.stringify({ name: this.newRoomName.trim() })
                 });
 
@@ -566,7 +598,9 @@ function socketTester() {
 
             try {
                 const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
-                const response = await fetch(`${baseUrl}/room`);
+                const response = await fetch(`${baseUrl}/room`, {
+                    headers: this.getFetchHeaders()
+                });
                 if (response.ok) {
                     this.rooms = await response.json();
                     this.log(`📋 Listadas ${this.rooms.length} salas`, 'info');
@@ -607,7 +641,8 @@ function socketTester() {
             try {
                 const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
                 const response = await fetch(`${baseUrl}/room/${targetRoomId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: this.getFetchHeaders()
                 });
 
                 if (response.ok) {
