@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { MetricsEvents, MetricsEventKeys } from './metrics.events';
+import type { MetricsEvents, MetricsEventKeys } from './interfaces';
 
 @Injectable()
 export class EventsService {

@@ -9,13 +9,13 @@ import {
   calculateUptime,
   calculateUptimeMs,
 } from '../common/utils/uptime.util';
-import {
+import type {
   ClientEventPayload,
   RoomEventPayload,
   UserRoomEventPayload,
   MessageEventPayload,
-} from '../events/metrics.events';
-import { RoomMetrics, MetricsResponse } from '../types/metrics.types';
+} from '../events/interfaces';
+import type { RoomMetrics, MetricsResponse } from './interfaces';
 
 @Injectable()
 export class MetricsService implements OnModuleInit, OnModuleDestroy {

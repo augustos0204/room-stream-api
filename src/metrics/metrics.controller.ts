@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { MetricsService } from './metrics.service';
-import type { MetricsResponse } from '../types/metrics.types';
+import type { MetricsResponse } from './interfaces';
 
 @ApiTags('metrics')
 @Controller('metrics')

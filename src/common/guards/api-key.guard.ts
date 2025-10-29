@@ -8,6 +8,8 @@ import {
 import { Observable } from 'rxjs';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import type { AuthenticatedRequest } from '../interfaces';
+import { ApiKeyExtractor } from '../utils/api-key-extractor.util';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -37,13 +39,10 @@ export class ApiKeyGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    // Try to get API key from multiple sources
-    const apiKey =
-      request.headers['x-api-key'] ||
-      request.headers['authorization']?.replace('Bearer ', '') ||
-      request.query.apiKey;
+    // Extract API key using utility
+    const apiKey = ApiKeyExtractor.extract(request);
 
     if (!apiKey) {
       this.logger.warn(
