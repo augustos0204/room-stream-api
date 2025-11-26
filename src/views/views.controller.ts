@@ -5,9 +5,17 @@ import { Public } from '../common/decorators';
 @Controller('view')
 @Public()
 export class ViewsController {
+  private getEnvConfig() {
+    return {
+      supabaseUrl: process.env.SUPABASE_URL || null,
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
+      websocketNamespace: process.env.WEBSOCKET_NAMESPACE || '/ws/rooms',
+    };
+  }
+
   @Get()
   getAdminIndex(@Res() res: Response) {
-    return res.sendFile('index.html', { root: './src/views/public' });
+    return res.render('index', this.getEnvConfig());
   }
 
   @Get('assets/styles/:filename')
@@ -40,7 +48,6 @@ export class ViewsController {
 
   @Get(':viewName')
   getView(@Param('viewName') viewName: string, @Res() res: Response) {
-    const fileName = `${viewName}.html`;
-    return res.sendFile(fileName, { root: './src/views/public' });
+    return res.render(viewName, this.getEnvConfig());
   }
 }

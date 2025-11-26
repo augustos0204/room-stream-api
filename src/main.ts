@@ -2,6 +2,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
@@ -10,7 +11,11 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { SupabaseService } from './supabase/supabase.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Configurar EJS como template engine
+  app.setBaseViewsDir(path.join(__dirname, 'views', 'public'));
+  app.setViewEngine('ejs');
 
   // Configurar CORS para permitir ferramentas externas
   app.enableCors({
