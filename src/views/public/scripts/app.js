@@ -47,6 +47,16 @@ function socketTester() {
             namespace: false
         },
 
+        // Supabase authentication state
+        showSupabaseModal: false,
+        supabaseClient: null,
+        supabaseToken: null,
+        supabaseUser: null,
+        supabaseEmail: '',
+        supabasePassword: '',
+        supabaseError: null,
+        supabaseLoading: false,
+
         // Initialize
         init() {
             // Load saved participant name from localStorage
@@ -54,6 +64,9 @@ function socketTester() {
             if (savedName) {
                 this.participantName = savedName;
             }
+
+            // Initialize Supabase if configured
+            this.initializeSupabase();
 
             this.log('🚀 Socket.IO Tester carregado', 'success');
             this.log('💡 Clique em "Conectar" para começar', 'info');
@@ -70,6 +83,129 @@ function socketTester() {
             }
         },
 
+        // Initialize Supabase client
+        initializeSupabase() {
+            if (window.ENV?.supabaseUrl && window.ENV?.supabaseAnonKey && typeof supabase !== 'undefined') {
+                try {
+                    this.supabaseClient = supabase.createClient(
+                        window.ENV.supabaseUrl,
+                        window.ENV.supabaseAnonKey
+                    );
+                    this.log('✅ Supabase inicializado', 'success');
+
+                    // Check for existing session
+                    this.checkSupabaseSession();
+                } catch (error) {
+                    console.error('Failed to initialize Supabase:', error);
+                    this.log('❌ Erro ao inicializar Supabase: ' + error.message, 'error');
+                }
+            }
+        },
+
+        // Check for existing Supabase session
+        async checkSupabaseSession() {
+            if (!this.supabaseClient) return;
+
+            try {
+                const { data: { session } } = await this.supabaseClient.auth.getSession();
+                if (session) {
+                    this.supabaseToken = session.access_token;
+                    this.supabaseUser = session.user;
+
+                    // Set participant name from Supabase user data
+                    this.participantName = session.user.email || session.user.user_metadata?.name || 'User';
+
+                    this.log('✅ Sessão Supabase restaurada', 'success');
+                }
+            } catch (error) {
+                console.error('Failed to check Supabase session:', error);
+            }
+        },
+
+        // Handle Supabase login
+        async handleSupabaseLogin() {
+            if (!this.supabaseClient) {
+                this.supabaseError = 'Supabase não está configurado';
+                return;
+            }
+
+            this.supabaseLoading = true;
+            this.supabaseError = null;
+
+            try {
+                const { data, error } = await this.supabaseClient.auth.signInWithPassword({
+                    email: this.supabaseEmail,
+                    password: this.supabasePassword
+                });
+
+                if (error) throw error;
+
+                this.supabaseToken = data.session.access_token;
+                this.supabaseUser = data.user;
+                this.supabasePassword = ''; // Clear password
+
+                // Set participant name from Supabase user data
+                this.participantName = data.user.email || data.user.user_metadata?.name || 'User';
+
+                this.log(`✅ Login Supabase realizado: ${data.user.email}`, 'success');
+
+                if (typeof Toast !== 'undefined') {
+                    Toast.success('Login realizado com sucesso!');
+                }
+
+                // Refresh icons for new state
+                setTimeout(() => {
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }, 100);
+
+            } catch (error) {
+                this.supabaseError = error.message || 'Erro ao fazer login';
+                this.log('❌ Erro no login Supabase: ' + this.supabaseError, 'error');
+
+                if (typeof Toast !== 'undefined') {
+                    Toast.error('Erro ao fazer login: ' + this.supabaseError);
+                }
+            } finally {
+                this.supabaseLoading = false;
+            }
+        },
+
+        // Handle Supabase logout
+        async handleSupabaseLogout() {
+            if (!this.supabaseClient) return;
+
+            try {
+                await this.supabaseClient.auth.signOut();
+                this.supabaseToken = null;
+                this.supabaseUser = null;
+                this.supabaseEmail = '';
+                this.supabasePassword = '';
+                this.supabaseError = null;
+                this.showSupabaseModal = false;
+
+                // Clear participant name on logout
+                this.participantName = '';
+
+                this.log('✅ Logout Supabase realizado', 'success');
+
+                if (typeof Toast !== 'undefined') {
+                    Toast.info('Logout realizado com sucesso');
+                }
+
+                // Refresh icons
+                setTimeout(() => {
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }, 100);
+            } catch (error) {
+                console.error('Logout error:', error);
+                this.log('❌ Erro no logout: ' + error.message, 'error');
+            }
+        },
+
         // Save participant name to localStorage
         saveParticipantName() {
             if (this.participantName?.trim()) {
@@ -79,7 +215,7 @@ function socketTester() {
             }
         },
 
-        // Get fetch headers with API key if provided
+        // Get fetch headers with API key and/or Supabase token if provided
         getFetchHeaders() {
             const headers = {
                 'Content-Type': 'application/json'
@@ -87,6 +223,10 @@ function socketTester() {
 
             if (this.apiKey && this.apiKey.trim()) {
                 headers['x-api-key'] = this.apiKey.trim();
+            }
+
+            if (this.supabaseToken) {
+                headers['Authorization'] = `Bearer ${this.supabaseToken}`;
             }
 
             return headers;
@@ -289,12 +429,22 @@ function socketTester() {
                     reconnection: false // We handle reconnection manually
                 };
 
-                // Add API key if provided
-                if (this.apiKey && this.apiKey.trim()) {
-                    socketOptions.auth = {
-                        apiKey: this.apiKey.trim()
-                    };
-                    this.log('🔐 Usando autenticação via API Key', 'info');
+                // Add authentication
+                const hasApiKey = this.apiKey && this.apiKey.trim();
+                const hasSupabaseToken = this.supabaseToken;
+
+                if (hasApiKey || hasSupabaseToken) {
+                    socketOptions.auth = {};
+
+                    if (hasApiKey) {
+                        socketOptions.auth.apiKey = this.apiKey.trim();
+                        this.log('🔐 Usando autenticação via API Key', 'info');
+                    }
+
+                    if (hasSupabaseToken) {
+                        socketOptions.auth.token = this.supabaseToken;
+                        this.log('🔐 Usando autenticação via Supabase JWT', 'info');
+                    }
                 }
 
                 // Connect to namespace directly
