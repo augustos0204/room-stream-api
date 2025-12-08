@@ -21,6 +21,12 @@ async function bootstrap() {
   ]);
   app.setViewEngine('ejs');
 
+  // Desabilitar cache do EJS em desenvolvimento para hot-reload
+  if (process.env.NODE_ENV !== 'production') {
+    app.set('view cache', false);
+    console.log('🔥 EJS cache desabilitado para hot-reload');
+  }
+
   // Configurar CORS para permitir ferramentas externas
   app.enableCors({
     origin: process.env.CORS_ORIGIN || '*',
