@@ -90,6 +90,19 @@
         Pular para conteúdo principal
     </a>
 
+    <!-- Full Screen Login Page (quando não autenticado) -->
+    <div 
+        x-show="!apiKey && !supabaseUser"
+        x-transition:enter="transition ease-out duration-500"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+    >
+        <%- include('../partials/page-login', { features: features }) %>
+    </div>
+
+    <!-- Platform Interface (quando autenticado) -->
+    <div x-show="apiKey || supabaseUser" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+
     <!-- Platform Topbar (Fixed at Top) -->
     <%- include('../partials/platform-topbar', { features: features }) %>
 
@@ -131,6 +144,9 @@
     <%- include('../partials/modal-create-room') %>
     <%- include('../partials/modal-chat') %>
     <%- include('../partials/modal-shortcuts') %>
+
+    </div>
+    <!-- End Platform Interface -->
 
     <!-- Load utilities and app -->
     <script src="/view/assets/scripts/sanitizer.js"></script>
