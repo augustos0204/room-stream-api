@@ -27,6 +27,7 @@ import { WsExceptionFilter } from '../common/filters/websocket-exception.filter'
 interface AuthenticatedSocket extends Socket {
   data: {
     user?: User;
+    validationTimer?: NodeJS.Timeout; // Timer para validação periódica do token
   };
 }
 
@@ -46,6 +47,11 @@ export class RoomGateway
 {
   @WebSocketServer() server: Server;
   private logger: Logger = new Logger('RoomGateway');
+
+  // Intervalo de validação do token (em milissegundos)
+  // Padrão: 5 minutos
+  private readonly TOKEN_VALIDATION_INTERVAL =
+    parseInt(process.env.TOKEN_VALIDATION_INTERVAL || '300000', 10);
 
   constructor(
     private readonly roomService: RoomService,
@@ -120,6 +126,9 @@ export class RoomGateway
         `User authenticated via Supabase: ${user.id} (${user.email})`,
       );
 
+      // Iniciar validação periódica do token Supabase
+      this.startTokenValidation(client);
+
       const namespace = client.nsp.name;
       this.eventsService.emitMetricsEvent('metrics:client-connected', {
         clientId: client.id,
@@ -175,7 +184,79 @@ export class RoomGateway
     return null;
   }
 
-  handleDisconnect(client: Socket) {
+  /**
+   * Inicia a validação periódica do token Supabase
+   * Valida o token a cada intervalo configurado e desconecta se expirado
+   */
+  private startTokenValidation(client: AuthenticatedSocket): void {
+    if (!client.data.user) {
+      return; // Não há usuário Supabase para validar
+    }
+
+    const userId = client.data.user.id;
+    const userEmail = client.data.user.email;
+
+    this.logger.debug(
+      `Iniciando validação periódica do token para usuário ${userId} a cada ${this.TOKEN_VALIDATION_INTERVAL / 1000}s`,
+    );
+
+    // Validar token periodicamente
+    const validationTimer = setInterval(async () => {
+      const token = this.extractToken(client);
+
+      if (!token) {
+        this.logger.warn(
+          `Token não encontrado para usuário ${userId}, desconectando`,
+        );
+        this.stopTokenValidation(client);
+        client.emit('error', {
+          message: 'Token not found. Please reconnect with a valid token.',
+        });
+        client.disconnect();
+        return;
+      }
+
+      const user = await this.supabaseService.validateToken(token);
+
+      if (!user) {
+        this.logger.warn(
+          `Token expirado ou inválido para usuário ${userId} (${userEmail}), desconectando`,
+        );
+        this.stopTokenValidation(client);
+        client.emit('tokenExpired', {
+          message: 'Your session has expired. Please log in again.',
+          userId: userId,
+        });
+        client.disconnect();
+        return;
+      }
+
+      this.logger.debug(
+        `Token validado com sucesso para usuário ${userId} (${userEmail})`,
+      );
+    }, this.TOKEN_VALIDATION_INTERVAL);
+
+    // Armazenar o timer no client.data para limpeza posterior
+    client.data.validationTimer = validationTimer;
+  }
+
+  /**
+   * Para a validação periódica do token
+   */
+  private stopTokenValidation(client: AuthenticatedSocket): void {
+    if (client.data.validationTimer) {
+      clearInterval(client.data.validationTimer);
+      client.data.validationTimer = undefined;
+      this.logger.debug(
+        `Validação periódica do token parada para cliente ${client.id}`,
+      );
+    }
+  }
+
+  handleDisconnect(client: AuthenticatedSocket) {
+    // Parar validação periódica do token se estiver ativa
+    this.stopTokenValidation(client);
+
     const namespace = client.nsp.name;
     this.eventsService.emitMetricsEvent('metrics:client-disconnected', {
       clientId: client.id,
