@@ -6,7 +6,8 @@ function platformApp() {
     return {
         // ==================== NAVIGATION & ROUTING ====================
         currentPage: 'dashboard', // 'dashboard', 'rooms', 'settings'
-        sidebarExpanded: true,
+        sidebarExpanded: false, // Sidebar começa fechada
+        sidebarPinned: false, // Se está fixada (não fecha com hover out)
         metricsInterval: null, // Interval for auto-updating metrics
 
         // ==================== CONNECTION STATE ====================
@@ -189,7 +190,20 @@ function platformApp() {
         },
 
         toggleSidebar() {
-            this.sidebarExpanded = !this.sidebarExpanded;
+            this.sidebarPinned = !this.sidebarPinned;
+            this.sidebarExpanded = this.sidebarPinned;
+        },
+
+        // Hover handlers para sidebar
+        handleSidebarMouseEnter() {
+            this.sidebarExpanded = true;
+        },
+
+        handleSidebarMouseLeave() {
+            // Só fecha se não estiver fixada
+            if (!this.sidebarPinned) {
+                this.sidebarExpanded = false;
+            }
         },
 
         setupKeyboardShortcuts() {

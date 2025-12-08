@@ -90,17 +90,17 @@
         Pular para conteúdo principal
     </a>
 
-    <!-- Platform Sidebar -->
-    <%- include('../partials/platform-sidebar') %>
-
-    <!-- Platform Topbar -->
+    <!-- Platform Topbar (Fixed at Top) -->
     <%- include('../partials/platform-topbar', { features: features }) %>
+
+    <!-- Platform Sidebar (Below Topbar) -->
+    <%- include('../partials/platform-sidebar') %>
 
     <!-- Main Content Area -->
     <main
         id="main-content"
-        class="transition-all duration-300 pt-20"
-        :class="sidebarExpanded ? 'ml-64' : 'ml-16'"
+        class="transition-all duration-300 pt-[73px] ml-16"
+        :class="sidebarPinned && sidebarExpanded ? 'ml-64' : 'ml-16'"
     >
         <div class="p-6 h-[calc(100vh-5rem)] overflow-y-auto custom-scrollbar">
 
