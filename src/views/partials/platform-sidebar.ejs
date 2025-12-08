@@ -1,0 +1,139 @@
+<!-- Platform Sidebar Navigation -->
+<aside
+    class="sidebar fixed left-0 top-0 h-screen dark-glass border-r border-gray-700/50 transition-all duration-300 z-40 flex flex-col"
+    :class="sidebarExpanded ? 'w-64' : 'w-16'"
+>
+    <!-- Logo & Collapse Button -->
+    <div class="flex items-center justify-between p-4 border-b border-gray-700/50">
+        <div class="flex items-center gap-3" x-show="sidebarExpanded">
+            <div class="logo-icon relative w-8 h-8 flex-shrink-0">
+                <%- include('../partials/logo-svg') %>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                    RoomStream
+                </h1>
+                <p class="text-xs text-gray-400">Platform</p>
+            </div>
+        </div>
+        <button
+            @click="toggleSidebar()"
+            class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+            :class="!sidebarExpanded && 'mx-auto'"
+        >
+            <i data-lucide="panel-left" class="w-5 h-5 text-gray-400"></i>
+        </button>
+    </div>
+
+    <!-- Navigation Items -->
+    <nav class="p-2 space-y-1 flex-1">
+        <!-- Dashboard -->
+        <button
+            @click="navigateTo('dashboard')"
+            class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200"
+            :class="currentPage === 'dashboard'
+                ? 'bg-gradient-to-r from-blue-600/30 to-cyan-600/30 border border-blue-500/50 text-blue-300'
+                : 'hover:bg-gray-700/30 text-gray-400 hover:text-gray-200'"
+        >
+            <i data-lucide="bar-chart-3" class="w-5 h-5 flex-shrink-0"></i>
+            <span x-show="sidebarExpanded" class="font-medium">Dashboard</span>
+        </button>
+
+        <!-- Rooms -->
+        <button
+            @click="navigateTo('rooms')"
+            class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200"
+            :class="currentPage === 'rooms'
+                ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-purple-500/50 text-purple-300'
+                : 'hover:bg-gray-700/30 text-gray-400 hover:text-gray-200'"
+        >
+            <i data-lucide="layout-grid" class="w-5 h-5 flex-shrink-0"></i>
+            <span x-show="sidebarExpanded" class="font-medium">Salas</span>
+            <span
+                x-show="sidebarExpanded && rooms.length > 0"
+                class="ml-auto px-2 py-0.5 text-xs rounded-full bg-gray-700"
+                x-text="rooms.length"
+            ></span>
+        </button>
+
+        <!-- Settings -->
+        <button
+            @click="navigateTo('settings')"
+            class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200"
+            :class="currentPage === 'settings'
+                ? 'bg-gradient-to-r from-orange-600/30 to-yellow-600/30 border border-orange-500/50 text-orange-300'
+                : 'hover:bg-gray-700/30 text-gray-400 hover:text-gray-200'"
+        >
+            <i data-lucide="settings" class="w-5 h-5 flex-shrink-0"></i>
+            <span x-show="sidebarExpanded" class="font-medium">Configurações</span>
+        </button>
+    </nav>
+
+    <!-- User Profile / Login Area (Bottom) -->
+    <div class="border-t border-gray-700/50 p-4">
+        <!-- Not Logged In -->
+        <div x-show="!supabaseUser && !apiKey" class="space-y-2">
+            <button
+                @click="showProfileModal = true"
+                class="w-full flex items-center gap-3 px-3 py-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 hover:from-purple-600/30 hover:to-pink-600/30 border border-purple-500/50 rounded-lg transition-all"
+                :class="!sidebarExpanded && 'justify-center'"
+            >
+                <i data-lucide="log-in" class="w-5 h-5 text-purple-400"></i>
+                <span x-show="sidebarExpanded" class="text-purple-300 font-medium">Fazer Login</span>
+            </button>
+        </div>
+
+        <!-- Logged In (Supabase) -->
+        <div x-show="supabaseUser" class="space-y-3">
+            <div class="flex items-center gap-3" :class="!sidebarExpanded && 'justify-center'">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="user" class="w-5 h-5 text-white"></i>
+                </div>
+                <div x-show="sidebarExpanded" class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-200 truncate" x-text="supabaseUser?.email"></p>
+                    <p class="text-xs text-green-400">Supabase Auth</p>
+                </div>
+            </div>
+            <button
+                x-show="sidebarExpanded"
+                @click="showProfileModal = true"
+                class="w-full px-3 py-2 bg-gray-700/50 hover:bg-gray-700 rounded-lg text-sm text-gray-300 transition-colors"
+            >
+                Ver Perfil
+            </button>
+        </div>
+
+        <!-- Logged In (API Key) -->
+        <div x-show="!supabaseUser && apiKey" class="space-y-3">
+            <div class="flex items-center gap-3" :class="!sidebarExpanded && 'justify-center'">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="key" class="w-5 h-5 text-white"></i>
+                </div>
+                <div x-show="sidebarExpanded" class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-200 truncate" x-text="participantName || 'Usuário'"></p>
+                    <p class="text-xs text-blue-400">API Key Auth</p>
+                </div>
+            </div>
+            <button
+                x-show="sidebarExpanded"
+                @click="showProfileModal = true"
+                class="w-full px-3 py-2 bg-gray-700/50 hover:bg-gray-700 rounded-lg text-sm text-gray-300 transition-colors"
+            >
+                Ver Perfil
+            </button>
+        </div>
+    </div>
+</aside>
+
+<!-- Sidebar Overlay (Mobile) -->
+<div
+    x-show="sidebarExpanded && window.innerWidth < 1024"
+    @click="sidebarExpanded = false"
+    class="fixed inset-0 bg-black/50 z-30 lg:hidden"
+    x-transition:enter="transition-opacity ease-linear duration-200"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition-opacity ease-linear duration-200"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+></div>

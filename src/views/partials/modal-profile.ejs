@@ -1,0 +1,428 @@
+<!-- Profile/Login Modal (Adaptive) -->
+<div
+    x-show="showProfileModal"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    @click.self="showProfileModal = false"
+>
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+
+    <!-- Modal Content -->
+    <div
+        class="relative dark-glass rounded-xl border border-gray-700/50 max-w-md w-full max-h-[90vh] overflow-y-auto custom-scrollbar"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 transform scale-95"
+        x-transition:enter-end="opacity-100 transform scale-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 transform scale-100"
+        x-transition:leave-end="opacity-0 transform scale-95"
+        @click.stop
+    >
+        <!-- ========================================== -->
+        <!-- NOT LOGGED IN: Login Form -->
+        <!-- ========================================== -->
+        <template x-if="!supabaseUser && !apiKey">
+            <div>
+                <!-- Header -->
+                <div class="flex items-center justify-between p-6 border-b border-gray-700/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
+                            <i data-lucide="log-in" class="w-5 h-5 text-white"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Fazer Login</h2>
+                            <p class="text-sm text-gray-400">Entre com Supabase ou API Key</p>
+                        </div>
+                    </div>
+                    <button
+                        @click="showProfileModal = false"
+                        class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                    >
+                        <i data-lucide="x" class="w-5 h-5 text-gray-400"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="p-6 space-y-6">
+
+                    <!-- Login Method Tabs -->
+                    <div class="flex gap-2 p-1 bg-gray-900/50 rounded-lg">
+                        <button
+                            @click="loginMethod = 'supabase'"
+                            class="flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all"
+                            :class="loginMethod === 'supabase'
+                                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
+                                : 'text-gray-400 hover:text-gray-200'"
+                        >
+                            <div class="flex items-center justify-center gap-2">
+                                <i data-lucide="shield-check" class="w-4 h-4"></i>
+                                <span>Supabase</span>
+                            </div>
+                        </button>
+                        <button
+                            @click="loginMethod = 'apikey'"
+                            class="flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all"
+                            :class="loginMethod === 'apikey'
+                                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+                                : 'text-gray-400 hover:text-gray-200'"
+                        >
+                            <div class="flex items-center justify-center gap-2">
+                                <i data-lucide="key" class="w-4 h-4"></i>
+                                <span>API Key</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Supabase Login Form -->
+                    <div x-show="loginMethod === 'supabase'">
+                        <% if (features.supabaseAuth) { %>
+                        <form @submit.prevent="handleSupabaseLogin()" class="space-y-4">
+                            <!-- Email -->
+                            <div>
+                                <label for="supabaseEmail" class="block text-sm font-medium text-gray-300 mb-2">
+                                    Email
+                                </label>
+                                <input
+                                    id="supabaseEmail"
+                                    type="email"
+                                    x-model="supabaseEmail"
+                                    placeholder="seu@email.com"
+                                    class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition-all"
+                                    required
+                                    :disabled="supabaseLoading"
+                                />
+                            </div>
+
+                            <!-- Password -->
+                            <div>
+                                <label for="supabasePassword" class="block text-sm font-medium text-gray-300 mb-2">
+                                    Senha
+                                </label>
+                                <input
+                                    id="supabasePassword"
+                                    type="password"
+                                    x-model="supabasePassword"
+                                    placeholder="••••••••"
+                                    class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition-all"
+                                    required
+                                    :disabled="supabaseLoading"
+                                />
+                            </div>
+
+                            <!-- Error Message -->
+                            <div x-show="supabaseError" class="p-3 bg-red-900/20 border border-red-700/50 rounded-lg">
+                                <p class="text-sm text-red-400" x-text="supabaseError"></p>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button
+                                type="submit"
+                                class="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg font-medium text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                :disabled="supabaseLoading"
+                            >
+                                <i data-lucide="log-in" class="w-4 h-4" x-show="!supabaseLoading"></i>
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="supabaseLoading"></i>
+                                <span x-text="supabaseLoading ? 'Entrando...' : 'Entrar com Supabase'"></span>
+                            </button>
+                        </form>
+                        <% } else { %>
+                        <div class="text-center py-8">
+                            <i data-lucide="alert-circle" class="w-12 h-12 text-yellow-500 mx-auto mb-3"></i>
+                            <p class="text-gray-400">Supabase não está configurado no servidor</p>
+                        </div>
+                        <% } %>
+                    </div>
+
+                    <!-- API Key Login Form -->
+                    <div x-show="loginMethod === 'apikey'">
+                        <form @submit.prevent="handleApiKeyLogin()" class="space-y-4">
+                            <!-- API Key Input -->
+                            <div>
+                                <label for="apiKeyInput" class="block text-sm font-medium text-gray-300 mb-2">
+                                    API Key
+                                </label>
+                                <input
+                                    id="apiKeyInput"
+                                    type="password"
+                                    x-model="apiKeyInput"
+                                    placeholder="Digite sua API Key"
+                                    class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all font-mono"
+                                    required
+                                />
+                                <p class="text-xs text-gray-500 mt-2">
+                                    💡 A API Key será salva localmente e usada para autenticação
+                                </p>
+                            </div>
+
+                            <!-- Participant Name -->
+                            <div>
+                                <label for="participantNameInput" class="block text-sm font-medium text-gray-300 mb-2">
+                                    Seu Nome (Opcional)
+                                </label>
+                                <input
+                                    id="participantNameInput"
+                                    type="text"
+                                    x-model="participantName"
+                                    placeholder="Digite seu nome"
+                                    class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                />
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button
+                                type="submit"
+                                class="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-lg font-medium text-white transition-all duration-200 flex items-center justify-center gap-2"
+                            >
+                                <i data-lucide="key" class="w-4 h-4"></i>
+                                <span>Entrar com API Key</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="p-6 border-t border-gray-700/50 bg-gray-900/50">
+                    <p class="text-sm text-gray-400 text-center">
+                        🔒 Suas credenciais são seguras e não são compartilhadas
+                    </p>
+                </div>
+            </div>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- LOGGED IN: Profile View -->
+        <!-- ========================================== -->
+        <template x-if="supabaseUser || apiKey">
+            <div>
+                <!-- Header -->
+                <div class="flex items-center justify-between p-6 border-b border-gray-700/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center"
+                             :class="supabaseUser ? 'bg-gradient-to-br from-green-600 to-emerald-600' : 'bg-gradient-to-br from-blue-600 to-cyan-600'">
+                            <i :data-lucide="supabaseUser ? 'shield-check' : 'key'" class="w-5 h-5 text-white"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Meu Perfil</h2>
+                            <p class="text-sm text-gray-400" x-text="supabaseUser ? 'Supabase Authentication' : 'API Key Authentication'"></p>
+                        </div>
+                    </div>
+                    <button
+                        @click="showProfileModal = false"
+                        class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                    >
+                        <i data-lucide="x" class="w-5 h-5 text-gray-400"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="p-6 space-y-6">
+
+                    <!-- ========================================== -->
+                    <!-- SUPABASE PROFILE (Read-only) -->
+                    <!-- ========================================== -->
+                    <template x-if="supabaseUser">
+                        <div class="space-y-4">
+                            <!-- User ID -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-400 mb-2">User ID</label>
+                                <div class="px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+                                    <p class="text-white font-mono text-sm" x-text="supabaseUser?.id"></p>
+                                </div>
+                            </div>
+
+                            <!-- Email -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-400 mb-2">Email</label>
+                                <div class="px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+                                    <p class="text-white" x-text="supabaseUser?.email"></p>
+                                </div>
+                            </div>
+
+                            <!-- Display Name -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-400 mb-2">Nome de Exibição</label>
+                                <div class="px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+                                    <p class="text-white" x-text="participantName"></p>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    ℹ️ Nome derivado automaticamente do Supabase (não editável)
+                                </p>
+                            </div>
+
+                            <!-- Connection Info -->
+                            <div class="pt-4 border-t border-gray-700/50">
+                                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Informações de Conexão</h3>
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                                        <span class="text-gray-400 text-sm">Status WebSocket:</span>
+                                        <span class="font-medium text-sm" :class="isConnected ? 'text-green-400' : 'text-red-400'"
+                                              x-text="isConnected ? 'Conectado' : 'Desconectado'"></span>
+                                    </div>
+
+                                    <template x-if="isConnected && socket">
+                                        <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                                            <span class="text-gray-400 text-sm">Socket ID:</span>
+                                            <span class="font-mono text-xs text-gray-300 truncate ml-2" x-text="socket.id"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Logout Button -->
+                            <div class="pt-4">
+                                <button
+                                    @click="handleSupabaseLogout()"
+                                    class="w-full px-6 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-700/50 rounded-lg font-medium text-red-400 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                                    <span>Sair da Conta</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- ========================================== -->
+                    <!-- API KEY PROFILE (Editable) -->
+                    <!-- ========================================== -->
+                    <template x-if="!supabaseUser && apiKey">
+                        <div class="space-y-6">
+                            <!-- Participant Name (Editable) -->
+                            <form @submit.prevent="updateParticipantName()" class="space-y-4">
+                                <div>
+                                    <label for="profileName" class="block text-sm font-medium text-gray-300 mb-2">
+                                        Nome de Exibição
+                                    </label>
+                                    <input
+                                        id="profileName"
+                                        type="text"
+                                        x-model="participantName"
+                                        placeholder="Digite seu nome"
+                                        class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    />
+                                    <p class="text-xs text-gray-500 mt-2">
+                                        Este nome será exibido nas salas de chat
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-white transition-colors flex items-center gap-2"
+                                >
+                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                    <span>Salvar Nome</span>
+                                </button>
+                            </form>
+
+                            <!-- API Key Info (Read-only, masked) -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-400 mb-2">API Key</label>
+                                <div class="px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg flex items-center justify-between">
+                                    <p class="text-white font-mono text-sm">
+                                        <span x-text="showApiKey ? apiKey : '•'.repeat(32)"></span>
+                                    </p>
+                                    <button
+                                        @click="showApiKey = !showApiKey"
+                                        class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                                    >
+                                        <i :data-lucide="showApiKey ? 'eye-off' : 'eye'" class="w-4 h-4 text-gray-400"></i>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    🔒 Salva localmente no navegador
+                                </p>
+                            </div>
+
+                            <!-- Change API Key -->
+                            <div>
+                                <button
+                                    @click="showChangeApiKeyForm = !showChangeApiKeyForm"
+                                    class="w-full px-6 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg font-medium text-gray-300 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                    <span>Alterar API Key</span>
+                                </button>
+                            </div>
+
+                            <!-- Change API Key Form (Collapsible) -->
+                            <div x-show="showChangeApiKeyForm" x-collapse>
+                                <form @submit.prevent="handleChangeApiKey()" class="space-y-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700/50">
+                                    <div>
+                                        <label for="newApiKey" class="block text-sm font-medium text-gray-300 mb-2">
+                                            Nova API Key
+                                        </label>
+                                        <input
+                                            id="newApiKey"
+                                            type="password"
+                                            x-model="newApiKeyInput"
+                                            placeholder="Digite a nova API Key"
+                                            class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all font-mono"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div class="flex gap-3">
+                                        <button
+                                            type="submit"
+                                            class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-white transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <i data-lucide="check" class="w-4 h-4"></i>
+                                            <span>Confirmar</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="showChangeApiKeyForm = false; newApiKeyInput = ''"
+                                            class="px-6 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg font-medium text-gray-300 transition-colors"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Connection Info -->
+                            <div class="pt-4 border-t border-gray-700/50">
+                                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Informações de Conexão</h3>
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                                        <span class="text-gray-400 text-sm">Status WebSocket:</span>
+                                        <span class="font-medium text-sm" :class="isConnected ? 'text-green-400' : 'text-red-400'"
+                                              x-text="isConnected ? 'Conectado' : 'Desconectado'"></span>
+                                    </div>
+
+                                    <template x-if="isConnected && socket">
+                                        <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                                            <span class="text-gray-400 text-sm">Socket ID:</span>
+                                            <span class="font-mono text-xs text-gray-300 truncate ml-2" x-text="socket.id"></span>
+                                        </div>
+                                    </template>
+
+                                    <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                                        <span class="text-gray-400 text-sm">Namespace:</span>
+                                        <span class="font-mono text-xs text-gray-300" x-text="wsNamespace"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Logout Button -->
+                            <div class="pt-4">
+                                <button
+                                    @click="handleApiKeyLogout()"
+                                    class="w-full px-6 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-700/50 rounded-lg font-medium text-red-400 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                                    <span>Sair da Conta</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
