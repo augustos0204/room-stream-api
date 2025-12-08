@@ -59,6 +59,18 @@ function socketTester() {
 
         // Initialize
         init() {
+            // Load configuration from window.ENV (TODO #1 - Centralized Config)
+            if (window.ENV) {
+                this.wsNamespace = window.ENV.wsNamespace || this.wsNamespace;
+                this.apiKey = window.ENV.apiKey || this.apiKey;
+            }
+
+            // Load pre-loaded initial data (TODO #2 - Pre-loaded Data)
+            if (window.INITIAL_DATA?.rooms) {
+                this.rooms = window.INITIAL_DATA.rooms;
+                this.log(`✅ ${this.rooms.length} salas pré-carregadas do servidor`, 'success');
+            }
+
             // Load saved participant name from localStorage
             const savedName = localStorage.getItem('participantName');
             if (savedName) {
@@ -70,7 +82,11 @@ function socketTester() {
 
             this.log('🚀 Socket.IO Tester carregado', 'success');
             this.log('💡 Clique em "Conectar" para começar', 'info');
-            this.listRooms();
+
+            // Only fetch rooms if not pre-loaded
+            if (!window.INITIAL_DATA?.rooms) {
+                this.listRooms();
+            }
 
             // Initialize Lucide icons
             if (typeof lucide !== 'undefined') {
