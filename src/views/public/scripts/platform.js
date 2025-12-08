@@ -14,11 +14,6 @@ function platformApp() {
         socket: null,
         isConnected: false,
         connecting: false,
-        reconnectAttempts: 0,
-        maxReconnectAttempts: 5,
-        reconnectDelay: 2000,
-        reconnectTimer: null,
-        intentionalDisconnect: false,
 
         // ==================== CONFIG & FORM DATA ====================
         baseUrl: window.location.origin,
@@ -473,7 +468,6 @@ function platformApp() {
                 this.socket.on('connect', () => {
                     this.isConnected = true;
                     this.connecting = false;
-                    this.reconnectAttempts = 0;
                     this.log(`✅ Conectado! Socket ID: ${this.socket.id}`, 'success');
                     Toast.success('Conectado ao WebSocket!');
                 });
@@ -481,10 +475,6 @@ function platformApp() {
                 this.socket.on('disconnect', (reason) => {
                     this.isConnected = false;
                     this.log(`❌ Desconectado: ${reason}`, 'error');
-
-                    if (!this.intentionalDisconnect && reason === 'io server disconnect') {
-                        this.scheduleReconnect();
-                    }
                 });
 
                 this.socket.on('connect_error', (error) => {
@@ -492,7 +482,6 @@ function platformApp() {
                     this.isConnected = false;
                     this.log(`❌ Erro de conexão: ${error.message}`, 'error');
                     Toast.error('Erro ao conectar');
-                    this.scheduleReconnect();
                 });
 
                 // Room events
@@ -618,30 +607,12 @@ function platformApp() {
         disconnect() {
             if (!this.socket) return;
 
-            this.intentionalDisconnect = true;
             this.socket.disconnect();
             this.socket = null;
             this.isConnected = false;
             this.isInRoom = false;
             this.log('🔌 Desconectado manualmente', 'info');
             Toast.info('Desconectado');
-        },
-
-        scheduleReconnect() {
-            if (this.reconnectTimer || this.intentionalDisconnect) return;
-            if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-                this.log('❌ Máximo de tentativas de reconexão atingido', 'error');
-                Toast.error('Falha ao reconectar');
-                return;
-            }
-
-            this.reconnectAttempts++;
-            this.log(`🔄 Tentando reconectar (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`, 'info');
-
-            this.reconnectTimer = setTimeout(() => {
-                this.reconnectTimer = null;
-                this.connect();
-            }, this.reconnectDelay);
         },
 
         // ==================== UTILITIES ====================
