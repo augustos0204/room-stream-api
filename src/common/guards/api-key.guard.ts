@@ -41,15 +41,17 @@ export class ApiKeyGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    // Extract API key using utility
     const apiKey = ApiKeyExtractor.extract(request);
 
     if (!apiKey) {
-      this.logger.warn(
-        `API key missing from request: ${request.method} ${request.url}`,
-      );
+      const authHeader = request.headers.authorization;
+
+      if (authHeader?.startsWith('Bearer ') && process.env.SUPABASE_URL) {
+        return true;
+      }
+
       throw new UnauthorizedException(
-        'API key is required. Provide it via x-api-key header, Authorization header, or apiKey query parameter',
+        'API key is required. Provide it via x-api-key header or apiKey query parameter',
       );
     }
 

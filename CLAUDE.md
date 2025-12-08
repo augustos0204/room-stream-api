@@ -179,6 +179,8 @@ Environment variables (see `.env.example`):
 - `CORS_ORIGIN` - CORS allowed origin (default: `*`)
 - `WEBSOCKET_NAMESPACE` - Socket.IO namespace (default: `/ws/rooms`)
 - `API_KEY` - API key for authentication (optional, if not set auth is disabled)
+- `SUPABASE_URL` - Supabase project URL (optional, for Supabase authentication)
+- `SUPABASE_ANON_KEY` - Supabase anonymous key (optional, for Supabase authentication)
 - `APP_NAME` - Application name (used in Docker deployments)
 - `APP_VERSION` - Application version (used in Docker deployments)
 
@@ -196,21 +198,24 @@ The API supports optional API key authentication for both REST API and WebSocket
 - Generate a secure key: `openssl rand -hex 32`
 
 **REST API Authentication:**
-The API key can be provided in three ways (checked in order):
+The API key can be provided in two ways (checked in order):
 1. `x-api-key` header (recommended)
-2. `Authorization` header as Bearer token
-3. `apiKey` query parameter
+2. `apiKey` query parameter
+
+**Note**: The `Authorization` header is reserved exclusively for Supabase JWT tokens.
 
 Example:
 ```bash
 # Using header (recommended)
 curl -H "x-api-key: your-api-key" http://localhost:3000/room
 
-# Using Authorization header
-curl -H "Authorization: Bearer your-api-key" http://localhost:3000/room
-
 # Using query parameter
 curl http://localhost:3000/room?apiKey=your-api-key
+
+# With both API Key AND Supabase token
+curl -H "x-api-key: your-api-key" \
+     -H "Authorization: Bearer supabase-jwt-token" \
+     http://localhost:3000/room
 ```
 
 **WebSocket Authentication:**
@@ -238,6 +243,133 @@ When API_KEY is configured, Swagger UI will show a lock icon on endpoints. Click
 - WebSocket: Validated in `RoomGateway.handleConnection()` before accepting connections
 - Failed auth returns `401 Unauthorized` for REST, disconnects WebSocket clients
 - All auth failures are logged with client IP/address for security monitoring
+
+### Supabase Authentication
+
+The API supports optional Supabase authentication for both REST API and WebSocket connections:
+
+**Configuration:**
+- Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` environment variables to enable authentication
+- If not set, Supabase authentication is disabled
+- Get credentials from your Supabase project: https://app.supabase.com/project/_/settings/api
+
+**Module Structure:**
+- **SupabaseModule** - Supabase integration module
+  - `SupabaseService`: JWT token validation and user authentication
+  - Validates tokens using `supabase.auth.getUser(token)`
+
+**REST API Authentication:**
+Provide JWT token via `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer <supabase-jwt-token>" http://localhost:3000/room
+```
+
+**WebSocket Authentication:**
+For WebSocket connections, provide the JWT token in one of these ways:
+1. `auth.token` in connection options (recommended)
+2. `Authorization` header as Bearer token
+
+Example (client-side):
+```javascript
+// Socket.IO client - recommended
+const socket = io('/ws/rooms', {
+  auth: { token: 'supabase-jwt-token' }
+});
+
+// Alternative: via Authorization header
+const socket = io('/ws/rooms', {
+  extraHeaders: {
+    'Authorization': 'Bearer supabase-jwt-token'
+  }
+});
+```
+
+**User Data Flow:**
+When a user is authenticated via Supabase:
+1. Token is validated during WebSocket connection (`handleConnection`)
+2. User data is stored in `client.data.user` (from `@supabase/supabase-js` User type)
+3. User's display name is automatically set from Supabase:
+   - Priority: `user.email` → `user.user_metadata.name` → `'User'`
+4. Users authenticated via Supabase **cannot** update their participant name
+   - `updateParticipantName` event is blocked for authenticated users
+   - Name always comes from Supabase user data
+
+**Implementation Details:**
+- Guard: `src/common/guards/supabase-auth.guard.ts` - Applied globally to all REST endpoints
+- Service: `src/supabase/supabase.service.ts` - Token validation and user retrieval
+- WebSocket: Validated in `RoomGateway.handleConnection()` before accepting connections
+- Bypass global guard with `@Public()` decorator (same as API Key)
+- User object includes: `id`, `email`, `user_metadata`, and other Supabase user fields
+- Failed auth returns `401 Unauthorized` for REST, disconnects WebSocket clients
+- All auth failures are logged with client IP/address for security monitoring
+
+**Swagger/OpenAPI:**
+When Supabase is configured, Swagger UI will show a lock icon on endpoints. Click "Authorize" to enter your Supabase JWT token for testing.
+
+**Authentication Hierarchy (Either/Or):**
+The system supports flexible authentication - you can use **either** API Key **or** Supabase token:
+
+1. **If only `API_KEY` is configured:**
+   - API Key is required (via `x-api-key` header or `apiKey` query parameter)
+
+2. **If only `SUPABASE_URL` and `SUPABASE_ANON_KEY` are configured:**
+   - Supabase JWT token is required (via `Authorization: Bearer <token>` header)
+
+3. **If both are configured:**
+   - You can provide **either** API Key **or** Supabase token (not both required)
+   - API Key is checked first - if valid, Supabase validation is skipped
+   - If no API Key, Supabase token is required
+
+4. **If neither is configured:**
+   - No authentication required (useful for development)
+
+**Important**: Each authentication method uses different headers to avoid conflicts:
+- **API Key**: `x-api-key` header (recommended) or `apiKey` query parameter
+- **Supabase**: `Authorization: Bearer <jwt-token>` header (exclusive)
+
+**Usage Examples:**
+
+```bash
+# Option 1: Only API Key
+curl -H "x-api-key: your-api-key" \
+     http://localhost:3000/room
+
+# Option 2: Only Supabase token
+curl -H "Authorization: Bearer supabase-jwt-token" \
+     http://localhost:3000/room
+
+# Option 3: Both (optional - either one is enough)
+curl -H "x-api-key: your-api-key" \
+     -H "Authorization: Bearer supabase-jwt-token" \
+     http://localhost:3000/room
+```
+
+```javascript
+// WebSocket examples
+
+// Option 1: Only API Key
+const socket = io('/ws/rooms', {
+  auth: { apiKey: 'your-api-key' }
+});
+
+// Option 2: Only Supabase token
+const socket = io('/ws/rooms', {
+  auth: { token: 'supabase-jwt-token' }
+});
+
+// Option 3: Both (optional - either one is enough)
+const socket = io('/ws/rooms', {
+  auth: {
+    apiKey: 'your-api-key',
+    token: 'supabase-jwt-token'
+  }
+});
+```
+
+**Participant Name Behavior:**
+- **Anonymous users**: Can set and update participant names via `participantName` in `joinRoom` and `updateParticipantName` events
+- **Supabase authenticated users**: Name is automatically derived from Supabase user data and cannot be manually updated
 
 ## Testing Endpoints
 

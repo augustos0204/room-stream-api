@@ -7,6 +7,7 @@ import { RoomModule } from './room/room.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { HealthModule } from './health/health.module';
 import { ViewsModule } from './views/views.module';
+import { SupabaseModule } from './supabase/supabase.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ViewsModule } from './views/views.module';
     MetricsModule,
     RoomModule,
     ViewsModule,
+    SupabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
