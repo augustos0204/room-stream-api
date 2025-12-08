@@ -14,7 +14,11 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Configurar EJS como template engine
-  app.setBaseViewsDir(path.join(__dirname, 'views', 'public'));
+  // Configurar múltiplos diretórios de views para suportar partials
+  app.setBaseViewsDir([
+    path.join(__dirname, 'views', 'public'),
+    path.join(__dirname, 'views'),
+  ]);
   app.setViewEngine('ejs');
 
   // Configurar CORS para permitir ferramentas externas
