@@ -371,6 +371,70 @@ const socket = io('/ws/rooms', {
 - **Anonymous users**: Can set and update participant names via `participantName` in `joinRoom` and `updateParticipantName` events
 - **Supabase authenticated users**: Name is automatically derived from Supabase user data and cannot be manually updated
 
+## Configuração Opcional do Supabase - Garantias de Segurança
+
+### Proteções Implementadas
+
+O código foi projetado para **nunca causar erros** quando Supabase não estiver configurado. As seguintes proteções estão implementadas:
+
+#### 1. **SupabaseService - Early Return Pattern**
+Todos os métodos retornam `null` quando Supabase não está configurado:
+
+```typescript
+async validateToken(token: string): Promise<User | null> {
+  if (!this.supabase) {
+    return null; // ✅ Retorna imediatamente sem erro
+  }
+  // ... lógica de validação
+}
+```
+
+#### 2. **RoomGateway - Validação Condicional**
+O timer de validação periódica de token **só é iniciado** quando:
+- Supabase está habilitado (`isEnabled() === true`)
+- Cliente tem usuário autenticado
+- Verifica estado durante cada iteração do timer
+
+#### 3. **Guards - Bypass Automático**
+Guards permitem acesso quando Supabase não está configurado:
+
+```typescript
+// ApiKeyGuard
+if (!this.API_KEY) {
+  return true; // Bypass se nenhuma autenticação configurada
+}
+
+// SupabaseAuthGuard
+if (!this.supabaseService.isEnabled()) {
+  return true; // Bypass se Supabase não configurado
+}
+```
+
+#### 4. **Método Seguro: getUserSafely()**
+Versão mais segura de `validateToken` com log adicional:
+
+```typescript
+const user = await this.supabaseService.getUserSafely(token);
+// Sempre retorna null se Supabase não estiver configurado
+```
+
+### Checklist de Desenvolvimento
+
+Ao adicionar código que usa Supabase:
+
+- [ ] **Sempre** use `isEnabled()` antes de chamar métodos do SupabaseService
+- [ ] Adicione verificações defensivas em métodos que usam `client.data.user`
+- [ ] Teste o código **com e sem** Supabase configurado
+- [ ] Adicione logs apropriados para debugging
+- [ ] Documente o comportamento quando Supabase não está configurado
+- [ ] Use `getUserSafely()` em vez de `validateToken()` quando possível
+
+### Documentação Detalhada
+
+Para guia completo sobre configuração opcional do Supabase, incluindo estratégias de segurança, testes e troubleshooting, consulte:
+
+📖 **[docs/SUPABASE_OPTIONAL_CONFIGURATION.md](docs/SUPABASE_OPTIONAL_CONFIGURATION.md)**
+
 ## Testing Endpoints
 
 - **REST API**: `http://localhost:${PORT}` (default: 3000)
