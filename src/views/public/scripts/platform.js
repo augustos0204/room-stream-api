@@ -497,21 +497,34 @@ function platformApp() {
                     if (data.recentMessages && data.recentMessages.length > 0) {
                         this.roomLog(`📜 Carregando ${data.recentMessages.length} mensagens recentes...`, 'info');
                         data.recentMessages.forEach(msg => {
-                            // Find sender name from participants
-                            const sender = data.participants.find(p => p.clientId === msg.clientId);
                             let senderName, displayName;
 
-                            if (sender?.name) {
-                                senderName = sender.name;
-                                displayName = sender.name;
+                            // Check if message is from current user (by Supabase ID or clientId)
+                            const isMyMessage = (msg.supabaseUser && this.supabaseUser?.id === msg.supabaseUser.id) ||
+                                              (msg.clientId === this.socket.id);
+
+                            if (isMyMessage) {
+                                senderName = 'Você';
+                                displayName = 'Você';
+                            } else if (msg.supabaseUser) {
+                                // Other authenticated user
+                                senderName = msg.supabaseUser.email || msg.supabaseUser.name || 'Usuário Supabase';
+                                displayName = `${senderName} 🔒`;
                             } else {
-                                senderName = 'Usuário Anônimo';
-                                displayName = `Usuário Anônimo • ${msg.clientId}`;
+                                // Anonymous user
+                                const sender = data.participants.find(p => p.clientId === msg.clientId);
+                                if (sender?.name) {
+                                    senderName = sender.name;
+                                    displayName = sender.name;
+                                } else {
+                                    senderName = 'Usuário Anônimo';
+                                    displayName = `Usuário Anônimo • ${msg.clientId}`;
+                                }
                             }
 
                             // Sanitize message if Sanitizer is available
-                            const sanitizedMessage = typeof Sanitizer !== 'undefined' 
-                                ? Sanitizer.sanitizeMessage(msg.message) 
+                            const sanitizedMessage = typeof Sanitizer !== 'undefined'
+                                ? Sanitizer.sanitizeMessage(msg.message)
                                 : msg.message;
 
                             this.roomLog(
@@ -520,7 +533,8 @@ function platformApp() {
                                 senderName,
                                 msg.timestamp,
                                 displayName,
-                                msg.clientId
+                                msg.clientId,
+                                msg.supabaseUser
                             );
                         });
                     }
@@ -544,20 +558,26 @@ function platformApp() {
                         senderName = 'Você';
                         displayName = 'Você';
                     } else {
-                        // Find sender name from participants list
-                        const sender = this.roomParticipants.find(p => p.clientId === data.clientId);
-                        if (sender?.name) {
-                            senderName = sender.name;
-                            displayName = sender.name;
+                        // Prefer Supabase user data if available
+                        if (data.supabaseUser) {
+                            senderName = data.supabaseUser.email || data.supabaseUser.name || 'Usuário Supabase';
+                            displayName = `${senderName} 🔒`;
                         } else {
-                            senderName = 'Usuário Anônimo';
-                            displayName = `Usuário Anônimo • ${data.clientId}`;
+                            // Find sender name from participants list
+                            const sender = this.roomParticipants.find(p => p.clientId === data.clientId);
+                            if (sender?.name) {
+                                senderName = sender.name;
+                                displayName = sender.name;
+                            } else {
+                                senderName = 'Usuário Anônimo';
+                                displayName = `Usuário Anônimo • ${data.clientId}`;
+                            }
                         }
                     }
 
                     // Sanitize message if Sanitizer is available
-                    const sanitizedMessage = typeof Sanitizer !== 'undefined' 
-                        ? Sanitizer.sanitizeMessage(data.message) 
+                    const sanitizedMessage = typeof Sanitizer !== 'undefined'
+                        ? Sanitizer.sanitizeMessage(data.message)
                         : data.message;
 
                     this.roomLog(
@@ -566,7 +586,8 @@ function platformApp() {
                         senderName,
                         data.timestamp,
                         displayName,
-                        data.clientId
+                        data.clientId,
+                        data.supabaseUser
                     );
 
                     // Auto scroll to bottom
@@ -578,14 +599,20 @@ function platformApp() {
                     });
                 });
 
-                this.socket.on('participantJoined', (data) => {
-                    this.roomLog(`👤 ${data.name || 'Anônimo'} entrou na sala`, 'info');
-                    this.roomParticipants = data.participants || [];
+                this.socket.on('userJoined', (data) => {
+                    this.roomLog(`👤 ${data.participantName || 'Anônimo'} entrou na sala`, 'info');
+                    // Refresh room info to get updated participant list
+                    if (this.currentRoomId) {
+                        this.socket.emit('getRoomInfo', { roomId: this.currentRoomId });
+                    }
                 });
 
-                this.socket.on('participantLeft', (data) => {
-                    this.roomLog(`👋 ${data.name || 'Anônimo'} saiu da sala`, 'info');
-                    this.roomParticipants = data.participants || [];
+                this.socket.on('userLeft', (data) => {
+                    this.roomLog(`👋 ${data.participantName || 'Anônimo'} saiu da sala`, 'info');
+                    // Refresh room info to get updated participant list
+                    if (this.currentRoomId) {
+                        this.socket.emit('getRoomInfo', { roomId: this.currentRoomId });
+                    }
                 });
 
                 this.socket.on('participantNameUpdated', (data) => {
@@ -595,6 +622,26 @@ function platformApp() {
 
                 this.socket.on('roomInfo', (data) => {
                     this.roomParticipants = data.participants || [];
+                });
+
+                this.socket.on('roomDeleted', (data) => {
+                    // Room was deleted
+                    this.roomLog(`🗑️ ${data.message}`, 'error');
+                    Toast.error(data.message);
+
+                    // If user was in the deleted room, exit it
+                    if (this.currentRoomId === data.roomId) {
+                        this.isInRoom = false;
+                        this.currentRoomId = null;
+                        this.currentRoomName = null;
+                        this.roomParticipants = [];
+                        this.log(`❌ Sala deletada: ${data.roomName}`, 'error');
+                    }
+
+                    // Refresh room list to remove deleted room
+                    if (this.currentPage === 'rooms') {
+                        this.listRooms();
+                    }
                 });
 
             } catch (error) {
@@ -790,14 +837,15 @@ function platformApp() {
             Toast.success('Nome atualizado');
         },
 
-        roomLog(message, type = 'info', senderName = null, timestamp = null, displayName = null, senderId = null) {
+        roomLog(message, type = 'info', senderName = null, timestamp = null, displayName = null, senderId = null, supabaseUser = null) {
             this.roomLogs.push({
                 message,
                 type,
                 senderName,
                 timestamp: timestamp || new Date().toISOString(),
                 displayName,
-                senderId
+                senderId,
+                supabaseUser
             });
 
             if (this.roomLogs.length > 100) {
@@ -904,6 +952,37 @@ function platformApp() {
                 return `${minutes}m ${seconds % 60}s`;
             } else {
                 return `${seconds}s`;
+            }
+        },
+
+        // Check if a message is from the same Supabase user (even with different clientId)
+        isSameSupabaseUser(supabaseUserId) {
+            return this.supabaseUser?.id === supabaseUserId;
+        },
+
+        // Get a friendly identifier for display
+        getUserIdentifier(participant) {
+            if (participant.supabaseUser) {
+                return {
+                    type: 'authenticated',
+                    display: participant.supabaseUser.email || participant.supabaseUser.name || 'Usuário Supabase',
+                    icon: '🔒',
+                    supabaseId: participant.supabaseUser.id
+                };
+            } else if (participant.name) {
+                return {
+                    type: 'named',
+                    display: participant.name,
+                    icon: '👤',
+                    supabaseId: null
+                };
+            } else {
+                return {
+                    type: 'anonymous',
+                    display: `Anônimo • ${participant.clientId.slice(0, 8)}`,
+                    icon: '👻',
+                    supabaseId: null
+                };
             }
         }
     };

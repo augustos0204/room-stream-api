@@ -146,22 +146,22 @@
                                 <!-- User Messages -->
                                 <template x-if="log.type === 'user_message'">
                                     <div class="flex items-start gap-3 py-2"
-                                         :class="log.senderId === socket?.id && 'flex-row-reverse'">
+                                         :class="(log.senderId === socket?.id || (log.supabaseUser && supabaseUser?.id === log.supabaseUser.id)) && 'flex-row-reverse'">
                                         <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
                                             <span class="text-white text-xs font-bold uppercase"
                                                   x-text="(log.senderName || 'A')[0]"></span>
                                         </div>
                                         <div class="flex-1 min-w-0 max-w-lg">
                                             <div class="flex items-center gap-2 mb-1"
-                                                 :class="log.senderId === socket?.id && 'flex-row-reverse'">
+                                                 :class="(log.senderId === socket?.id || (log.supabaseUser && supabaseUser?.id === log.supabaseUser.id)) && 'flex-row-reverse'">
                                                 <span class="text-sm font-semibold"
-                                                      :class="log.senderId === socket?.id ? 'text-purple-400' : 'text-gray-300'"
+                                                      :class="(log.senderId === socket?.id || (log.supabaseUser && supabaseUser?.id === log.supabaseUser.id)) ? 'text-purple-400' : 'text-gray-300'"
                                                       x-text="log.displayName || log.senderName || 'Anônimo'"></span>
                                                 <span class="text-xs text-gray-600"
                                                       x-text="new Date(log.timestamp).toLocaleTimeString('pt-BR')"></span>
                                             </div>
                                             <div class="rounded-lg px-4 py-2 break-words"
-                                                 :class="log.senderId === socket?.id
+                                                 :class="(log.senderId === socket?.id || (log.supabaseUser && supabaseUser?.id === log.supabaseUser.id))
                                                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                                                      : 'bg-gray-800 text-gray-200'"
                                                  x-html="log.message"></div>
