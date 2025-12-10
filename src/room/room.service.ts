@@ -1,13 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
 import type { Room, RoomMessage, RoomParticipant } from './interfaces';
+import type { SupabaseUserData } from '../types/room.types';
+import { RoomGateway } from './room.gateway';
 
 @Injectable()
 export class RoomService {
   private readonly logger = new Logger(RoomService.name);
   private rooms: Map<string, Room> = new Map();
 
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    @Inject(forwardRef(() => RoomGateway))
+    private readonly roomGateway: RoomGateway,
+  ) {}
 
   createRoom(name: string): Room {
     const roomId = this.generateRoomId();
@@ -16,6 +22,7 @@ export class RoomService {
       name,
       participants: [],
       participantNames: new Map(),
+      participantSupabaseUsers: new Map(),
       createdAt: new Date(),
       messages: [],
     };
@@ -44,6 +51,7 @@ export class RoomService {
     roomId: string,
     clientId: string,
     participantName?: string | null,
+    supabaseUser?: SupabaseUserData | null,
   ): boolean {
     const room = this.rooms.get(roomId);
     if (!room) {
@@ -54,9 +62,13 @@ export class RoomService {
     if (!room.participants.includes(clientId)) {
       room.participants.push(clientId);
       room.participantNames.set(clientId, participantName || null);
-      this.logger.log(
-        `Cliente ${clientId} (${participantName || 'sem nome'}) entrou na sala ${roomId}`,
-      );
+      room.participantSupabaseUsers.set(clientId, supabaseUser || null);
+
+      const userInfo = supabaseUser
+        ? `(Supabase: ${supabaseUser.email || supabaseUser.id})`
+        : `(${participantName || 'sem nome'})`;
+
+      this.logger.log(`Cliente ${clientId} ${userInfo} entrou na sala ${roomId}`);
 
       this.eventsService.emitMetricsEvent('metrics:user-joined-room', {
         clientId,
@@ -66,8 +78,9 @@ export class RoomService {
         timestamp: new Date(),
       });
     } else {
-      // Atualizar nome se já estiver na sala
+      // Atualizar nome e Supabase user data se já estiver na sala
       room.participantNames.set(clientId, participantName || null);
+      room.participantSupabaseUsers.set(clientId, supabaseUser || null);
     }
 
     return true;
@@ -84,6 +97,7 @@ export class RoomService {
       const participantName = room.participantNames.get(clientId);
       room.participants.splice(index, 1);
       room.participantNames.delete(clientId);
+      room.participantSupabaseUsers.delete(clientId);
       this.logger.log(`Cliente ${clientId} saiu da sala ${roomId}`);
 
       this.eventsService.emitMetricsEvent('metrics:user-left-room', {
@@ -102,6 +116,7 @@ export class RoomService {
     roomId: string,
     clientId: string,
     message: string,
+    supabaseUser?: SupabaseUserData | null,
   ): RoomMessage | null {
     const room = this.rooms.get(roomId);
     if (!room) {
@@ -116,6 +131,7 @@ export class RoomService {
       clientId,
       message,
       timestamp: new Date(),
+      supabaseUser: supabaseUser || undefined,
     };
 
     room.messages.push(roomMessage);
@@ -138,11 +154,15 @@ export class RoomService {
     if (deleted && room) {
       this.logger.log(`Sala deletada: ${roomId}`);
 
+      // Emit metrics event
       this.eventsService.emitMetricsEvent('metrics:room-deleted', {
         roomId,
         roomName: room.name,
         timestamp: new Date(),
       });
+
+      // Broadcast to all clients in the room via WebSocket
+      this.roomGateway.broadcastRoomDeleted(roomId, room.name);
     }
     return deleted;
   }
@@ -185,6 +205,7 @@ export class RoomService {
     return room.participants.map((clientId) => ({
       clientId,
       name: room.participantNames.get(clientId) || null,
+      supabaseUser: room.participantSupabaseUsers.get(clientId) || undefined,
     }));
   }
 

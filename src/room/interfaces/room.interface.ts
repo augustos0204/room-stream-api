@@ -1,3 +1,5 @@
+import { SupabaseUserData } from '../../types/room.types';
+
 /**
  * Main room entity interface
  *
@@ -8,6 +10,7 @@ export interface Room {
   name: string;
   participants: string[];
   participantNames: Map<string, string | null>;
+  participantSupabaseUsers: Map<string, SupabaseUserData | null>;
   createdAt: Date;
   messages: RoomMessage[];
 }
@@ -23,4 +26,5 @@ export interface RoomMessage {
   message: string;
   timestamp: Date;
   participantName?: string | null;
+  supabaseUser?: SupabaseUserData;
 }

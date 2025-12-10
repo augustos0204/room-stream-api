@@ -1,5 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+/**
+ * Minimal Supabase user data for enrichment
+ * Extracted from @supabase/supabase-js User object
+ */
+export interface SupabaseUserData {
+  id: string;
+  email: string | null;
+  name: string | null;
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -14,6 +24,8 @@ export interface RoomMessage {
   clientId: string;
   message: string;
   timestamp: Date;
+  participantName?: string | null;
+  supabaseUser?: SupabaseUserData;
 }
 
 export class CreateRoomDto {

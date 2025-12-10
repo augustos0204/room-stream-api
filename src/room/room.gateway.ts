@@ -8,7 +8,14 @@ import {
   WebSocketServer,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Logger, UsePipes, ValidationPipe, UseFilters } from '@nestjs/common';
+import {
+  Logger,
+  UsePipes,
+  ValidationPipe,
+  UseFilters,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { RoomService } from './room.service';
 import { EventsService } from '../events/events.service';
@@ -54,6 +61,7 @@ export class RoomGateway
     parseInt(process.env.TOKEN_VALIDATION_INTERVAL || '300000', 10);
 
   constructor(
+    @Inject(forwardRef(() => RoomService))
     private readonly roomService: RoomService,
     private readonly eventsService: EventsService,
     private readonly supabaseService: SupabaseService,
@@ -253,6 +261,24 @@ export class RoomGateway
     }
   }
 
+  /**
+   * Extracts minimal Supabase user data from authenticated socket
+   * @param client - Authenticated socket client
+   * @returns SupabaseUserData if user is authenticated, null otherwise
+   */
+  private extractSupabaseUserData(client: AuthenticatedSocket) {
+    const user = client.data?.user;
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email || null,
+      name: user.user_metadata?.name || null,
+    };
+  }
+
   handleDisconnect(client: AuthenticatedSocket) {
     // Parar validação periódica do token se estiver ativa
     this.stopTokenValidation(client);
@@ -307,11 +333,14 @@ export class RoomGateway
       ? user.email || user.user_metadata?.name || 'User'
       : participantName || null;
 
+    // Extract Supabase user data
+    const supabaseUserData = this.extractSupabaseUserData(client);
+
     // Join no Socket.IO room
     client.join(roomId) as void;
 
     // Adicionar ao serviço
-    this.roomService.joinRoom(roomId, client.id, displayName);
+    this.roomService.joinRoom(roomId, client.id, displayName, supabaseUserData);
 
     // Notificar outros usuários na sala
     client.to(roomId).emit('userJoined', {
@@ -320,6 +349,7 @@ export class RoomGateway
       roomId: room.id,
       roomName: room.name,
       participantCount: room.participants.length,
+      supabaseUser: supabaseUserData || undefined,
     });
 
     // Confirmar entrada para o cliente
@@ -376,12 +406,20 @@ export class RoomGateway
   @UsePipes(new ValidationPipe({ transform: true }))
   handleSendMessage(
     @MessageBody() data: SendMessageDto,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
   ): void {
     const { roomId, message } = data;
 
+    // Extract Supabase user data
+    const supabaseUserData = this.extractSupabaseUserData(client);
+
     // Adicionar mensagem ao serviço
-    const roomMessage = this.roomService.addMessage(roomId, client.id, message);
+    const roomMessage = this.roomService.addMessage(
+      roomId,
+      client.id,
+      message,
+      supabaseUserData,
+    );
 
     if (!roomMessage) {
       client.emit('error', { message: 'Não foi possível enviar a mensagem' });
@@ -395,6 +433,7 @@ export class RoomGateway
       message: roomMessage.message,
       timestamp: roomMessage.timestamp,
       roomId: roomId,
+      supabaseUser: roomMessage.supabaseUser || undefined,
     });
 
     this.logger.log(
@@ -474,5 +513,21 @@ export class RoomGateway
     } else {
       client.emit('error', { message: 'Não foi possível atualizar o nome' });
     }
+  }
+
+  /**
+   * Broadcast room deletion to all clients in the room
+   * Called by RoomService when a room is deleted
+   */
+  broadcastRoomDeleted(roomId: string, roomName: string): void {
+    this.server.to(roomId).emit('roomDeleted', {
+      roomId,
+      roomName,
+      message: `A sala "${roomName}" foi deletada`,
+    });
+
+    this.logger.log(
+      `Broadcast de deleção enviado para sala ${roomId} (${roomName})`,
+    );
   }
 }
