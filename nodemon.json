@@ -1,0 +1,17 @@
+{
+  "watch": [
+    "src/**/*.ts",
+    "src/**/*.ejs",
+    "src/**/*.css",
+    "src/**/*.js"
+  ],
+  "ext": "ts,ejs,css,js",
+  "ignore": [
+    "src/**/*.spec.ts",
+    "node_modules",
+    "dist"
+  ],
+  "exec": "nest start",
+  "legacyWatch": true,
+  "delay": 1000
+}
