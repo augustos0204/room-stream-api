@@ -61,6 +61,23 @@ export class SupabaseService implements OnModuleInit {
    * @returns SupabaseClient instance or null if not configured
    */
   getClient(): SupabaseClient | null {
-    return this.supabase;
+    return this.supabase || null;
+  }
+
+  /**
+   * Safely gets user information from a token
+   * Returns null if Supabase is not configured instead of throwing error
+   * @param token - JWT token to validate
+   * @returns User object or null
+   */
+  async getUserSafely(token: string): Promise<User | null> {
+    if (!this.isEnabled()) {
+      this.logger.debug(
+        'getUserSafely called but Supabase is not configured',
+      );
+      return null;
+    }
+
+    return this.validateToken(token);
   }
 }
