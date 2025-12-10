@@ -197,6 +197,14 @@ export class RoomGateway
    * Valida o token a cada intervalo configurado e desconecta se expirado
    */
   private startTokenValidation(client: AuthenticatedSocket): void {
+    // Verificar se Supabase está habilitado antes de iniciar validação
+    if (!this.supabaseService.isEnabled()) {
+      this.logger.debug(
+        'Validação periódica de token não iniciada: Supabase não está configurado',
+      );
+      return;
+    }
+
     if (!client.data.user) {
       return; // Não há usuário Supabase para validar
     }
@@ -210,6 +218,15 @@ export class RoomGateway
 
     // Validar token periodicamente
     const validationTimer = setInterval(async () => {
+      // Verificar novamente se Supabase ainda está habilitado
+      if (!this.supabaseService.isEnabled()) {
+        this.logger.warn(
+          'Supabase foi desabilitado durante a validação, parando timer',
+        );
+        this.stopTokenValidation(client);
+        return;
+      }
+
       const token = this.extractToken(client);
 
       if (!token) {
