@@ -45,9 +45,9 @@ export class ViewsController {
   /**
    * Get complete view context with pre-loaded data (TODO #2 - Pré-carregar Dados)
    */
-  private getViewContext() {
+  private async getViewContext() {
     const config = this.getEnvConfig();
-    const initialRooms = this.roomService.getAllRooms();
+    const initialRooms = await this.roomService.getAllRooms();
 
     return {
       // Environment config
@@ -68,13 +68,13 @@ export class ViewsController {
   }
 
   @Get()
-  getAdminIndex(@Res() res: Response) {
-    return res.render('index', this.getViewContext());
+  async getAdminIndex(@Res() res: Response) {
+    return res.render('index', await this.getViewContext());
   }
 
   @Get('platform')
-  getPlatform(@Res() res: Response) {
-    return res.render('platform', this.getViewContext());
+  async getPlatform(@Res() res: Response) {
+    return res.render('platform', await this.getViewContext());
   }
 
   @Get('assets/styles/:filename')
