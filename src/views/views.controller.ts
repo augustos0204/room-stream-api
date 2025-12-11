@@ -69,22 +69,50 @@ export class ViewsController {
 
   @Get()
   async getAdminIndex(@Res() res: Response) {
-    return res.render('index', await this.getViewContext());
+    try {
+      const context = await this.getViewContext();
+      // Sem callback - Express envia automaticamente
+      return res.render('index', context);
+    } catch (error) {
+      console.error('Error in getAdminIndex:', error);
+      return this.render404(res, '/view');
+    }
+  }
+
+  @Get('index')
+  async getIndex(@Res() res: Response) {
+    // Redireciona /view/index para /view
+    return res.redirect('/view');
   }
 
   @Get('platform')
   async getPlatform(@Res() res: Response) {
-    return res.render('platform', await this.getViewContext());
+    try {
+      const context = await this.getViewContext();
+      // Sem callback - Express envia automaticamente
+      return res.render('platform', context);
+    } catch (error) {
+      console.error('Error in getPlatform:', error);
+      return this.render404(res, '/view/platform');
+    }
   }
 
   @Get('assets/styles/:filename')
   getStyleFile(@Param('filename') filename: string, @Res() res: Response) {
-    return res.sendFile(filename, { root: './src/views/public/styles' });
+    return res.sendFile(filename, { root: './src/views/public/styles' }, (err) => {
+      if (err) {
+        this.render404(res, `/view/assets/styles/${filename}`);
+      }
+    });
   }
 
   @Get('assets/scripts/:filename')
   getScriptFile(@Param('filename') filename: string, @Res() res: Response) {
-    return res.sendFile(filename, { root: './src/views/public/scripts' });
+    return res.sendFile(filename, { root: './src/views/public/scripts' }, (err) => {
+      if (err) {
+        this.render404(res, `/view/assets/scripts/${filename}`);
+      }
+    });
   }
 
   @Get('assets/media/:filename')
@@ -102,11 +130,35 @@ export class ViewsController {
       res.setHeader('Content-Type', 'image/webp');
     }
 
-    return res.sendFile(filename, { root: './src/views/public/media' });
+    return res.sendFile(filename, { root: './src/views/public/media' }, (err) => {
+      if (err) {
+        this.render404(res, `/view/assets/media/${filename}`);
+      }
+    });
   }
 
   @Get(':viewName')
   getView(@Param('viewName') viewName: string, @Res() res: Response) {
-    return res.render(viewName, this.getEnvConfig());
+    try {
+      const config = this.getEnvConfig();
+      // Sem callback - Express envia automaticamente
+      return res.render(viewName, config);
+    } catch (error) {
+      console.error(`Error rendering view '${viewName}':`, error);
+      return this.render404(res, `/view/${viewName}`);
+    }
+  }
+
+  /**
+   * Render 404 error page for view routes
+   */
+  private render404(res: Response, path: string) {
+    return res.status(404).render('404', {
+      statusCode: 404,
+      error: 'Not Found',
+      message: 'A página ou recurso solicitado não foi encontrado.',
+      timestamp: new Date().toISOString(),
+      path: path,
+    });
   }
 }
