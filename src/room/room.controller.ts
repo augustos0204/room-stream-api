@@ -7,6 +7,7 @@ import {
   Param,
   HttpException,
   HttpStatus,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,9 +24,11 @@ import type {
 } from './interfaces';
 import { CreateRoomDto, RoomIdDto } from './dto';
 import type { MessageResponse } from '../common/interfaces';
+import { RoomSerializerInterceptor } from '../common/interceptors/room-serializer.interceptor';
 
 @ApiTags('rooms')
 @Controller('room')
+@UseInterceptors(RoomSerializerInterceptor)
 export class RoomController {
   constructor(private readonly roomService: RoomService) {}
 
@@ -38,7 +41,7 @@ export class RoomController {
     type: Object,
   })
   @ApiResponse({ status: 400, description: 'Invalid room name' })
-  createRoom(@Body() createRoomDto: CreateRoomDto): Room {
+  async createRoom(@Body() createRoomDto: CreateRoomDto): Promise<Room> {
     // Validation is now automatic via global ValidationPipe
     return this.roomService.createRoom(createRoomDto.name.trim());
   }
@@ -50,7 +53,7 @@ export class RoomController {
     description: 'List of all rooms',
     type: [Object],
   })
-  getAllRooms(): Room[] {
+  async getAllRooms(): Promise<Room[]> {
     return this.roomService.getAllRooms();
   }
 
@@ -59,8 +62,8 @@ export class RoomController {
   @ApiParam({ name: 'id', description: 'Room ID' })
   @ApiResponse({ status: 200, description: 'Room found', type: Object })
   @ApiResponse({ status: 404, description: 'Room not found' })
-  getRoom(@Param() params: RoomIdDto): Room {
-    const room = this.roomService.getRoom(params.id);
+  async getRoom(@Param() params: RoomIdDto): Promise<Room> {
+    const room = await this.roomService.getRoom(params.id);
 
     if (!room) {
       throw new HttpException('Sala não encontrada', HttpStatus.NOT_FOUND);
@@ -74,8 +77,8 @@ export class RoomController {
   @ApiParam({ name: 'id', description: 'Room ID' })
   @ApiResponse({ status: 200, description: 'Room deleted successfully' })
   @ApiResponse({ status: 404, description: 'Room not found' })
-  deleteRoom(@Param() params: RoomIdDto): MessageResponse {
-    const deleted = this.roomService.deleteRoom(params.id);
+  async deleteRoom(@Param() params: RoomIdDto): Promise<MessageResponse> {
+    const deleted = await this.roomService.deleteRoom(params.id);
 
     if (!deleted) {
       throw new HttpException('Sala não encontrada', HttpStatus.NOT_FOUND);
@@ -100,8 +103,8 @@ export class RoomController {
     },
   })
   @ApiResponse({ status: 404, description: 'Room not found' })
-  getRoomMessages(@Param() params: RoomIdDto): RoomMessagesResponse {
-    const room = this.roomService.getRoom(params.id);
+  async getRoomMessages(@Param() params: RoomIdDto): Promise<RoomMessagesResponse> {
+    const room = await this.roomService.getRoom(params.id);
 
     if (!room) {
       throw new HttpException('Sala não encontrada', HttpStatus.NOT_FOUND);
@@ -131,17 +134,19 @@ export class RoomController {
     },
   })
   @ApiResponse({ status: 404, description: 'Room not found' })
-  getRoomParticipants(@Param() params: RoomIdDto): RoomParticipantsResponse {
-    const room = this.roomService.getRoom(params.id);
+  async getRoomParticipants(@Param() params: RoomIdDto): Promise<RoomParticipantsResponse> {
+    const room = await this.roomService.getRoom(params.id);
 
     if (!room) {
       throw new HttpException('Sala não encontrada', HttpStatus.NOT_FOUND);
     }
 
+    const participants = await this.roomService.getParticipantsWithNames(params.id);
+
     return {
       roomId: room.id,
       roomName: room.name,
-      participants: this.roomService.getParticipantsWithNames(params.id),
+      participants,
       participantCount: room.participants.length,
     };
   }
