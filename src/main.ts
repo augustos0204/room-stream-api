@@ -52,11 +52,11 @@ async function bootstrap() {
     }),
   );
 
-  // Aplicar filtro global de exceções para padronizar respostas de erro
-  app.useGlobalFilters(new HttpExceptionFilter());
-
   // Apply global guards
   const reflector = app.get(Reflector);
+
+  // Aplicar filtro global de exceções
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   if (process.env.API_KEY) {
     app.useGlobalGuards(new ApiKeyGuard(reflector));
