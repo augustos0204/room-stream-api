@@ -256,8 +256,10 @@ function platformApp() {
             this.stats.totalRooms = this.rooms.length;
             this.stats.activeRooms = this.rooms.filter(r => r.participants.length > 0).length;
             this.stats.totalParticipants = this.rooms.reduce((sum, r) => sum + r.participants.length, 0);
+            // Check if user is in room using hybrid key (userId or clientId)
+            const myKey = this.supabaseUser?.id || this.socket?.id;
             this.stats.myActiveRooms = this.rooms.filter(r =>
-                r.participants.some(p => p.clientId === this.socket?.id)
+                r.participants.some(p => p.clientId === myKey)
             );
         },
 
@@ -415,7 +417,8 @@ function platformApp() {
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
-                this.rooms = await response.json();
+                const data = await response.json();
+                this.rooms = Array.isArray(data) ? data : [];
                 this.updateStats();
                 this.log(`✅ ${this.rooms.length} salas carregadas`, 'success');
 
@@ -499,8 +502,20 @@ function platformApp() {
                         data.recentMessages.forEach(msg => {
                             let senderName, displayName;
 
-                            // Check if message is from current user (by Supabase ID or clientId)
-                            const isMyMessage = (msg.supabaseUser && this.supabaseUser?.id === msg.supabaseUser.id) ||
+                            // DEBUG: Log values for comparison (first message only to avoid spam)
+                            if (data.recentMessages.indexOf(msg) === 0) {
+                                console.log('🔍 DEBUG recentMessages (first msg):', {
+                                    'msg.userId': msg.userId,
+                                    'this.supabaseUser?.id': this.supabaseUser?.id,
+                                    'msg.clientId': msg.clientId,
+                                    'this.socket.id': this.socket.id,
+                                    'userId comparison': (msg.userId && this.supabaseUser?.id === msg.userId),
+                                    'clientId comparison': (msg.clientId === this.socket.id)
+                                });
+                            }
+
+                            // Check if message is from current user (by Supabase userId or clientId)
+                            const isMyMessage = (msg.userId && this.supabaseUser?.id === msg.userId) ||
                                               (msg.clientId === this.socket.id);
 
                             if (isMyMessage) {
@@ -511,8 +526,9 @@ function platformApp() {
                                 senderName = msg.supabaseUser.email || msg.supabaseUser.name || 'Usuário Supabase';
                                 displayName = `${senderName} 🔒`;
                             } else {
-                                // Anonymous user
-                                const sender = data.participants.find(p => p.clientId === msg.clientId);
+                                // Anonymous user - find by userId (if available) or clientId
+                                const messageKey = msg.userId || msg.clientId;
+                                const sender = data.participants.find(p => p.clientId === messageKey);
                                 if (sender?.name) {
                                     senderName = sender.name;
                                     displayName = sender.name;
@@ -550,7 +566,19 @@ function platformApp() {
                 });
 
                 this.socket.on('newMessage', (data) => {
-                    const isMyMessage = data.clientId === this.socket.id;
+                    // DEBUG: Log values for comparison
+                    console.log('🔍 DEBUG newMessage:', {
+                        'data.userId': data.userId,
+                        'this.supabaseUser?.id': this.supabaseUser?.id,
+                        'data.clientId': data.clientId,
+                        'this.socket.id': this.socket.id,
+                        'userId comparison': (data.userId && this.supabaseUser?.id === data.userId),
+                        'clientId comparison': (data.clientId === this.socket.id)
+                    });
+
+                    // Check if message is from current user (by Supabase userId or clientId)
+                    const isMyMessage = (data.userId && this.supabaseUser?.id === data.userId) ||
+                                      (data.clientId === this.socket.id);
                     let senderName;
                     let displayName;
 
@@ -563,8 +591,9 @@ function platformApp() {
                             senderName = data.supabaseUser.email || data.supabaseUser.name || 'Usuário Supabase';
                             displayName = `${senderName} 🔒`;
                         } else {
-                            // Find sender name from participants list
-                            const sender = this.roomParticipants.find(p => p.clientId === data.clientId);
+                            // Find sender name from participants list using hybrid key
+                            const messageKey = data.userId || data.clientId;
+                            const sender = this.roomParticipants.find(p => p.clientId === messageKey);
                             if (sender?.name) {
                                 senderName = sender.name;
                                 displayName = sender.name;
