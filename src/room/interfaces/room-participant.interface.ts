@@ -1,3 +1,5 @@
+import { SupabaseUserData } from '../../types/room.types';
+
 /**
  * Room participant information
  *
@@ -6,4 +8,5 @@
 export interface RoomParticipant {
   clientId: string;
   name: string | null;
+  supabaseUser?: SupabaseUserData;
 }

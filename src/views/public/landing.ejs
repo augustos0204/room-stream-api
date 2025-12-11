@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoomStream API - Real-time Data & Room Management</title>
+    <meta name="description" content="API WebSocket em tempo real para gerenciamento de salas de chat com NestJS, Socket.IO e Redis.">
+    <link rel="icon" type="image/svg+xml" href="/view/assets/media/favicon.svg">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in': 'fadeIn 0.8s ease-out',
+                        'slide-up': 'slideUp 0.5s ease-out',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-20px)' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(30px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/view/assets/styles/main.css">
+</head>
+<body class="bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-sans">
+    
+    <!-- Background animated elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow"></div>
+        <div class="absolute top-1/3 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow" style="animation-delay: 1s;"></div>
+        <div class="absolute bottom-1/4 left-1/3 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="relative z-10 glass-effect border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-full h-full">
+                            <defs>
+                                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                                    <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <rect width="100" height="100" rx="20" fill="url(#grad1)"/>
+                            <rect x="35" y="35" width="30" height="30" transform="rotate(45 50 50)" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9"/>
+                            <circle cx="50" cy="50" r="5" fill="#ffffff">
+                                <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+                            </circle>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                        RoomStream
+                    </span>
+                </div>
+
+                <!-- Nav Links -->
+                <div class="hidden md:flex items-center gap-6">
+                    <a href="/api-docs" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                        <span>API Docs</span>
+                    </a>
+                    <a href="/view" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/health" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                        <i data-lucide="heart-pulse" class="w-4 h-4"></i>
+                        <span>Status</span>
+                    </a>
+                </div>
+
+                <!-- CTA Button -->
+                <a href="/view" class="hidden md:block px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg">
+                    Começar
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative z-10 pt-20 pb-32 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center animate-fade-in">
+                <!-- Badge -->
+                <div class="inline-flex items-center gap-2 px-4 py-2 bg-purple-900/30 rounded-full border border-purple-500/50 backdrop-blur-sm mb-8">
+                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span class="text-sm text-gray-300">Sistema em produção • WebSocket Real-time</span>
+                </div>
+
+                <!-- Main Heading -->
+                <h1 class="text-5xl md:text-7xl font-black mb-6 leading-tight">
+                    <span class="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                        Dados em Tempo Real
+                    </span>
+                    <br>
+                    <span class="text-white">
+                        Simples e Escalável
+                    </span>
+                </h1>
+
+                <!-- Subtitle -->
+                <p class="text-xl md:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto">
+                    API WebSocket moderna construída com <span class="text-purple-400 font-semibold">NestJS</span>, 
+                    <span class="text-blue-400 font-semibold">Socket.IO</span> e 
+                    <span class="text-red-400 font-semibold">Redis</span> para gerenciamento de salas de dados em tempo real.
+                </p>
+
+                <!-- CTA Buttons -->
+                <div class="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+                    <a href="/view" class="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl flex items-center justify-center gap-2">
+                        <span>Acessar Dashboard</span>
+                        <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+                    </a>
+                    <a href="/api-docs" class="px-8 py-4 glass-effect border border-purple-500/50 hover:border-purple-400 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                        <i data-lucide="book-open" class="w-5 h-5"></i>
+                        <span>Ver Documentação</span>
+                    </a>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+                    <div class="glass-effect rounded-xl p-6 border border-white/10">
+                        <div class="text-3xl font-bold text-purple-400 mb-2">WebSocket</div>
+                        <div class="text-sm text-gray-400">Comunicação Real-time</div>
+                    </div>
+                    <div class="glass-effect rounded-xl p-6 border border-white/10">
+                        <div class="text-3xl font-bold text-blue-400 mb-2">REST API</div>
+                        <div class="text-sm text-gray-400">Endpoints HTTP</div>
+                    </div>
+                    <div class="glass-effect rounded-xl p-6 border border-white/10">
+                        <div class="text-3xl font-bold text-cyan-400 mb-2">Redis</div>
+                        <div class="text-sm text-gray-400">Persistência Opcional</div>
+                    </div>
+                    <div class="glass-effect rounded-xl p-6 border border-white/10">
+                        <div class="text-3xl font-bold text-green-400 mb-2">TypeScript</div>
+                        <div class="text-sm text-gray-400">Type-safe</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-black mb-4">
+                    <span class="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                        Funcionalidades Principais
+                    </span>
+                </h2>
+                <p class="text-xl text-gray-400">
+                    Tudo que você precisa para construir aplicações de chat em tempo real
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="glass-effect rounded-2xl p-8 border border-white/10 hover:border-purple-500/50 transition-all duration-300 transform hover:scale-105 animate-slide-up">
+                    <div class="w-14 h-14 bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="zap" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Real-time WebSocket</h3>
+                    <p class="text-gray-400">
+                        Comunicação bidirecional instantânea com Socket.IO para mensagens em tempo real.
+                    </p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="glass-effect rounded-2xl p-8 border border-white/10 hover:border-blue-500/50 transition-all duration-300 transform hover:scale-105 animate-slide-up" style="animation-delay: 0.1s;">
+                    <div class="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="database" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Redis Storage</h3>
+                    <p class="text-gray-400">
+                        Persistência opcional com Redis para dados que sobrevivem a restarts do servidor.
+                    </p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="glass-effect rounded-2xl p-8 border border-white/10 hover:border-cyan-500/50 transition-all duration-300 transform hover:scale-105 animate-slide-up" style="animation-delay: 0.2s;">
+                    <div class="w-14 h-14 bg-gradient-to-br from-cyan-600 to-cyan-800 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="users" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Gerenciamento de Salas</h3>
+                    <p class="text-gray-400">
+                        Crie, gerencie e monitore salas de chat com participantes e mensagens isoladas.
+                    </p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="glass-effect rounded-2xl p-8 border border-white/10 hover:border-green-500/50 transition-all duration-300 transform hover:scale-105 animate-slide-up" style="animation-delay: 0.3s;">
+                    <div class="w-14 h-14 bg-gradient-to-br from-green-600 to-green-800 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="shield-check" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Autenticação Supabase</h3>
+                    <p class="text-gray-400">
+                        Integração opcional com Supabase para autenticação JWT e gerenciamento de usuários.
+                    </p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="glass-effect rounded-2xl p-8 border border-white/10 hover:border-yellow-500/50 transition-all duration-300 transform hover:scale-105 animate-slide-up" style="animation-delay: 0.4s;">
+                    <div class="w-14 h-14 bg-gradient-to-br from-yellow-600 to-yellow-800 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="code" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">REST API Completa</h3>
+                    <p class="text-gray-400">
+                        Endpoints HTTP para CRUD de salas, mensagens e participantes com Swagger docs.
+                    </p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="glass-effect rounded-2xl p-8 border border-white/10 hover:border-red-500/50 transition-all duration-300 transform hover:scale-105 animate-slide-up" style="animation-delay: 0.5s;">
+                    <div class="w-14 h-14 bg-gradient-to-br from-red-600 to-red-800 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="activity" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Métricas & Observabilidade</h3>
+                    <p class="text-gray-400">
+                        Sistema de métricas em tempo real com tracking de conexões, salas e mensagens.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack Section -->
+    <section class="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-black mb-4">
+                    <span class="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                        Stack Tecnológico
+                    </span>
+                </h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="glass-effect rounded-2xl p-8 border border-white/10">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                        <i data-lucide="server" class="w-6 h-6 text-purple-400"></i>
+                        Backend
+                    </h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-purple-400 rounded-full"></div>
+                            <span class="text-gray-300"><span class="font-semibold text-white">NestJS</span> - Framework TypeScript modular</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+                            <span class="text-gray-300"><span class="font-semibold text-white">Socket.IO</span> - WebSocket real-time</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-red-400 rounded-full"></div>
+                            <span class="text-gray-300"><span class="font-semibold text-white">Redis</span> - Cache & persistência</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span class="text-gray-300"><span class="font-semibold text-white">Supabase</span> - Autenticação JWT</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="glass-effect rounded-2xl p-8 border border-white/10">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                        <i data-lucide="palette" class="w-6 h-6 text-cyan-400"></i>
+                        Frontend
+                    </h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                            <span class="text-gray-300"><span class="font-semibold text-white">EJS Templates</span> - Server-side rendering</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+                            <span class="text-gray-300"><span class="font-semibold text-white">Tailwind CSS</span> - Utility-first styling</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-purple-400 rounded-full"></div>
+                            <span class="text-gray-300"><span class="font-semibold text-white">Alpine.js</span> - Reactive components</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                            <span class="text-gray-300"><span class="font-semibold text-white">Lucide Icons</span> - Icon system</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="glass-effect rounded-3xl p-12 border border-purple-500/30 text-center">
+                <h2 class="text-4xl md:text-5xl font-black mb-6">
+                    Pronto para Começar?
+                </h2>
+                <p class="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
+                    Explore a documentação da API ou acesse o dashboard para criar sua primeira sala de chat.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/api-docs" class="px-8 py-4 glass-effect border border-purple-500/50 hover:border-purple-400 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                        <i data-lucide="book-open" class="w-5 h-5"></i>
+                        <span>Documentação API</span>
+                    </a>
+                    <a href="/view" class="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center justify-center gap-2">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                        <span>Abrir Dashboard</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="relative z-10 border-t border-white/10 py-8 px-4 sm:px-6 lg:px-8 mt-20">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-full h-full opacity-70">
+                            <defs>
+                                <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <rect width="100" height="100" rx="20" fill="url(#grad2)"/>
+                            <circle cx="50" cy="50" r="5" fill="#ffffff"/>
+                        </svg>
+                    </div>
+                    <span class="text-gray-400">RoomStream API • <%= new Date().getFullYear() %></span>
+                </div>
+                <div class="flex items-center gap-6">
+                    <a href="/health" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                        <i data-lucide="heart-pulse" class="w-4 h-4"></i>
+                        <span>Status</span>
+                    </a>
+                    <a href="/metrics" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                        <span>Métricas</span>
+                    </a>
+                    <a href="/api-docs" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                        <span>Docs</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

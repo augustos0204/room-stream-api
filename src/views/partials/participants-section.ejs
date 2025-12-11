@@ -1,0 +1,79 @@
+<!-- Participants Section Component -->
+<div class="<%= isMobile ? 'h-full' : 'w-72 flex-shrink-0' %>" x-show="currentRoomId">
+    <div class="dark-glass rounded-xl shadow-2xl animate-slide-up h-full flex flex-col overflow-hidden">
+        <!-- Header with refresh -->
+        <div class="flex-shrink-0 p-4 pb-3 border-b border-purple-500/30">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-blue-400"></i>
+                    <h2 class="text-lg font-semibold text-blue-400">Participantes</h2>
+                    <span x-show="roomParticipants.length > 0"
+                          class="px-2 py-1 bg-blue-600/20 text-blue-300 rounded-full text-xs"
+                          x-text="roomParticipants.length"></span>
+                </div>
+                <button @click="getRoomInfo()" :disabled="!isConnected"
+                        class="p-2 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 text-white rounded-lg text-sm transition-all duration-200 transform hover:scale-105 active:scale-95"
+                        title="Atualizar lista de participantes">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Participants List -->
+        <div class="flex-1 overflow-hidden flex flex-col">
+            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                <template x-if="roomParticipants.length === 0">
+                    <div class="text-center text-gray-500 py-8">
+                        <i data-lucide="user-x" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                        <p class="text-sm">Nenhum participante</p>
+                    </div>
+                </template>
+
+                <div class="space-y-<%= isMobile ? '3' : '2' %>">
+                    <template x-for="participant in roomParticipants" :key="participant.clientId">
+                        <div class="bg-gray-900/50 rounded-lg p-<%= isMobile ? '4' : '3' %> border border-gray-700 hover:border-gray-600 transition-colors"
+                             :class="participant.clientId === socket?.id ? 'border-blue-500 bg-blue-900/20' : ''">
+                            <div class="flex items-center gap-3">
+                                <div class="<%= isMobile ? 'w-10 h-10' : 'w-8 h-8' %> bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i data-lucide="user" class="<%= isMobile ? 'w-5 h-5' : 'w-4 h-4' %> text-white"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 <%= isMobile ? 'mb-1' : '' %>">
+                                        <p class="font-medium text-white <%= isMobile ? 'text-base' : 'text-sm' %> truncate"
+                                           x-text="participant.name || 'Usuário Anônimo'"></p>
+                                        <span x-show="participant.clientId === socket?.id"
+                                              class="px-2 py-<%= isMobile ? '1' : '0.5' %> bg-blue-600/20 text-blue-300 rounded text-xs <%= isMobile ? 'font-semibold' : '' %>">Você</span>
+                                    </div>
+                                    <p class="<%= isMobile ? 'text-sm' : 'text-xs' %> text-gray-400 <%= isMobile ? 'font-mono' : 'truncate' %>" x-text="'ID: ' + participant.clientId"></p>
+                                </div>
+                                <% if (!isMobile) { %>
+                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Online"></div>
+                                <% } else { %>
+                                <div class="flex flex-col items-end gap-1">
+                                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Online"></div>
+                                    <span class="text-xs text-gray-500">Online</span>
+                                </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- No room selected placeholder -->
+<div class="<%= isMobile ? 'flex-1 flex items-center justify-center' : '' %>" x-show="!currentRoomId">
+    <div class="text-center text-gray-500 p-8">
+        <i data-lucide="users-x" class="w-16 h-16 mx-auto mb-4 opacity-50"></i>
+        <h3 class="text-lg font-semibold mb-2">Nenhuma Sala Selecionada</h3>
+        <p class="text-sm mb-4">Entre em uma sala para ver os participantes</p>
+        <% if (isMobile) { %>
+        <button @click="setMobileSection('rooms')"
+                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all">
+            Ver Salas
+        </button>
+        <% } %>
+    </div>
+</div>

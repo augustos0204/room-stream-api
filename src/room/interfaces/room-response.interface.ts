@@ -1,5 +1,6 @@
 import type { RoomMessage } from './room.interface';
 import type { RoomParticipant } from './room-participant.interface';
+import type { SupabaseUserData } from '../../types/room.types';
 
 /**
  * Response when successfully joining a room
@@ -20,6 +21,7 @@ export interface UserJoinedResponse {
   roomId: string;
   roomName: string;
   participantCount: number;
+  supabaseUser?: SupabaseUserData;
 }
 
 /**
@@ -71,6 +73,7 @@ export interface NewMessageResponse {
   timestamp: Date;
   roomId: string;
   roomName: string;
+  supabaseUser?: SupabaseUserData;
 }
 
 /**
@@ -93,4 +96,13 @@ export interface ParticipantNameUpdatedResponse {
   newName: string | null;
   roomId: string;
   roomName: string;
+}
+
+/**
+ * Response/Event when a room is deleted
+ */
+export interface RoomDeletedResponse {
+  roomId: string;
+  roomName: string;
+  message: string;
 }

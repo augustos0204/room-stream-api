@@ -1,0 +1,49 @@
+<%
+// Logo Component - Reusable logo partial with different variants
+//
+// Parameters:
+// - size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' (default: 'md')
+// - withBackground: boolean (default: false)
+// - withShadow: boolean (default: true)
+// - className: string (default: '')
+
+// Default parameters
+const logoSize = (typeof size !== 'undefined' ? size : null) || 'md';
+const showBackground = (typeof withBackground !== 'undefined' ? withBackground : null) || false;
+const showShadow = typeof withShadow !== 'undefined' ? withShadow : true;
+const extraClasses = (typeof className !== 'undefined' ? className : null) || '';
+
+// Size mappings
+const sizeMap = {
+    'xs': 'w-8 h-8',    // 32px - topbar
+    'sm': 'w-10 h-10',  // 40px - compact areas
+    'md': 'w-16 h-16',  // 64px - standard
+    'lg': 'w-20 h-20',  // 80px - login page
+    'xl': 'w-24 h-24'   // 96px - hero sections
+};
+
+const backgroundSizeMap = {
+    'xs': 'w-10 h-10',
+    'sm': 'w-12 h-12',
+    'md': 'w-20 h-20',
+    'lg': 'w-24 h-24',
+    'xl': 'w-28 h-28'
+};
+
+const logoClasses = sizeMap[logoSize] || sizeMap['md'];
+const backgroundClasses = backgroundSizeMap[logoSize] || backgroundSizeMap['md'];
+%>
+
+<% if (showBackground) { %>
+<!-- Logo with gradient background -->
+<div class="inline-flex items-center justify-center <%= backgroundClasses %> rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-2xl shadow-purple-500/50 <%= extraClasses %>">
+    <div class="logo-icon relative <%= logoClasses %>">
+        <%- include('../partials/logo-svg') %>
+    </div>
+</div>
+<% } else { %>
+<!-- Logo without background -->
+<div class="<%= showShadow ? 'logo-icon' : '' %> relative <%= logoClasses %> <%= extraClasses %>">
+    <%- include('../partials/logo-svg') %>
+</div>
+<% } %>

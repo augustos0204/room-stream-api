@@ -1,3 +1,5 @@
+import { SupabaseUserData } from '../../types/room.types';
+
 /**
  * Main room entity interface
  *
@@ -8,6 +10,7 @@ export interface Room {
   name: string;
   participants: string[];
   participantNames: Map<string, string | null>;
+  participantSupabaseUsers: Map<string, SupabaseUserData | null>;
   createdAt: Date;
   messages: RoomMessage[];
 }
@@ -20,7 +23,20 @@ export interface Room {
 export interface RoomMessage {
   id: string;
   clientId: string;
+  userId?: string; // Supabase User ID (persistent) - optional for anonymous users
   message: string;
   timestamp: Date;
   participantName?: string | null;
+  supabaseUser?: SupabaseUserData;
+}
+
+/**
+ * Helper function to generate participant key
+ * Prioritizes userId (Supabase) over clientId (socket)
+ */
+export function getParticipantKey(
+  clientId: string,
+  userId?: string | null,
+): string {
+  return userId || clientId;
 }
