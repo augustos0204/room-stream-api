@@ -1,5 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
+import { MemoryService } from '../memory/memory.service';
 import type { Room, RoomMessage, RoomParticipant } from './interfaces';
 import type { SupabaseUserData } from '../types/room.types';
 import { RoomGateway } from './room.gateway';
@@ -7,15 +8,15 @@ import { RoomGateway } from './room.gateway';
 @Injectable()
 export class RoomService {
   private readonly logger = new Logger(RoomService.name);
-  private rooms: Map<string, Room> = new Map();
 
   constructor(
     private readonly eventsService: EventsService,
+    private readonly memoryService: MemoryService,
     @Inject(forwardRef(() => RoomGateway))
     private readonly roomGateway: RoomGateway,
   ) {}
 
-  createRoom(name: string): Room {
+  async createRoom(name: string): Promise<Room> {
     const roomId = this.generateRoomId();
     const room: Room = {
       id: roomId,
@@ -27,7 +28,7 @@ export class RoomService {
       messages: [],
     };
 
-    this.rooms.set(roomId, room);
+    await this.memoryService.setRoom(roomId, room);
     this.logger.log(`Sala criada: ${roomId} (${name})`);
 
     this.eventsService.emitMetricsEvent('metrics:room-created', {
@@ -39,30 +40,33 @@ export class RoomService {
     return room;
   }
 
-  getRoom(roomId: string): Room | undefined {
-    return this.rooms.get(roomId);
+  async getRoom(roomId: string): Promise<Room | null> {
+    return this.memoryService.getRoom(roomId);
   }
 
-  getAllRooms(): Room[] {
-    return Array.from(this.rooms.values());
+  async getAllRooms(): Promise<Room[]> {
+    return this.memoryService.getAllRooms();
   }
 
-  joinRoom(
+  async joinRoom(
     roomId: string,
     clientId: string,
     participantName?: string | null,
     supabaseUser?: SupabaseUserData | null,
-  ): boolean {
-    const room = this.rooms.get(roomId);
+  ): Promise<boolean> {
+    const room = await this.memoryService.getRoom(roomId);
     if (!room) {
       this.logger.warn(`Tentativa de entrar em sala inexistente: ${roomId}`);
       return false;
     }
 
-    if (!room.participants.includes(clientId)) {
-      room.participants.push(clientId);
-      room.participantNames.set(clientId, participantName || null);
-      room.participantSupabaseUsers.set(clientId, supabaseUser || null);
+    const userId = supabaseUser?.id || null;
+    const hasParticipant = await this.memoryService.hasParticipant(roomId, clientId, userId);
+
+    if (!hasParticipant) {
+      await this.memoryService.addParticipant(roomId, clientId, userId);
+      await this.memoryService.setParticipantName(roomId, clientId, participantName || null, userId);
+      await this.memoryService.setParticipantSupabaseUser(roomId, clientId, supabaseUser || null, userId);
 
       const userInfo = supabaseUser
         ? `(Supabase: ${supabaseUser.email || supabaseUser.id})`
@@ -79,25 +83,32 @@ export class RoomService {
       });
     } else {
       // Atualizar nome e Supabase user data se já estiver na sala
-      room.participantNames.set(clientId, participantName || null);
-      room.participantSupabaseUsers.set(clientId, supabaseUser || null);
+      await this.memoryService.setParticipantName(roomId, clientId, participantName || null, userId);
+      await this.memoryService.setParticipantSupabaseUser(roomId, clientId, supabaseUser || null, userId);
     }
 
     return true;
   }
 
-  leaveRoom(roomId: string, clientId: string): boolean {
-    const room = this.rooms.get(roomId);
+  async leaveRoom(roomId: string, clientId: string, userId?: string | null): Promise<boolean> {
+    const room = await this.memoryService.getRoom(roomId);
     if (!room) {
       return false;
     }
 
-    const index = room.participants.indexOf(clientId);
-    if (index > -1) {
-      const participantName = room.participantNames.get(clientId);
-      room.participants.splice(index, 1);
-      room.participantNames.delete(clientId);
-      room.participantSupabaseUsers.delete(clientId);
+    // If userId not provided, try to get it from stored Supabase data
+    let resolvedUserId = userId;
+    if (!resolvedUserId) {
+      const supabaseUser = await this.memoryService.getParticipantSupabaseUser(roomId, clientId, null);
+      resolvedUserId = supabaseUser?.id || null;
+    }
+
+    const hasParticipant = await this.memoryService.hasParticipant(roomId, clientId, resolvedUserId);
+    if (hasParticipant) {
+      const participantName = await this.memoryService.getParticipantName(roomId, clientId, resolvedUserId);
+      await this.memoryService.removeParticipant(roomId, clientId, resolvedUserId);
+      await this.memoryService.deleteParticipantName(roomId, clientId, resolvedUserId);
+      await this.memoryService.deleteParticipantSupabaseUser(roomId, clientId, resolvedUserId);
       this.logger.log(`Cliente ${clientId} saiu da sala ${roomId}`);
 
       this.eventsService.emitMetricsEvent('metrics:user-left-room', {
@@ -112,13 +123,13 @@ export class RoomService {
     return true;
   }
 
-  addMessage(
+  async addMessage(
     roomId: string,
     clientId: string,
     message: string,
     supabaseUser?: SupabaseUserData | null,
-  ): RoomMessage | null {
-    const room = this.rooms.get(roomId);
+  ): Promise<RoomMessage | null> {
+    const room = await this.memoryService.getRoom(roomId);
     if (!room) {
       this.logger.warn(
         `Tentativa de enviar mensagem para sala inexistente: ${roomId}`,
@@ -129,13 +140,16 @@ export class RoomService {
     const roomMessage: RoomMessage = {
       id: this.generateMessageId(),
       clientId,
+      userId: supabaseUser?.id,
       message,
       timestamp: new Date(),
       supabaseUser: supabaseUser || undefined,
     };
 
-    room.messages.push(roomMessage);
-    this.logger.log(`Mensagem adicionada à sala ${roomId}: ${message}`);
+    await this.memoryService.addMessage(roomId, roomMessage);
+    this.logger.log(
+      `Mensagem adicionada à sala ${roomId}: ${message} (userId: ${roomMessage.userId || 'null'}, clientId: ${clientId})`,
+    );
 
     this.eventsService.emitMetricsEvent('metrics:message-sent', {
       messageId: roomMessage.id,
@@ -148,9 +162,9 @@ export class RoomService {
     return roomMessage;
   }
 
-  deleteRoom(roomId: string): boolean {
-    const room = this.rooms.get(roomId);
-    const deleted = this.rooms.delete(roomId);
+  async deleteRoom(roomId: string): Promise<boolean> {
+    const room = await this.memoryService.getRoom(roomId);
+    const deleted = await this.memoryService.deleteRoom(roomId);
     if (deleted && room) {
       this.logger.log(`Sala deletada: ${roomId}`);
 
@@ -171,41 +185,44 @@ export class RoomService {
     return `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  getParticipantName(roomId: string, clientId: string): string | null {
-    const room = this.rooms.get(roomId);
-    if (!room) {
-      return null;
-    }
-    return room.participantNames.get(clientId) || null;
+  async getParticipantName(roomId: string, clientId: string, userId?: string | null): Promise<string | null> {
+    return this.memoryService.getParticipantName(roomId, clientId, userId);
   }
 
-  updateParticipantName(
+  async updateParticipantName(
     roomId: string,
     clientId: string,
     name: string | null,
-  ): boolean {
-    const room = this.rooms.get(roomId);
-    if (!room || !room.participants.includes(clientId)) {
+    userId?: string | null,
+  ): Promise<boolean> {
+    const room = await this.memoryService.getRoom(roomId);
+    const hasParticipant = await this.memoryService.hasParticipant(roomId, clientId, userId);
+
+    if (!room || !hasParticipant) {
       return false;
     }
 
-    room.participantNames.set(clientId, name);
+    await this.memoryService.setParticipantName(roomId, clientId, name, userId);
     this.logger.log(
       `Nome do cliente ${clientId} atualizado para: ${name || 'sem nome'}`,
     );
     return true;
   }
 
-  getParticipantsWithNames(roomId: string): RoomParticipant[] {
-    const room = this.rooms.get(roomId);
+  async getParticipantsWithNames(roomId: string): Promise<RoomParticipant[]> {
+    const room = await this.memoryService.getRoom(roomId);
     if (!room) {
       return [];
     }
 
-    return room.participants.map((clientId) => ({
-      clientId,
-      name: room.participantNames.get(clientId) || null,
-      supabaseUser: room.participantSupabaseUsers.get(clientId) || undefined,
+    const participants = await this.memoryService.getParticipants(roomId);
+    const participantNames = await this.memoryService.getAllParticipantNames(roomId);
+    const participantSupabaseUsers = await this.memoryService.getAllParticipantSupabaseUsers(roomId);
+
+    return participants.map((key) => ({
+      clientId: key, // key is now userId or clientId
+      name: participantNames.get(key) || null,
+      supabaseUser: participantSupabaseUsers.get(key) || undefined,
     }));
   }
 
