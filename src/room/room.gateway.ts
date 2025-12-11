@@ -285,6 +285,12 @@ export class RoomGateway
    */
   private extractSupabaseUserData(client: AuthenticatedSocket) {
     const user = client.data?.user;
+
+    // DEBUG: Log user extraction
+    this.logger.debug(
+      `🔍 Extracting Supabase user data for client ${client.id}: ${user ? `found user ${user.id}` : 'NO USER FOUND'}`,
+    );
+
     if (!user) {
       return null;
     }
@@ -296,7 +302,7 @@ export class RoomGateway
     };
   }
 
-  handleDisconnect(client: AuthenticatedSocket) {
+  async handleDisconnect(client: AuthenticatedSocket) {
     // Parar validação periódica do token se estiver ativa
     this.stopTokenValidation(client);
 
@@ -310,15 +316,21 @@ export class RoomGateway
       `Cliente desconectado do namespace ${namespace}: ${client.id}`,
     );
 
+    // Extract userId from authenticated socket
+    const userId = client.data?.user?.id || null;
+
     // Remove o cliente de todas as salas ao desconectar
-    const rooms = this.roomService.getAllRooms();
-    rooms.forEach((room) => {
-      if (room.participants.includes(client.id)) {
-        const participantName = this.roomService.getParticipantName(
+    const rooms = await this.roomService.getAllRooms();
+    for (const room of rooms) {
+      // Check if participant exists using hybrid key
+      const participantKey = userId || client.id;
+      if (room.participants.includes(participantKey)) {
+        const participantName = await this.roomService.getParticipantName(
           room.id,
           client.id,
+          userId,
         );
-        this.roomService.leaveRoom(room.id, client.id);
+        await this.roomService.leaveRoom(room.id, client.id, userId);
         client.to(room.id).emit('userLeft', {
           clientId: client.id,
           participantName,
@@ -327,17 +339,17 @@ export class RoomGateway
           participantCount: room.participants.length,
         });
       }
-    });
+    }
   }
 
   @SubscribeMessage('joinRoom')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleJoinRoom(
+  async handleJoinRoom(
     @MessageBody() data: JoinRoomDto,
     @ConnectedSocket() client: AuthenticatedSocket,
-  ): void {
+  ): Promise<void> {
     const { roomId, participantName } = data;
-    const room = this.roomService.getRoom(roomId);
+    const room = await this.roomService.getRoom(roomId);
 
     if (!room) {
       client.emit('error', { message: 'Sala não encontrada x1' });
@@ -357,7 +369,7 @@ export class RoomGateway
     client.join(roomId) as void;
 
     // Adicionar ao serviço
-    this.roomService.joinRoom(roomId, client.id, displayName, supabaseUserData);
+    await this.roomService.joinRoom(roomId, client.id, displayName, supabaseUserData);
 
     // Notificar outros usuários na sala
     client.to(roomId).emit('userJoined', {
@@ -370,11 +382,21 @@ export class RoomGateway
     });
 
     // Confirmar entrada para o cliente
+    const participants = await this.roomService.getParticipantsWithNames(roomId);
+    const recentMessages = room.messages.slice(-10);
+
+    // DEBUG: Log first message to verify userId is present
+    if (recentMessages.length > 0) {
+      this.logger.debug(
+        `🔍 First recent message: userId=${recentMessages[0].userId || 'null'}, clientId=${recentMessages[0].clientId}`,
+      );
+    }
+
     client.emit('joinedRoom', {
       roomId: room.id,
       roomName: room.name,
-      participants: this.roomService.getParticipantsWithNames(roomId),
-      recentMessages: room.messages.slice(-10), // Últimas 10 mensagens
+      participants,
+      recentMessages, // Últimas 10 mensagens
     });
 
     this.logger.log(
@@ -384,25 +406,29 @@ export class RoomGateway
 
   @SubscribeMessage('leaveRoom')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleLeaveRoom(
+  async handleLeaveRoom(
     @MessageBody() data: LeaveRoomDto,
-    @ConnectedSocket() client: Socket,
-  ): void {
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ): Promise<void> {
     const { roomId } = data;
+
+    // Extract userId from authenticated socket
+    const userId = client.data?.user?.id || null;
 
     // Leave no Socket.IO room
     client.leave(roomId) as void;
 
     // Remover do serviço
-    const success = this.roomService.leaveRoom(roomId, client.id);
+    const success = await this.roomService.leaveRoom(roomId, client.id, userId);
 
     if (success) {
-      const room = this.roomService.getRoom(roomId);
+      const room = await this.roomService.getRoom(roomId);
 
       // Notificar outros usuários na sala
-      const participantName = this.roomService.getParticipantName(
+      const participantName = await this.roomService.getParticipantName(
         roomId,
         client.id,
+        userId,
       );
       client.to(roomId).emit('userLeft', {
         clientId: client.id,
@@ -421,17 +447,17 @@ export class RoomGateway
 
   @SubscribeMessage('sendMessage')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleSendMessage(
+  async handleSendMessage(
     @MessageBody() data: SendMessageDto,
     @ConnectedSocket() client: AuthenticatedSocket,
-  ): void {
+  ): Promise<void> {
     const { roomId, message } = data;
 
     // Extract Supabase user data
     const supabaseUserData = this.extractSupabaseUserData(client);
 
     // Adicionar mensagem ao serviço
-    const roomMessage = this.roomService.addMessage(
+    const roomMessage = await this.roomService.addMessage(
       roomId,
       client.id,
       message,
@@ -447,6 +473,7 @@ export class RoomGateway
     this.server.to(roomId).emit('newMessage', {
       id: roomMessage.id,
       clientId: roomMessage.clientId,
+      userId: roomMessage.userId,
       message: roomMessage.message,
       timestamp: roomMessage.timestamp,
       roomId: roomId,
@@ -460,23 +487,25 @@ export class RoomGateway
 
   @SubscribeMessage('getRoomInfo')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleGetRoomInfo(
+  async handleGetRoomInfo(
     @MessageBody() data: GetRoomInfoDto,
     @ConnectedSocket() client: Socket,
-  ): void {
+  ): Promise<void> {
     const { roomId } = data;
-    const room = this.roomService.getRoom(roomId);
+    const room = await this.roomService.getRoom(roomId);
 
     if (!room) {
       client.emit('error', { message: 'Sala não encontrada x2' });
       return;
     }
 
+    const participants = await this.roomService.getParticipantsWithNames(roomId);
+
     client.emit('roomInfo', {
       id: room.id,
       name: room.name,
       participantCount: room.participants.length,
-      participants: this.roomService.getParticipantsWithNames(roomId),
+      participants,
       messageCount: room.messages.length,
       createdAt: room.createdAt,
     });
@@ -484,10 +513,10 @@ export class RoomGateway
 
   @SubscribeMessage('updateParticipantName')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleUpdateParticipantName(
+  async handleUpdateParticipantName(
     @MessageBody() data: UpdateParticipantNameDto,
     @ConnectedSocket() client: AuthenticatedSocket,
-  ): void {
+  ): Promise<void> {
     const { roomId, participantName } = data;
 
     // Se usuário está autenticado via Supabase, não permitir atualização de nome
@@ -503,10 +532,12 @@ export class RoomGateway
       return;
     }
 
-    const success = this.roomService.updateParticipantName(
+    // For anonymous users, userId is null
+    const success = await this.roomService.updateParticipantName(
       roomId,
       client.id,
       participantName,
+      null, // Anonymous users don't have userId
     );
 
     if (success) {
