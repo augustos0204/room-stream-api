@@ -41,7 +41,7 @@ pnpm run format            # Format code with Prettier
 The application follows NestJS modular architecture with clear separation of concerns:
 
 - **RoomModule** - Core business logic for chat rooms
-  - `RoomService`: In-memory storage and room operations (Map-based)
+  - `RoomService`: Room operations and business logic (uses MemoryService for storage)
   - `RoomGateway`: WebSocket event handlers using Socket.IO
   - `RoomController`: REST API endpoints
     - `POST /room` - Create new room
@@ -50,6 +50,12 @@ The application follows NestJS modular architecture with clear separation of con
     - `DELETE /room/:id` - Delete room
     - `GET /room/:id/messages` - Get all room messages
     - `GET /room/:id/participants` - Get all room participants
+
+- **MemoryModule** - Storage abstraction layer (Global module)
+  - `MemoryService`: Automatic storage adapter selection (Redis or in-memory)
+  - `InMemoryStorageAdapter`: Volatile in-memory storage using Maps
+  - `RedisStorageAdapter`: Persistent storage using Redis
+  - `IStorageAdapter`: Interface contract for storage implementations
 
 - **EventsModule** - Event-driven communication layer
   - Uses `@nestjs/event-emitter` (EventEmitter2) for internal events
@@ -78,14 +84,42 @@ The application follows NestJS modular architecture with clear separation of con
 
 ### State Management
 
-**Critical**: All room state is stored in-memory using JavaScript Maps:
-- `RoomService.rooms`: `Map<string, Room>` - main room storage
-- Each `Room` contains:
-  - `participants`: `string[]` - socket client IDs
-  - `participantNames`: `Map<string, string | null>` - client ID to name mapping
-  - `messages`: `RoomMessage[]` - message history
+**Storage Abstraction**: The application uses a flexible storage architecture via `MemoryModule`:
 
-**No database is used** - state is lost on server restart.
+- **MemoryModule** - Storage abstraction layer
+  - `MemoryService`: Main service that automatically selects storage adapter
+  - `IStorageAdapter`: Interface defining storage operations contract
+  - **Adapters**:
+    - `InMemoryStorageAdapter`: Default fallback, uses JavaScript Maps (volatile)
+    - `RedisStorageAdapter`: Optional persistent storage using Redis
+
+**Adapter Selection** (automatic):
+- If `REDIS_URL` environment variable is set → Uses Redis adapter
+- If `REDIS_URL` is not set → Uses in-memory adapter (default)
+
+**Data Storage Structure**:
+- Each `Room` contains:
+  - `participants`: `string[]` - **hybrid keys** (userId for Supabase users, clientId for anonymous users)
+  - `participantNames`: `Map<string, string | null>` - hybrid key to name mapping
+  - `participantSupabaseUsers`: `Map<string, SupabaseUserData | null>` - Supabase user data by hybrid key
+  - `messages`: `RoomMessage[]` - message history (includes optional `userId` field)
+
+**Hybrid Key System**:
+- **Supabase authenticated users**: Use `userId` (Supabase User ID) as primary key
+  - Persistent across sessions and reconnections
+  - Key format: UUID from Supabase (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+- **Anonymous users**: Use `clientId` (Socket.IO connection ID) as key
+  - Volatile, regenerated on each reconnection
+  - Key format: Socket.IO ID (e.g., `"xW3kJ9pL2mN8qR5t"`)
+- Helper function: `getParticipantKey(clientId, userId)` returns `userId || clientId`
+- All storage operations prioritize `userId` when available
+
+**Important Notes**:
+- With in-memory storage: state is lost on server restart
+- With Redis storage: state persists across server restarts
+- Storage adapter is chosen once at application startup based on `REDIS_URL`
+- Supabase users maintain their data across reconnections (persistent userId)
+- Anonymous users lose their data on reconnection (volatile clientId)
 
 ### WebSocket Configuration
 
@@ -172,6 +206,79 @@ Event types tracked:
 - `metrics:user-left-room` - User leaves a room
 - `metrics:message-sent` - Message sent in room
 
+## Redis Storage (Optional)
+
+The application supports optional Redis storage for data persistence. By default, it uses in-memory storage which is lost on restart.
+
+### Enabling Redis
+
+Set the `REDIS_URL` environment variable:
+
+```bash
+# Local Redis
+REDIS_URL=redis://localhost:6379
+
+# Redis with authentication
+REDIS_URL=redis://username:password@host:port
+
+# Redis with database selection
+REDIS_URL=redis://localhost:6379/0
+```
+
+### Redis Key Structure (Hybrid System)
+
+When Redis is enabled, data is stored using the following key patterns with **hybrid keys**:
+
+- `rooms` - Set of all room IDs
+- `room:{roomId}` - Room metadata (JSON)
+- `room:{roomId}:participants` - Set of participant **hybrid keys** (userId or clientId)
+- `room:{roomId}:participant:{key}:name` - Participant name (string), where `{key}` = userId or clientId
+- `room:{roomId}:participant:{key}:supabase` - Participant Supabase user data (JSON), where `{key}` = userId or clientId
+- `room:{roomId}:messages` - List of messages (JSON array, each includes optional `userId` field)
+
+**Key Examples**:
+- Supabase user: `room:room_123:participant:550e8400-e29b-41d4-a716-446655440000:name`
+- Anonymous user: `room:room_123:participant:xW3kJ9pL2mN8qR5t:name`
+
+### Implementation Details
+
+**Adapter Architecture**:
+- `MemoryService` automatically selects the appropriate storage adapter on startup
+- Selection is based solely on the presence of `REDIS_URL` environment variable
+- Both adapters implement the same `IStorageAdapter` interface
+
+**Redis Adapter Features**:
+- Automatic reconnection with exponential backoff (max 2 seconds)
+- Maximum 3 retry attempts per request
+- Error handling and logging for all Redis operations
+- Graceful degradation on Redis connection issues
+
+**Storage Guarantees**:
+- **Without Redis**: Data is volatile, lost on restart (development/testing)
+- **With Redis**: Data persists across restarts (production/staging)
+- No migration needed between storage types (data is isolated)
+
+**Performance Considerations**:
+- In-memory adapter: Fast, no network overhead, limited by RAM
+- Redis adapter: Network latency, scalable, persistent
+- All operations are async to prevent blocking
+
+### Debugging Redis Storage
+
+Check which adapter is active in the logs on startup:
+
+```
+[MemoryService] Using Redis storage adapter
+[RedisStorageAdapter] Redis storage adapter initialized successfully
+```
+
+Or:
+
+```
+[MemoryService] Using in-memory storage adapter (REDIS_URL not configured)
+[InMemoryStorageAdapter] In-memory storage adapter initialized
+```
+
 ## Configuration
 
 Environment variables (see `.env.example`):
@@ -181,6 +288,7 @@ Environment variables (see `.env.example`):
 - `API_KEY` - API key for authentication (optional, if not set auth is disabled)
 - `SUPABASE_URL` - Supabase project URL (optional, for Supabase authentication)
 - `SUPABASE_ANON_KEY` - Supabase anonymous key (optional, for Supabase authentication)
+- `REDIS_URL` - Redis connection URL (optional, if not set uses in-memory storage)
 - `APP_NAME` - Application name (used in Docker deployments)
 - `APP_VERSION` - Application version (used in Docker deployments)
 

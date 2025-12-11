@@ -1,6 +1,6 @@
-<!-- Chat Modal (opens in overlay, not full page) -->
+<!-- Chat Modal (opens in overlay, not full page) - MULTIPLE ROOMS -->
 <div
-    x-show="showChatModal && currentRoomId"
+    x-show="showChatModal && activeRooms.length > 0"
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
     x-transition:enter="transition ease-out duration-200"
     x-transition:enter-start="opacity-0"
@@ -24,6 +24,45 @@
         x-transition:leave-end="opacity-0 transform scale-95"
         @click.stop
     >
+        <!-- Room Tabs -->
+        <div class="flex items-center gap-1 px-4 pt-3 overflow-x-auto custom-scrollbar">
+            <template x-for="room in activeRooms" :key="room.id">
+                <button
+                    @click="switchToRoom(room.id)"
+                    class="relative flex items-center gap-2 px-4 py-2 rounded-t-lg transition-all duration-200 whitespace-nowrap"
+                    :class="currentActiveRoomId === room.id 
+                        ? 'bg-gray-900/50 border-t border-x border-gray-700/50 text-white' 
+                        : 'bg-gray-800/30 text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'"
+                >
+                    <!-- Room Icon -->
+                    <div class="w-5 h-5 rounded-full flex items-center justify-center"
+                         :class="room.joined ? 'bg-green-500/20' : 'bg-gray-700/50'">
+                        <i :data-lucide="room.joined ? 'hash' : 'hash'" 
+                           class="w-3 h-3"
+                           :class="room.joined ? 'text-green-400' : 'text-gray-500'"></i>
+                    </div>
+                    
+                    <!-- Room Name -->
+                    <span class="text-sm font-medium max-w-[120px] truncate" x-text="room.name"></span>
+                    
+                    <!-- Unread Badge -->
+                    <template x-if="room.unreadCount > 0 && currentActiveRoomId !== room.id">
+                        <span class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center"
+                              x-text="room.unreadCount"></span>
+                    </template>
+                    
+                    <!-- Close Tab Button -->
+                    <button
+                        @click.stop="closeRoomTab(room.id)"
+                        class="ml-1 p-1 hover:bg-red-500/20 rounded transition-colors"
+                        title="Fechar aba"
+                    >
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                </button>
+            </template>
+        </div>
+
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-700/50 bg-gray-900/50">
             <div class="flex items-center gap-4">
@@ -40,6 +79,14 @@
             </div>
 
             <div class="flex items-center gap-2">
+                <!-- Room Info Badge -->
+                <div class="px-3 py-1.5 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                    <span class="text-xs text-gray-400">Sala </span>
+                    <span class="text-xs font-bold text-green-400" x-text="activeRooms.length"></span>
+                    <span class="text-xs text-gray-400"> de </span>
+                    <span class="text-xs text-gray-300" x-text="activeRooms.length"></span>
+                </div>
+                
                 <!-- Connect Button (if not connected) -->
                 <template x-if="!isConnected">
                     <button
@@ -51,34 +98,35 @@
                     </button>
                 </template>
 
-                <!-- Join Room Button (if connected but not in room) -->
-                <template x-if="isConnected && !isInRoom">
+                <!-- Join Room Button (if connected but not in current room) -->
+                <template x-if="isConnected && getCurrentActiveRoom() && !getCurrentActiveRoom().joined">
                     <button
                         @click="joinRoom()"
                         class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                     >
                         <i data-lucide="log-in" class="w-4 h-4"></i>
-                        <span>Entrar na Sala</span>
+                        <span>Entrar</span>
                     </button>
                 </template>
 
-                <!-- Leave Room Button (if in room) -->
-                <template x-if="isConnected && isInRoom">
+                <!-- Leave Room Button (if in current room) -->
+                <template x-if="isConnected && getCurrentActiveRoom() && getCurrentActiveRoom().joined">
                     <button
                         @click="leaveRoom()"
                         class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                     >
                         <i data-lucide="log-out" class="w-4 h-4"></i>
-                        <span>Sair da Sala</span>
+                        <span>Sair</span>
                     </button>
                 </template>
 
-                <!-- Close Button -->
+                <!-- Close Modal Button -->
                 <button
                     @click="showChatModal = false"
                     class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                    title="Fechar (mantém salas abertas)"
                 >
-                    <i data-lucide="x" class="w-5 h-5 text-gray-400"></i>
+                    <i data-lucide="minimize-2" class="w-5 h-5 text-gray-400"></i>
                 </button>
             </div>
         </div>

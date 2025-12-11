@@ -26,16 +26,20 @@ function platformApp() {
         message: '',
         loginMethod: 'supabase', // 'supabase' or 'apikey'
 
-        // ==================== CURRENT ROOM STATE ====================
+        // ==================== MULTIPLE ROOMS STATE ====================
+        activeRooms: [], // Array of active room objects: { id, name, logs, participants, unreadCount, joined }
+        currentActiveRoomId: null, // Currently displayed room tab
+        
+        // Legacy support (deprecated)
         currentRoomId: null,
         currentRoomName: null,
         isInRoom: false,
 
         // ==================== DATA ====================
         rooms: [],
-        roomParticipants: [],
+        roomParticipants: [], // Deprecated - use activeRoom.participants
         logs: [],
-        roomLogs: [],
+        roomLogs: [], // Deprecated - use activeRoom.logs
         autoScroll: true,
         metrics: {
             connections: { total: 0, active: 0 },
@@ -256,8 +260,10 @@ function platformApp() {
             this.stats.totalRooms = this.rooms.length;
             this.stats.activeRooms = this.rooms.filter(r => r.participants.length > 0).length;
             this.stats.totalParticipants = this.rooms.reduce((sum, r) => sum + r.participants.length, 0);
+            // Check if user is in room using hybrid key (userId or clientId)
+            const myKey = this.supabaseUser?.id || this.socket?.id;
             this.stats.myActiveRooms = this.rooms.filter(r =>
-                r.participants.some(p => p.clientId === this.socket?.id)
+                r.participants.some(p => p.clientId === myKey)
             );
         },
 
@@ -415,7 +421,8 @@ function platformApp() {
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
-                this.rooms = await response.json();
+                const data = await response.json();
+                this.rooms = Array.isArray(data) ? data : [];
                 this.updateStats();
                 this.log(`✅ ${this.rooms.length} salas carregadas`, 'success');
 
@@ -486,21 +493,29 @@ function platformApp() {
 
                 // Room events
                 this.socket.on('joinedRoom', (data) => {
-                    this.isInRoom = true;
-                    this.roomLog(`✅ Entrou na sala ${data.roomName}`, 'success');
-                    this.roomLog(`👥 ${data.participants.length} participantes na sala`, 'info');
+                    const activeRoom = this.getActiveRoom(data.roomId);
+                    if (!activeRoom) return;
+
+                    activeRoom.joined = true;
+                    activeRoom.participants = data.participants || [];
                     
-                    // Update participants with proper structure
-                    this.roomParticipants = data.participants || [];
+                    // Update legacy properties if this is the current room
+                    if (this.currentActiveRoomId === data.roomId) {
+                        this.isInRoom = true;
+                        this.roomParticipants = activeRoom.participants;
+                    }
+
+                    this.roomLog(`✅ Entrou na sala ${data.roomName}`, 'success', null, null, null, null, null, data.roomId);
+                    this.roomLog(`👥 ${data.participants.length} participantes na sala`, 'info', null, null, null, null, null, data.roomId);
 
                     // Load recent messages
                     if (data.recentMessages && data.recentMessages.length > 0) {
-                        this.roomLog(`📜 Carregando ${data.recentMessages.length} mensagens recentes...`, 'info');
+                        this.roomLog(`📜 Carregando ${data.recentMessages.length} mensagens recentes...`, 'info', null, null, null, null, null, data.roomId);
                         data.recentMessages.forEach(msg => {
                             let senderName, displayName;
 
-                            // Check if message is from current user (by Supabase ID or clientId)
-                            const isMyMessage = (msg.supabaseUser && this.supabaseUser?.id === msg.supabaseUser.id) ||
+                            // Check if message is from current user (by Supabase userId or clientId)
+                            const isMyMessage = (msg.userId && this.supabaseUser?.id === msg.userId) ||
                                               (msg.clientId === this.socket.id);
 
                             if (isMyMessage) {
@@ -511,8 +526,9 @@ function platformApp() {
                                 senderName = msg.supabaseUser.email || msg.supabaseUser.name || 'Usuário Supabase';
                                 displayName = `${senderName} 🔒`;
                             } else {
-                                // Anonymous user
-                                const sender = data.participants.find(p => p.clientId === msg.clientId);
+                                // Anonymous user - find by userId (if available) or clientId
+                                const messageKey = msg.userId || msg.clientId;
+                                const sender = data.participants.find(p => p.clientId === messageKey);
                                 if (sender?.name) {
                                     senderName = sender.name;
                                     displayName = sender.name;
@@ -534,23 +550,35 @@ function platformApp() {
                                 msg.timestamp,
                                 displayName,
                                 msg.clientId,
-                                msg.supabaseUser
+                                msg.supabaseUser,
+                                data.roomId
                             );
                         });
                     }
 
-                    Toast.success('Entrou na sala!');
+                    Toast.success(`Entrou na sala ${data.roomName}!`);
                     this.log(`✅ Entrou na sala ${data.roomName}`, 'success');
                 });
 
                 this.socket.on('leftRoom', (data) => {
-                    this.isInRoom = false;
-                    this.roomLog(`👋 Você saiu da sala ${data.roomName}`, 'info');
+                    const activeRoom = this.getActiveRoom(data.roomId);
+                    if (activeRoom) {
+                        activeRoom.joined = false;
+                        this.roomLog(`👋 Você saiu da sala`, 'info', null, null, null, null, null, data.roomId);
+                    }
+                    
+                    // Update legacy property if this is the current room
+                    if (this.currentActiveRoomId === data.roomId) {
+                        this.isInRoom = false;
+                    }
+                    
                     Toast.info('Você saiu da sala');
                 });
 
                 this.socket.on('newMessage', (data) => {
-                    const isMyMessage = data.clientId === this.socket.id;
+                    // Check if message is from current user (by Supabase userId or clientId)
+                    const isMyMessage = (data.userId && this.supabaseUser?.id === data.userId) ||
+                                      (data.clientId === this.socket.id);
                     let senderName;
                     let displayName;
 
@@ -563,8 +591,10 @@ function platformApp() {
                             senderName = data.supabaseUser.email || data.supabaseUser.name || 'Usuário Supabase';
                             displayName = `${senderName} 🔒`;
                         } else {
-                            // Find sender name from participants list
-                            const sender = this.roomParticipants.find(p => p.clientId === data.clientId);
+                            // Find sender name from participants list using hybrid key
+                            const activeRoom = this.getActiveRoom(data.roomId);
+                            const messageKey = data.userId || data.clientId;
+                            const sender = activeRoom?.participants.find(p => p.clientId === messageKey);
                             if (sender?.name) {
                                 senderName = sender.name;
                                 displayName = sender.name;
@@ -587,61 +617,79 @@ function platformApp() {
                         data.timestamp,
                         displayName,
                         data.clientId,
-                        data.supabaseUser
+                        data.supabaseUser,
+                        data.roomId
                     );
 
-                    // Auto scroll to bottom
-                    this.$nextTick(() => {
-                        const chatMessages = this.$refs.chatMessages;
-                        if (chatMessages && this.autoScroll) {
-                            chatMessages.scrollTop = chatMessages.scrollHeight;
-                        }
-                    });
+                    // Auto scroll to bottom only for current room
+                    if (this.currentActiveRoomId === data.roomId) {
+                        this.$nextTick(() => {
+                            const chatMessages = this.$refs.chatMessages;
+                            if (chatMessages && this.autoScroll) {
+                                chatMessages.scrollTop = chatMessages.scrollHeight;
+                            }
+                        });
+                    }
                 });
 
                 this.socket.on('userJoined', (data) => {
-                    this.roomLog(`👤 ${data.participantName || 'Anônimo'} entrou na sala`, 'info');
-                    // Refresh room info to get updated participant list
-                    if (this.currentRoomId) {
-                        this.socket.emit('getRoomInfo', { roomId: this.currentRoomId });
+                    const activeRoom = this.getActiveRoom(data.roomId);
+                    if (activeRoom) {
+                        this.roomLog(`👤 ${data.participantName || 'Anônimo'} entrou na sala`, 'info', null, null, null, null, null, data.roomId);
+                        // Refresh room info to get updated participant list
+                        this.socket.emit('getRoomInfo', { roomId: data.roomId });
                     }
                 });
 
                 this.socket.on('userLeft', (data) => {
-                    this.roomLog(`👋 ${data.participantName || 'Anônimo'} saiu da sala`, 'info');
-                    // Refresh room info to get updated participant list
-                    if (this.currentRoomId) {
-                        this.socket.emit('getRoomInfo', { roomId: this.currentRoomId });
+                    const activeRoom = this.getActiveRoom(data.roomId);
+                    if (activeRoom) {
+                        this.roomLog(`👋 ${data.participantName || 'Anônimo'} saiu da sala`, 'info', null, null, null, null, null, data.roomId);
+                        // Refresh room info to get updated participant list
+                        this.socket.emit('getRoomInfo', { roomId: data.roomId });
                     }
                 });
 
                 this.socket.on('participantNameUpdated', (data) => {
-                    this.roomLog(`✏️ ${data.oldName || 'Anônimo'} agora é ${data.newName}`, 'info');
-                    this.roomParticipants = data.participants || [];
+                    const activeRoom = this.getActiveRoom(data.roomId);
+                    if (activeRoom) {
+                        this.roomLog(`✏️ ${data.oldName || 'Anônimo'} agora é ${data.newName}`, 'info', null, null, null, null, null, data.roomId);
+                        if (data.participants) {
+                            activeRoom.participants = data.participants;
+                            if (this.currentActiveRoomId === data.roomId) {
+                                this.roomParticipants = data.participants;
+                            }
+                        }
+                    }
                 });
 
                 this.socket.on('roomInfo', (data) => {
-                    this.roomParticipants = data.participants || [];
+                    const activeRoom = this.getActiveRoom(data.id);
+                    if (activeRoom) {
+                        activeRoom.participants = data.participants || [];
+                        if (this.currentActiveRoomId === data.id) {
+                            this.roomParticipants = data.participants || [];
+                        }
+                    }
                 });
 
                 this.socket.on('roomDeleted', (data) => {
-                    // Room was deleted
-                    this.roomLog(`🗑️ ${data.message}`, 'error');
-                    Toast.error(data.message);
-
-                    // If user was in the deleted room, exit it
-                    if (this.currentRoomId === data.roomId) {
-                        this.isInRoom = false;
-                        this.currentRoomId = null;
-                        this.currentRoomName = null;
-                        this.roomParticipants = [];
-                        this.log(`❌ Sala deletada: ${data.roomName}`, 'error');
+                    const activeRoom = this.getActiveRoom(data.roomId);
+                    
+                    if (activeRoom) {
+                        this.roomLog(`🗑️ ${data.message}`, 'error', null, null, null, null, null, data.roomId);
+                        Toast.error(data.message);
+                        
+                        // Close the room tab
+                        this.closeRoomTab(data.roomId);
                     }
 
                     // Refresh room list to remove deleted room
                     if (this.currentPage === 'rooms') {
                         this.listRooms();
                     }
+                    
+                    this.log(`❌ Sala deletada: ${data.roomName}`, 'error');
                 });
 
             } catch (error) {
@@ -657,7 +705,15 @@ function platformApp() {
             this.socket.disconnect();
             this.socket = null;
             this.isConnected = false;
+            
+            // Mark all rooms as not joined
+            this.activeRooms.forEach(room => {
+                room.joined = false;
+            });
+            
+            // Update legacy properties
             this.isInRoom = false;
+            
             this.log('🔌 Desconectado manualmente', 'info');
             Toast.info('Desconectado');
         },
@@ -742,10 +798,10 @@ function platformApp() {
                 this.log(`✅ Sala excluída`, 'success');
                 Toast.success('Sala excluída');
 
-                if (this.currentRoomId === roomId) {
-                    this.currentRoomId = null;
-                    this.currentRoomName = null;
-                    this.navigateTo('rooms');
+                // Close the room tab if open
+                const activeRoom = this.getActiveRoom(roomId);
+                if (activeRoom) {
+                    this.closeRoomTab(roomId);
                 }
             } catch (error) {
                 this.log(`❌ Erro ao excluir sala: ${error.message}`, 'error');
@@ -753,66 +809,166 @@ function platformApp() {
             }
         },
 
-        openRoom(roomId, roomName) {
-            // If switching rooms, leave the current room first
-            if (this.currentRoomId && this.currentRoomId !== roomId && this.isInRoom) {
-                this.leaveRoom();
-            }
-
-            this.currentRoomId = roomId;
-            this.currentRoomName = roomName;
-            this.isInRoom = false;
-            this.roomLogs = [];
-            this.roomParticipants = [];
-
-            // Open chat modal instead of navigating to full page
-            this.showChatModal = true;
-
-            // Auto join if connected
-            if (this.isConnected && this.socket) {
-                this.joinRoom();
-            }
+        // ==================== MULTIPLE ROOMS MANAGEMENT ====================
+        getActiveRoom(roomId) {
+            return this.activeRooms.find(r => r.id === roomId);
         },
 
-        joinRoom() {
+        getCurrentActiveRoom() {
+            return this.getActiveRoom(this.currentActiveRoomId);
+        },
+
+        openRoom(roomId, roomName) {
+            // Check if room is already open
+            let activeRoom = this.getActiveRoom(roomId);
+            
+            if (!activeRoom) {
+                // Create new active room
+                activeRoom = {
+                    id: roomId,
+                    name: roomName,
+                    logs: [],
+                    participants: [],
+                    unreadCount: 0,
+                    joined: false
+                };
+                this.activeRooms.push(activeRoom);
+                this.log(`📂 Sala ${roomName} adicionada às abas`, 'info');
+            }
+
+            // Switch to this room
+            this.currentActiveRoomId = roomId;
+            
+            // Update legacy properties for backward compatibility
+            this.currentRoomId = roomId;
+            this.currentRoomName = roomName;
+            this.roomLogs = activeRoom.logs;
+            this.roomParticipants = activeRoom.participants;
+            this.isInRoom = activeRoom.joined;
+
+            // Reset unread count
+            activeRoom.unreadCount = 0;
+
+            // Open chat modal
+            this.showChatModal = true;
+
+            // Auto join if connected and not already joined
+            if (this.isConnected && this.socket && !activeRoom.joined) {
+                this.joinRoom(roomId);
+            }
+
+            Toast.info(`Sala: ${roomName}`);
+        },
+
+        joinRoom(roomId = null) {
             if (!this.socket || !this.isConnected) {
                 Toast.error('Conecte ao WebSocket primeiro');
                 return;
             }
 
-            if (!this.currentRoomId) {
+            const targetRoomId = roomId || this.currentActiveRoomId;
+            if (!targetRoomId) {
                 Toast.error('Selecione uma sala primeiro');
                 return;
             }
 
+            const activeRoom = this.getActiveRoom(targetRoomId);
+            if (!activeRoom) {
+                Toast.error('Sala não encontrada nas abas ativas');
+                return;
+            }
+
             this.socket.emit('joinRoom', {
-                roomId: this.currentRoomId,
+                roomId: targetRoomId,
                 participantName: this.participantName || null
             });
 
-            this.log(`🔌 Entrando na sala ${this.currentRoomName}...`, 'info');
+            this.log(`🔌 Entrando na sala ${activeRoom.name}...`, 'info');
         },
 
-        leaveRoom() {
-            if (!this.socket || !this.currentRoomId) return;
+        leaveRoom(roomId = null) {
+            const targetRoomId = roomId || this.currentActiveRoomId;
+            if (!this.socket || !targetRoomId) return;
 
-            this.socket.emit('leaveRoom', { roomId: this.currentRoomId });
-            this.isInRoom = false;
-            this.roomLogs = [];
-            this.roomParticipants = [];
-            this.currentRoomId = null;
-            this.currentRoomName = null;
+            const activeRoom = this.getActiveRoom(targetRoomId);
+            if (!activeRoom) return;
+
+            this.socket.emit('leaveRoom', { roomId: targetRoomId });
+            activeRoom.joined = false;
+            
+            this.log(`👋 Saiu da sala ${activeRoom.name}`, 'info');
+        },
+
+        closeRoomTab(roomId) {
+            const activeRoom = this.getActiveRoom(roomId);
+            if (!activeRoom) return;
+
+            // Leave room if joined
+            if (activeRoom.joined) {
+                this.leaveRoom(roomId);
+            }
+
+            // Remove from active rooms
+            this.activeRooms = this.activeRooms.filter(r => r.id !== roomId);
+            
+            // If this was the current room, switch to another or close modal
+            if (this.currentActiveRoomId === roomId) {
+                if (this.activeRooms.length > 0) {
+                    // Switch to first available room
+                    const nextRoom = this.activeRooms[0];
+                    this.currentActiveRoomId = nextRoom.id;
+                    this.currentRoomId = nextRoom.id;
+                    this.currentRoomName = nextRoom.name;
+                    this.roomLogs = nextRoom.logs;
+                    this.roomParticipants = nextRoom.participants;
+                    this.isInRoom = nextRoom.joined;
+                } else {
+                    // No more rooms, close modal
+                    this.currentActiveRoomId = null;
+                    this.currentRoomId = null;
+                    this.currentRoomName = null;
+                    this.roomLogs = [];
+                    this.roomParticipants = [];
+                    this.isInRoom = false;
+                    this.showChatModal = false;
+                }
+            }
+
+            Toast.info(`Aba ${activeRoom.name} fechada`);
+        },
+
+        switchToRoom(roomId) {
+            const activeRoom = this.getActiveRoom(roomId);
+            if (!activeRoom) return;
+
+            this.currentActiveRoomId = roomId;
+            this.currentRoomId = roomId;
+            this.currentRoomName = activeRoom.name;
+            this.roomLogs = activeRoom.logs;
+            this.roomParticipants = activeRoom.participants;
+            this.isInRoom = activeRoom.joined;
+
+            // Reset unread count
+            activeRoom.unreadCount = 0;
+
+            // Auto-scroll to bottom
+            this.$nextTick(() => {
+                const chatMessages = this.$refs.chatMessages;
+                if (chatMessages && this.autoScroll) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            });
         },
 
         sendMessage() {
             if (!this.message.trim()) return;
-            if (!this.socket || !this.currentRoomId) {
+            if (!this.socket || !this.currentActiveRoomId) {
                 Toast.error('Não está conectado a uma sala');
                 return;
             }
 
             this.socket.emit('sendMessage', {
-                roomId: this.currentRoomId,
+                roomId: this.currentActiveRoomId,
                 message: this.message
             });
 
@@ -827,18 +983,43 @@ function platformApp() {
 
             localStorage.setItem('participantName', this.participantName);
 
-            if (this.socket && this.isConnected && this.currentRoomId) {
-                this.socket.emit('updateParticipantName', {
-                    roomId: this.currentRoomId,
-                    name: this.participantName
+            // Update name in all joined rooms
+            if (this.socket && this.isConnected) {
+                this.activeRooms.forEach(room => {
+                    if (room.joined) {
+                        this.socket.emit('updateParticipantName', {
+                            roomId: room.id,
+                            name: this.participantName
+                        });
+                    }
                 });
             }
 
             Toast.success('Nome atualizado');
         },
 
-        roomLog(message, type = 'info', senderName = null, timestamp = null, displayName = null, senderId = null, supabaseUser = null) {
-            this.roomLogs.push({
+        roomLog(message, type = 'info', senderName = null, timestamp = null, displayName = null, senderId = null, supabaseUser = null, roomId = null) {
+            const targetRoomId = roomId || this.currentActiveRoomId;
+            const activeRoom = this.getActiveRoom(targetRoomId);
+            
+            if (!activeRoom) {
+                // Fallback to legacy roomLogs if room not found
+                this.roomLogs.push({
+                    message,
+                    type,
+                    senderName,
+                    timestamp: timestamp || new Date().toISOString(),
+                    displayName,
+                    senderId,
+                    supabaseUser
+                });
+                if (this.roomLogs.length > 100) {
+                    this.roomLogs = this.roomLogs.slice(-100);
+                }
+                return;
+            }
+
+            activeRoom.logs.push({
                 message,
                 type,
                 senderName,
@@ -848,8 +1029,18 @@ function platformApp() {
                 supabaseUser
             });
 
-            if (this.roomLogs.length > 100) {
-                this.roomLogs = this.roomLogs.slice(-100);
+            if (activeRoom.logs.length > 100) {
+                activeRoom.logs = activeRoom.logs.slice(-100);
+            }
+
+            // Update unread count if not currently viewing this room
+            if (type === 'user_message' && this.currentActiveRoomId !== targetRoomId) {
+                activeRoom.unreadCount = (activeRoom.unreadCount || 0) + 1;
+            }
+
+            // Update legacy roomLogs if this is the current room
+            if (targetRoomId === this.currentActiveRoomId) {
+                this.roomLogs = activeRoom.logs;
             }
         },
 
