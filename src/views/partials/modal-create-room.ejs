@@ -8,10 +8,10 @@
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0"
-    @click.self="showCreateRoomModal = false"
+    @click="showCreateRoomModal = false"
 >
     <!-- Backdrop -->
-    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showCreateRoomModal = false"></div>
 
     <!-- Modal Content -->
     <div
@@ -32,7 +32,6 @@
                 </div>
                 <div>
                     <h2 class="text-xl font-bold text-white">Criar Nova Sala</h2>
-                    <p class="text-sm text-gray-400">Crie uma sala para começar a conversar</p>
                 </div>
             </div>
             <button

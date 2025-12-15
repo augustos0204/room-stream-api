@@ -8,10 +8,10 @@
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0"
-    @click.self="showLoginModal = false"
+    @click="showLoginModal = false"
 >
     <!-- Backdrop -->
-    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showLoginModal = false"></div>
 
     <!-- Modal Content -->
     <div
