@@ -1,6 +1,6 @@
 <!-- Platform Sidebar Navigation -->
 <aside
-    class="sidebar fixed left-0 h-screen border-r border-gray-700/50 transition-all duration-300 flex flex-col pt-[73px] dark-glass shadow-2xl"
+    class="sidebar fixed left-0 h-[100dvh] border-r border-gray-700/50 transition-all duration-300 flex flex-col pt-[73px] dark-glass shadow-2xl"
     :class="[
         sidebarExpanded ? 'w-64' : 'w-16',
         'z-40'
@@ -15,7 +15,7 @@
     ></div>
 
     <!-- Navigation Items -->
-    <nav class="p-2 space-y-1 flex-1 overflow-y-auto overflow-x-visible custom-scrollbar" style="scrollbar-width: thin;">
+    <nav class="p-2 space-y-1 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar" style="scrollbar-width: thin;">
         <!-- Dashboard -->
         <button
             @click="navigateTo('dashboard')"
@@ -94,42 +94,86 @@
         </div>
 
         <!-- Logged In (Supabase) -->
-        <div x-show="supabaseUser" class="space-y-3">
-            <div class="flex items-center gap-3" :class="!sidebarExpanded && 'justify-center'">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="user" class="w-5 h-5 text-white"></i>
-                </div>
-                <div x-show="sidebarExpanded" class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-200 truncate" x-text="supabaseUser?.email"></p>
-                    <p class="text-xs text-green-400">Supabase Auth</p>
-                </div>
-            </div>
+        <div x-show="supabaseUser">
             <button
-                x-show="sidebarExpanded"
                 @click="showProfileModal = true"
-                class="w-full px-3 py-2 bg-gray-700/50 hover:bg-gray-700 rounded-lg text-sm text-gray-300 transition-colors"
+                class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-300 relative group border border-transparent hover:border-green-500/30 hover:bg-gradient-to-r hover:from-green-600/10 hover:to-emerald-600/10 hover:shadow-lg hover:shadow-green-500/10 hover:scale-[1.02]"
+                :class="!sidebarExpanded && 'justify-center'"
             >
-                Ver Perfil
+                <!-- Avatar with animated ring -->
+                <div class="relative flex-shrink-0">
+                    <!-- Pulsing ring on hover -->
+                    <div class="absolute inset-0 rounded-full bg-gradient-to-br from-green-400 to-emerald-400 opacity-0 group-hover:opacity-100 blur-md group-hover:animate-pulse transition-opacity"></div>
+                    <div class="relative w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                        <i data-lucide="user" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <!-- Online/Offline status badge based on WebSocket connection -->
+                    <div
+                        class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-gray-900 transition-colors"
+                        :class="isConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-500'"
+                    ></div>
+                </div>
+
+                <div x-show="sidebarExpanded" class="flex-1 min-w-0 text-left overflow-hidden">
+                    <p class="text-sm font-medium text-gray-200 group-hover:text-white truncate transition-colors" x-text="supabaseUser?.email"></p>
+                    <p class="text-xs text-green-400 group-hover:text-green-300 transition-colors truncate">Supabase Auth</p>
+                </div>
+
+                <!-- Arrow icon when expanded -->
+                <div x-show="sidebarExpanded" class="opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-green-400"></i>
+                </div>
+
+                <!-- Tooltip quando fechada -->
+                <div
+                    x-show="!sidebarExpanded"
+                    class="absolute left-full ml-2 px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm rounded-lg shadow-xl shadow-green-500/30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 flex items-center gap-2"
+                >
+                    <span>Ver Perfil</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                </div>
             </button>
         </div>
 
         <!-- Logged In (API Key) -->
-        <div x-show="!supabaseUser && apiKey" class="space-y-3">
-            <div class="flex items-center gap-3" :class="!sidebarExpanded && 'justify-center'">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="key" class="w-5 h-5 text-white"></i>
-                </div>
-                <div x-show="sidebarExpanded" class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-200 truncate" x-text="participantName || 'Usuário'"></p>
-                    <p class="text-xs text-blue-400">API Key Auth</p>
-                </div>
-            </div>
+        <div x-show="!supabaseUser && apiKey">
             <button
-                x-show="sidebarExpanded"
                 @click="showProfileModal = true"
-                class="w-full px-3 py-2 bg-gray-700/50 hover:bg-gray-700 rounded-lg text-sm text-gray-300 transition-colors"
+                class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-300 relative group border border-transparent hover:border-blue-500/30 hover:bg-gradient-to-r hover:from-blue-600/10 hover:to-cyan-600/10 hover:shadow-lg hover:shadow-blue-500/10 hover:scale-[1.02]"
+                :class="!sidebarExpanded && 'justify-center'"
             >
-                Ver Perfil
+                <!-- Avatar with animated ring -->
+                <div class="relative flex-shrink-0">
+                    <!-- Pulsing ring on hover -->
+                    <div class="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 opacity-0 group-hover:opacity-100 blur-md group-hover:animate-pulse transition-opacity"></div>
+                    <div class="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                        <i data-lucide="key" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <!-- Online/Offline status badge based on WebSocket connection -->
+                    <div
+                        class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-gray-900 transition-colors"
+                        :class="isConnected ? 'bg-blue-400 animate-pulse' : 'bg-gray-500'"
+                    ></div>
+                </div>
+
+                <div x-show="sidebarExpanded" class="flex-1 min-w-0 text-left overflow-hidden">
+                    <p class="text-sm font-medium text-gray-200 group-hover:text-white truncate transition-colors" x-text="participantName || 'Usuário'"></p>
+                    <p class="text-xs text-blue-400 group-hover:text-blue-300 transition-colors truncate">API Key Auth</p>
+                </div>
+
+                <!-- Arrow icon when expanded -->
+                <div x-show="sidebarExpanded" class="opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-blue-400"></i>
+                </div>
+
+                <!-- Tooltip quando fechada -->
+                <div
+                    x-show="!sidebarExpanded"
+                    class="absolute left-full ml-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm rounded-lg shadow-xl shadow-blue-500/30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 flex items-center gap-2"
+                >
+                    <span>Ver Perfil</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                </div>
             </button>
         </div>
     </div>
