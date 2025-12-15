@@ -9,6 +9,7 @@ function platformApp() {
         sidebarExpanded: false, // Sidebar começa fechada
         sidebarPinned: false, // Se está fixada (não fecha com hover out)
         metricsInterval: null, // Interval for auto-updating metrics
+        tokenRefreshInterval: null, // Interval for checking/refreshing Supabase token
 
         // ==================== CONNECTION STATE ====================
         socket: null,
@@ -191,6 +192,9 @@ function platformApp() {
 
             // Start auto-updates
             this.startMetricsAutoUpdate();
+            
+            // Start Supabase token refresh check (if using Supabase)
+            this.startTokenRefreshCheck();
 
             this.log('✅ Plataforma pronta para uso', 'success');
         },
@@ -464,6 +468,178 @@ function platformApp() {
             this.log('🔑 API Key atualizada', 'success');
         },
 
+        // ==================== TOKEN VALIDATION & REFRESH ====================
+        
+        /**
+         * Centraliza lógica de logout por token inválido/expirado
+         * Limpa todas as credenciais e estado, desconecta WebSocket, para polling
+         */
+        handleUnauthorized() {
+            this.log('❌ Sessão expirada ou inválida', 'error');
+            Toast.error('Sessão expirada. Faça login novamente.');
+            
+            // Limpa credenciais
+            this.apiKey = '';
+            this.supabaseToken = null;
+            this.supabaseUser = null;
+            this.participantName = '';
+            
+            // Limpa localStorage
+            localStorage.removeItem('apiKey');
+            localStorage.removeItem('supabaseToken');
+            localStorage.removeItem('supabaseUser');
+            localStorage.removeItem('participantName');
+            
+            // Desconecta WebSocket
+            if (this.socket && this.isConnected) {
+                this.disconnect();
+            }
+            
+            // Para polling de métricas e refresh de token
+            this.stopMetricsAutoUpdate();
+            this.stopTokenRefreshCheck();
+            
+            // Fecha modais
+            this.showProfileModal = false;
+            this.showChatModal = false;
+            this.showShortcutsModal = false;
+            this.showCreateRoomModal = false;
+            
+            // Limpa estado
+            this.rooms = [];
+            this.activeRooms = [];
+            this.currentRoomId = null;
+            this.isInRoom = false;
+            
+            this.log('🔓 Deslogado automaticamente', 'info');
+        },
+
+        /**
+         * Verifica e renova token Supabase antes de expirar
+         * Previne desconexão desnecessária mantendo sessão ativa
+         */
+        async ensureValidToken() {
+            if (!this.supabaseClient || !this.supabaseToken) {
+                return; // Não usa Supabase
+            }
+            
+            try {
+                // Pega sessão atual
+                const { data: { session }, error } = await this.supabaseClient.auth.getSession();
+                
+                if (error || !session) {
+                    // Sessão inválida
+                    this.log('❌ Sessão Supabase inválida', 'error');
+                    this.handleUnauthorized();
+                    return;
+                }
+                
+                // Verifica se token vai expirar em breve (< 5 minutos)
+                const expiresAt = session.expires_at * 1000; // Converte para ms
+                const now = Date.now();
+                const fiveMinutes = 5 * 60 * 1000;
+                
+                if (expiresAt - now < fiveMinutes) {
+                    // Token expirando, faz refresh
+                    this.log('🔄 Renovando token Supabase...', 'info');
+                    
+                    const { data: refreshed, error: refreshError } = 
+                        await this.supabaseClient.auth.refreshSession();
+                    
+                    if (refreshError || !refreshed.session) {
+                        this.log('❌ Falha ao renovar token', 'error');
+                        this.handleUnauthorized();
+                        return;
+                    }
+                    
+                    // Atualiza token
+                    this.supabaseToken = refreshed.session.access_token;
+                    this.supabaseUser = refreshed.session.user;
+                    localStorage.setItem('supabaseToken', this.supabaseToken);
+                    localStorage.setItem('supabaseUser', JSON.stringify(this.supabaseUser));
+                    
+                    this.log('✅ Token renovado com sucesso', 'success');
+                    Toast.success('Sessão renovada automaticamente');
+                    
+                    // Reconecta WebSocket com novo token
+                    if (this.isConnected) {
+                        this.log('🔄 Reconectando WebSocket com novo token...', 'info');
+                        this.disconnect();
+                        // Aguarda um pouco antes de reconectar
+                        setTimeout(() => {
+                            this.connect();
+                        }, 500);
+                    }
+                }
+            } catch (error) {
+                console.error('Token refresh error:', error);
+                this.log(`❌ Erro ao verificar token: ${error.message}`, 'error');
+                this.handleUnauthorized();
+            }
+        },
+
+        /**
+         * Inicia verificação periódica de token Supabase (a cada 1 minuto)
+         */
+        startTokenRefreshCheck() {
+            if (!this.supabaseClient || this.tokenRefreshInterval) {
+                return; // Não usa Supabase ou já está rodando
+            }
+            
+            this.log('🔄 Iniciando verificação periódica de token...', 'info');
+            
+            // Verifica imediatamente
+            this.ensureValidToken();
+            
+            // Depois verifica a cada 1 minuto
+            this.tokenRefreshInterval = setInterval(() => {
+                this.ensureValidToken();
+            }, 60000); // 60 segundos
+        },
+
+        /**
+         * Para verificação periódica de token
+         */
+        stopTokenRefreshCheck() {
+            if (this.tokenRefreshInterval) {
+                clearInterval(this.tokenRefreshInterval);
+                this.tokenRefreshInterval = null;
+                this.log('⏹️ Verificação de token parada', 'info');
+            }
+        },
+
+        /**
+         * Wrapper para fetch que:
+         * - Garante token válido antes de fazer requisição
+         * - Adiciona headers de autenticação automaticamente
+         * - Trata 401 (Unauthorized) automaticamente
+         */
+        async authenticatedFetch(url, options = {}) {
+            // Garante token válido antes de fazer requisição
+            await this.ensureValidToken();
+            
+            // Adiciona headers de autenticação
+            const headers = { ...options.headers };
+            if (this.apiKey) {
+                headers['x-api-key'] = this.apiKey;
+            }
+            if (this.supabaseToken) {
+                headers['Authorization'] = `Bearer ${this.supabaseToken}`;
+            }
+            
+            // Faz requisição
+            const response = await fetch(url, { ...options, headers });
+            
+            // Trata 401 especificamente
+            if (response.status === 401) {
+                this.log('❌ Requisição rejeitada: 401 Unauthorized', 'error');
+                this.handleUnauthorized();
+                throw new Error('Unauthorized');
+            }
+            
+            return response;
+        },
+
         // ==================== ROOMS & WEBSOCKET (from original app.js) ====================
         // Import all the original socketTester() methods here
         // (Connection, rooms, messages, etc.)
@@ -471,15 +647,7 @@ function platformApp() {
         async listRooms() {
             this.isLoadingRooms = true;
             try {
-                const params = new URLSearchParams();
-                if (this.apiKey) params.append('apiKey', this.apiKey);
-
-                const headers = {};
-                if (this.apiKey) headers['x-api-key'] = this.apiKey;
-                if (this.supabaseToken) headers['Authorization'] = `Bearer ${this.supabaseToken}`;
-
-                const url = `${this.baseUrl}/room${params.toString() ? '?' + params.toString() : ''}`;
-                const response = await fetch(url, { headers });
+                const response = await this.authenticatedFetch(`${this.baseUrl}/room`);
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -488,9 +656,12 @@ function platformApp() {
                 this.updateStats();
                 this.log(`✅ ${this.rooms.length} salas carregadas`, 'success');
             } catch (error) {
-                this.log(`❌ Erro ao listar salas: ${error.message}`, 'error');
-                if (typeof Toast !== 'undefined') {
-                    Toast.error('Erro ao carregar salas');
+                // Se erro for 'Unauthorized', já foi tratado pelo authenticatedFetch
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao listar salas: ${error.message}`, 'error');
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error('Erro ao carregar salas');
+                    }
                 }
             } finally {
                 this.isLoadingRooms = false;
@@ -560,6 +731,30 @@ function platformApp() {
                     this.pendingRoomToOpen = null; // Limpa sala pendente em caso de erro
                     this.log(`❌ Erro de conexão: ${error.message}`, 'error');
                     Toast.error('Erro ao conectar');
+                });
+
+                // Authentication error events
+                this.socket.on('tokenExpired', (data) => {
+                    this.log(`❌ Token expirado: ${data.message}`, 'error');
+                    Toast.error('Sua sessão expirou. Faça login novamente.');
+                    this.handleUnauthorized();
+                });
+
+                this.socket.on('error', (data) => {
+                    this.log(`❌ Erro de autenticação: ${data.message || 'Unknown error'}`, 'error');
+                    // Verifica se é erro relacionado a autenticação
+                    const authErrorKeywords = ['token', 'authentication', 'auth', 'unauthorized', 'api key'];
+                    const isAuthError = authErrorKeywords.some(keyword => 
+                        (data.message || '').toLowerCase().includes(keyword)
+                    );
+                    
+                    if (isAuthError) {
+                        Toast.error(data.message || 'Erro de autenticação');
+                        this.handleUnauthorized();
+                    } else {
+                        // Erro genérico, não desloga
+                        Toast.error(data.message || 'Erro no WebSocket');
+                    }
                 });
 
                 // Room events
@@ -834,13 +1029,9 @@ function platformApp() {
 
             this.isCreatingRoom = true;
             try {
-                const headers = { 'Content-Type': 'application/json' };
-                if (this.apiKey) headers['x-api-key'] = this.apiKey;
-                if (this.supabaseToken) headers['Authorization'] = `Bearer ${this.supabaseToken}`;
-
-                const response = await fetch(`${this.baseUrl}/room`, {
+                const response = await this.authenticatedFetch(`${this.baseUrl}/room`, {
                     method: 'POST',
-                    headers,
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: this.newRoomName })
                 });
 
@@ -854,8 +1045,11 @@ function platformApp() {
                 this.showCreateRoomModal = false;
                 Toast.success('Sala criada com sucesso!');
             } catch (error) {
-                this.log(`❌ Erro ao criar sala: ${error.message}`, 'error');
-                Toast.error('Erro ao criar sala');
+                // Se erro for 'Unauthorized', já foi tratado pelo authenticatedFetch
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao criar sala: ${error.message}`, 'error');
+                    Toast.error('Erro ao criar sala');
+                }
             } finally {
                 this.isCreatingRoom = false;
             }
@@ -865,13 +1059,8 @@ function platformApp() {
             if (!confirm('Tem certeza que deseja excluir esta sala?')) return;
 
             try {
-                const headers = {};
-                if (this.apiKey) headers['x-api-key'] = this.apiKey;
-                if (this.supabaseToken) headers['Authorization'] = `Bearer ${this.supabaseToken}`;
-
-                const response = await fetch(`${this.baseUrl}/room/${roomId}`, {
-                    method: 'DELETE',
-                    headers
+                const response = await this.authenticatedFetch(`${this.baseUrl}/room/${roomId}`, {
+                    method: 'DELETE'
                 });
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -887,8 +1076,11 @@ function platformApp() {
                     this.closeRoomTab(roomId);
                 }
             } catch (error) {
-                this.log(`❌ Erro ao excluir sala: ${error.message}`, 'error');
-                Toast.error('Erro ao excluir sala');
+                // Se erro for 'Unauthorized', já foi tratado pelo authenticatedFetch
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao excluir sala: ${error.message}`, 'error');
+                    Toast.error('Erro ao excluir sala');
+                }
             }
         },
 
@@ -1145,20 +1337,7 @@ function platformApp() {
         async fetchMetrics() {
             this.isLoadingMetrics = true;
             try {
-                const headers = {};
-                if (this.apiKey) headers['x-api-key'] = this.apiKey;
-                if (this.supabaseToken) headers['Authorization'] = `Bearer ${this.supabaseToken}`;
-
-                // Log authentication method being used
-                if (!this.apiKey && !this.supabaseToken) {
-                    this.log('⚠️ Buscando métricas sem autenticação', 'warning');
-                } else if (this.apiKey) {
-                    this.log('🔑 Buscando métricas com API Key', 'info');
-                } else if (this.supabaseToken) {
-                    this.log('🔑 Buscando métricas com Supabase Token', 'info');
-                }
-
-                const response = await fetch(`${this.baseUrl}/metrics`, { headers });
+                const response = await this.authenticatedFetch(`${this.baseUrl}/metrics`);
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -1186,10 +1365,13 @@ function platformApp() {
                 this.lastMetricsUpdate = new Date(); // Update timestamp
                 this.log(`✅ Métricas atualizadas`, 'success');
             } catch (error) {
-                this.log(`❌ Erro ao carregar métricas: ${error.message}`, 'error');
-                // Don't show toast on auto-update errors to avoid spam
-                if (!this.metricsInterval) {
-                    Toast.error('Erro ao carregar métricas');
+                // Se erro for 'Unauthorized', já foi tratado pelo authenticatedFetch
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao carregar métricas: ${error.message}`, 'error');
+                    // Don't show toast on auto-update errors to avoid spam
+                    if (!this.metricsInterval) {
+                        Toast.error('Erro ao carregar métricas');
+                    }
                 }
             } finally {
                 this.isLoadingMetrics = false;
