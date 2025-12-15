@@ -37,12 +37,16 @@
                 </p>
             </div>
 
-            <!-- Details -->
-            <div class="bg-gray-900/50 rounded-lg p-6 mb-8 border border-gray-700">
+            <!-- Details (only in Development Mode) -->
+            <% if (typeof isDevelopment !== 'undefined' && isDevelopment) { %>
+            <div class="bg-gray-900/50 rounded-lg p-6 mb-8 border border-yellow-700">
                 <div class="flex items-start gap-3">
                     <i data-lucide="alert-circle" class="w-5 h-5 text-yellow-400 flex-shrink-0 mt-1"></i>
                     <div class="flex-1">
-                        <h3 class="text-sm font-semibold text-gray-200 mb-1">Informações de Acesso</h3>
+                        <div class="flex items-center gap-2 mb-2">
+                            <h3 class="text-sm font-semibold text-yellow-400">Informações de Acesso (Dev Mode)</h3>
+                            <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-mono rounded">DEV</span>
+                        </div>
                         <div class="space-y-2 text-sm text-gray-400">
                             <div class="flex justify-between">
                                 <span>Status:</span>
@@ -56,15 +60,26 @@
                                 <span>Timestamp:</span>
                                 <span class="text-gray-300 font-mono"><%= timestamp %></span>
                             </div>
-                            <% if (typeof message !== 'undefined') { %>
+                            <% if (typeof messages !== 'undefined' && messages.length > 0) { %>
                             <div class="mt-3 pt-3 border-t border-gray-700">
-                                <span class="text-gray-300 block"><%= message %></span>
+                                <span class="text-xs text-gray-400 block mb-2"><%= messages.length === 1 ? 'Mensagem:' : 'Mensagens:' %></span>
+                                <div class="space-y-2">
+                                    <% messages.forEach((msg, index) => { %>
+                                    <div class="flex gap-2">
+                                        <% if (messages.length > 1) { %>
+                                        <span class="text-yellow-400 font-mono text-xs flex-shrink-0"><%= index + 1 %>.</span>
+                                        <% } %>
+                                        <pre class="text-gray-200 font-mono text-xs bg-gray-800 p-3 rounded overflow-x-auto flex-1 whitespace-pre-wrap break-words m-0"><%= msg %></pre>
+                                    </div>
+                                    <% }); %>
+                                </div>
                             </div>
                             <% } %>
                         </div>
                     </div>
                 </div>
             </div>
+            <% } %>
 
             <!-- Suggestions -->
             <div class="mb-8">

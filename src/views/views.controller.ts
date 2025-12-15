@@ -141,7 +141,6 @@ export class ViewsController {
   getView(@Param('viewName') viewName: string, @Res() res: Response) {
     try {
       const config = this.getEnvConfig();
-      // Sem callback - Express envia automaticamente
       return res.render(viewName, config);
     } catch (error) {
       console.error(`Error rendering view '${viewName}':`, error);
@@ -159,6 +158,7 @@ export class ViewsController {
       message: 'A página ou recurso solicitado não foi encontrado.',
       timestamp: new Date().toISOString(),
       path: path,
+      isDevelopment: process.env.NODE_ENV !== 'production',
     });
   }
 }

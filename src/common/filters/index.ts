@@ -5,9 +5,10 @@
  *
  * @example
  * ```typescript
- * import { HttpExceptionFilter, WsExceptionFilter } from '@common/filters';
+ * import { HttpExceptionFilter, WsExceptionFilter, AllExceptionsFilter } from '@common/filters';
  * ```
  */
 
 export * from './http-exception.filter';
 export * from './websocket-exception.filter';
+export * from './all-exceptions.filter';

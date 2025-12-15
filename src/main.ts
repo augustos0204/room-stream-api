@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { SupabaseService } from './supabase/supabase.service';
 
 async function bootstrap() {
@@ -55,8 +55,8 @@ async function bootstrap() {
   // Apply global guards
   const reflector = app.get(Reflector);
 
-  // Aplicar filtro global de exceções
-  app.useGlobalFilters(new HttpExceptionFilter());
+  // Aplicar filtro global de exceções (captura TODAS as exceções, incluindo erros não-HTTP)
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   if (process.env.API_KEY) {
     app.useGlobalGuards(new ApiKeyGuard(reflector));
