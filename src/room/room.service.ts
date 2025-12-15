@@ -147,9 +147,7 @@ export class RoomService {
     };
 
     await this.memoryService.addMessage(roomId, roomMessage);
-    this.logger.log(
-      `Mensagem adicionada à sala ${roomId}: ${message} (userId: ${roomMessage.userId || 'null'}, clientId: ${clientId})`,
-    );
+    this.logger.log(`Mensagem adicionada à sala ${roomId}: ${message}`);
 
     this.eventsService.emitMetricsEvent('metrics:message-sent', {
       messageId: roomMessage.id,

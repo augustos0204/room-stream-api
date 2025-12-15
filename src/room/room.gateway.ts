@@ -285,12 +285,6 @@ export class RoomGateway
    */
   private extractSupabaseUserData(client: AuthenticatedSocket) {
     const user = client.data?.user;
-
-    // DEBUG: Log user extraction
-    this.logger.debug(
-      `🔍 Extracting Supabase user data for client ${client.id}: ${user ? `found user ${user.id}` : 'NO USER FOUND'}`,
-    );
-
     if (!user) {
       return null;
     }
@@ -383,20 +377,11 @@ export class RoomGateway
 
     // Confirmar entrada para o cliente
     const participants = await this.roomService.getParticipantsWithNames(roomId);
-    const recentMessages = room.messages.slice(-10);
-
-    // DEBUG: Log first message to verify userId is present
-    if (recentMessages.length > 0) {
-      this.logger.debug(
-        `🔍 First recent message: userId=${recentMessages[0].userId || 'null'}, clientId=${recentMessages[0].clientId}`,
-      );
-    }
-
     client.emit('joinedRoom', {
       roomId: room.id,
       roomName: room.name,
       participants,
-      recentMessages, // Últimas 10 mensagens
+      recentMessages: room.messages.slice(-10), // Últimas 10 mensagens
     });
 
     this.logger.log(
