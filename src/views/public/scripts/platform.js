@@ -382,6 +382,7 @@ function platformApp() {
             this.participantName = '';
             localStorage.removeItem('apiKey');
             localStorage.removeItem('participantName');
+            this.showProfileModal = false;
 
             Toast.success('Logout realizado com sucesso!');
             this.log('✅ Desconectado (API Key removida)', 'success');
