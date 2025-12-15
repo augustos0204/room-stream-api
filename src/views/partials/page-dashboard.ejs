@@ -141,7 +141,7 @@
                              :class="(supabaseUser || apiKey) ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'"></div>
                         <div>
                             <p class="text-sm font-medium text-white">Autenticação</p>
-                            <p class="text-xs text-gray-400" x-text="supabaseUser ? 'Supabase' : apiKey ? 'API Key' : 'Não autenticado'"></p>
+                            <p class="text-xs text-gray-400" x-text="supabaseUser ? 'SSO' : apiKey ? 'API Key' : 'Não autenticado'"></p>
                         </div>
                     </div>
                     <span class="text-sm font-semibold"

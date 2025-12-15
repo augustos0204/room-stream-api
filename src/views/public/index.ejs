@@ -59,14 +59,17 @@
 
     const features = {
         supabaseAuth: !!(supabaseUrl && supabaseAnonKey),
-        // API Key auth sempre disponível (via localStorage)
-        apiKeyAuth: true
+        // API Key auth disponível apenas se configurada no backend
+        apiKeyAuth: !!apiKey
     };
     %>
 
     <script>
         // Centralized configuration
         window.ENV = <%- JSON.stringify(config) %>;
+        
+        // Available authentication methods
+        window.AUTH_FEATURES = <%- JSON.stringify(features) %>;
 
         // Pre-loaded initial data
         window.INITIAL_DATA = {

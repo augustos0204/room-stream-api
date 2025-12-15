@@ -26,7 +26,7 @@ function platformApp() {
         newRoomName: '',
         participantName: '',
         message: '',
-        loginMethod: 'supabase', // 'supabase' or 'apikey'
+        loginMethod: '', // 'supabase' or 'apikey' - será definido dinamicamente baseado nas opções disponíveis
 
         // ==================== MULTIPLE ROOMS STATE ====================
         activeRooms: [], // Array of active room objects: { id, name, logs, participants, unreadCount, joined }
@@ -133,6 +133,26 @@ function platformApp() {
 
             // Initialize Supabase if configured (await to load session before fetching metrics)
             await this.initializeSupabase();
+
+            // Determina qual método de login mostrar baseado nas opções disponíveis
+            // window.AUTH_FEATURES contém: { supabaseAuth: boolean, apiKeyAuth: boolean }
+            const hasSupabase = window.AUTH_FEATURES?.supabaseAuth || false;
+            const hasApiKey = window.AUTH_FEATURES?.apiKeyAuth || false;
+            
+            // Se houver apenas uma opção disponível, seleciona automaticamente
+            if (hasSupabase && !hasApiKey) {
+                this.loginMethod = 'supabase';
+                this.log('🔑 Apenas autenticação Supabase disponível', 'info');
+            } else if (!hasSupabase && hasApiKey) {
+                this.loginMethod = 'apikey';
+                this.log('🔑 Apenas autenticação API Key disponível', 'info');
+            } else if (hasSupabase && hasApiKey) {
+                this.loginMethod = 'supabase'; // Supabase como padrão
+                this.log('🔑 Ambos métodos de autenticação disponíveis (Supabase selecionado)', 'info');
+            } else {
+                this.loginMethod = 'apikey'; // Fallback para API Key
+                this.log('⚠️ Nenhum método de autenticação configurado no servidor', 'warning');
+            }
 
             this.log('🚀 RoomStream Platform carregada', 'success');
 

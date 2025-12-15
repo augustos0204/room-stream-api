@@ -145,24 +145,26 @@
                 <!-- Login Card -->
                 <div class="dark-glass rounded-2xl border border-gray-700/50 p-8 shadow-2xl animate-slide-up" style="animation-delay: 0.1s;">
             <!-- Tabs: Supabase ou API Key -->
+            <!-- Switch sempre visível, mas mostra apenas opções disponíveis -->
             <div class="relative flex gap-2 mb-6 p-1 bg-gray-800/50 rounded-lg">
                 <!-- Sliding Background -->
+                <% const hasMultipleAuthMethods = features.supabaseAuth && features.apiKeyAuth; %>
                 <div 
                     class="absolute inset-y-1 rounded-lg transition-all duration-300 ease-out shadow-lg"
                     :class="loginMethod === 'supabase' 
                         ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
                         : 'bg-gradient-to-r from-purple-600 to-pink-600'"
+                    <% if (hasMultipleAuthMethods) { %>
                     :style="{
-                        <% if (features.supabaseAuth) { %>
                         left: loginMethod === 'supabase' ? '4px' : 'calc(50% + 4px)',
                         width: 'calc(50% - 8px)'
-                        <% } else { %>
-                        left: '4px',
-                        width: 'calc(100% - 8px)'
-                        <% } %>
                     }"
+                    <% } else { %>
+                    style="left: 4px; width: calc(100% - 8px);"
+                    <% } %>
                 ></div>
                 
+                <!-- Botão Supabase (apenas se disponível) -->
                 <% if (features.supabaseAuth) { %>
                 <button
                     @click="loginMethod = 'supabase'"
@@ -172,9 +174,12 @@
                         : 'text-gray-400 hover:text-gray-200'"
                 >
                     <i data-lucide="shield-check" class="w-4 h-4 inline-block mr-2"></i>
-                    Supabase
+                    E-mail
                 </button>
                 <% } %>
+                
+                <!-- Botão API Key (apenas se disponível) -->
+                <% if (features.apiKeyAuth) { %>
                 <button
                     @click="loginMethod = 'apikey'"
                     class="relative z-10 flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
@@ -185,10 +190,11 @@
                     <i data-lucide="key" class="w-4 h-4 inline-block mr-2"></i>
                     API Key
                 </button>
+                <% } %>
             </div>
 
             <!-- Forms Container with Overflow Hidden -->
-            <div class="relative overflow-hidden min-h-[380px]">
+            <div class="relative overflow-hidden min-h-[250px]">
                 <!-- Supabase Login -->
                 <% if (features.supabaseAuth) { %>
                 <div 
@@ -244,7 +250,7 @@
                 >
                     <span x-show="!supabaseLoading" class="flex items-center gap-2">
                         <i data-lucide="log-in" class="w-5 h-5"></i>
-                        Entrar com Supabase
+                        Entrar
                     </span>
                     <span x-show="supabaseLoading" class="flex items-center gap-2">
                         <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -297,7 +303,7 @@
                     class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2"
                 >
                     <i data-lucide="log-in" class="w-5 h-5"></i>
-                    Entrar com API Key
+                    Entrar
                 </button>
                 </div>
             </div>
@@ -331,24 +337,26 @@
             <!-- Form Content -->
             <div class="px-6 pb-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 <!-- Tabs: Supabase ou API Key -->
+                <!-- Switch sempre visível, mas mostra apenas opções disponíveis -->
                 <div class="relative flex gap-2 mb-6 p-1 bg-gray-800/50 rounded-lg">
                     <!-- Sliding Background -->
+                    <% const hasBothAuthMethods = features.supabaseAuth && features.apiKeyAuth; %>
                     <div 
                         class="absolute inset-y-1 rounded-lg transition-all duration-300 ease-out shadow-lg"
                         :class="loginMethod === 'supabase' 
                             ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
                             : 'bg-gradient-to-r from-purple-600 to-pink-600'"
+                        <% if (hasBothAuthMethods) { %>
                         :style="{
-                            <% if (features.supabaseAuth) { %>
                             left: loginMethod === 'supabase' ? '4px' : 'calc(50% + 4px)',
                             width: 'calc(50% - 8px)'
-                            <% } else { %>
-                            left: '4px',
-                            width: 'calc(100% - 8px)'
-                            <% } %>
                         }"
+                        <% } else { %>
+                        style="left: 4px; width: calc(100% - 8px);"
+                        <% } %>
                     ></div>
                     
+                    <!-- Botão Supabase (apenas se disponível) -->
                     <% if (features.supabaseAuth) { %>
                     <button
                         @click="loginMethod = 'supabase'"
@@ -361,6 +369,9 @@
                         Supabase
                     </button>
                     <% } %>
+                    
+                    <!-- Botão API Key (apenas se disponível) -->
+                    <% if (features.apiKeyAuth) { %>
                     <button
                         @click="loginMethod = 'apikey'"
                         class="relative z-10 flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
@@ -371,6 +382,7 @@
                         <i data-lucide="key" class="w-4 h-4 inline-block mr-2"></i>
                         API Key
                     </button>
+                    <% } %>
                 </div>
 
                 <!-- Forms Container with Overflow Hidden -->
