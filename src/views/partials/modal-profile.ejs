@@ -1,29 +1,43 @@
-<!-- Profile/Login Modal (Adaptive) -->
+<!-- Profile/Login Modal (Bottom Sheet on Mobile, Modal on Desktop) -->
 <div
     x-show="showProfileModal"
-    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    class="fixed inset-0 z-50 md:flex md:items-center md:justify-center md:p-4"
     x-transition:enter="transition ease-out duration-200"
     x-transition:enter-start="opacity-0"
     x-transition:enter-end="opacity-100"
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100"
     x-transition:leave-end="opacity-0"
-    @click="showProfileModal = false"
 >
     <!-- Backdrop -->
-    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showProfileModal = false"></div>
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm" @click="showProfileModal = false"></div>
 
-    <!-- Modal Content -->
+    <!-- Bottom Sheet (Mobile) / Modal (Desktop) -->
     <div
-        class="relative dark-glass rounded-xl border border-gray-700/50 w-full max-h-[90vh] overflow-y-auto custom-scrollbar max-w-md md:max-w-5xl"
-        x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0 transform scale-95"
-        x-transition:enter-end="opacity-100 transform scale-100"
-        x-transition:leave="transition ease-in duration-150"
-        x-transition:leave-start="opacity-100 transform scale-100"
-        x-transition:leave-end="opacity-0 transform scale-95"
+        x-ref="profileSheet"
+        class="
+            fixed inset-x-0 bottom-0
+            h-[80vh] rounded-t-3xl overflow-y-auto custom-scrollbar
+            md:relative md:inset-auto
+            md:w-full md:max-w-5xl md:max-h-[90vh] md:rounded-xl
+            dark-glass border-t md:border border-gray-700/50
+        "
+        data-fullheight-sheet="true"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="translate-y-full md:opacity-0 md:scale-95 md:translate-y-0"
+        x-transition:enter-end="translate-y-0 md:opacity-100 md:scale-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="translate-y-0 md:opacity-100 md:scale-100"
+        x-transition:leave-end="translate-y-full md:opacity-0 md:scale-95 md:translate-y-0"
+        @touchstart="handleSheetTouchStart($event)"
+        @touchmove="handleSheetTouchMove($event, $refs.profileSheet)"
+        @touchend="handleSheetTouchEnd($event, $refs.profileSheet, 'showProfileModal')"
         @click.stop
     >
+        <!-- Drag Handle (Mobile Only) -->
+        <div class="md:hidden sticky top-0 z-10 bg-gray-900/95 backdrop-blur-sm flex justify-center py-3 cursor-grab active:cursor-grabbing">
+            <div class="w-12 h-1.5 rounded-full bg-gray-600 transition-colors hover:bg-gray-400"></div>
+        </div>
         <!-- ========================================== -->
         <!-- NOT LOGGED IN: Login Form -->
         <!-- ========================================== -->
