@@ -73,6 +73,10 @@ function platformApp() {
         showCreateRoomModal: false,
         showApiKey: false,
         showChangeApiKeyForm: false,
+        
+        // Profile Modal Mode
+        profileMode: 'own', // 'own' = viewing own profile, 'viewing' = viewing another participant
+        viewingParticipant: null, // Stores participant data when viewing another user's profile
 
         // ==================== SUPABASE ====================
         supabaseClient: null,
@@ -141,11 +145,6 @@ function platformApp() {
                 lucide.createIcons();
             }
 
-            // Show welcome toast
-            if (typeof Toast !== 'undefined') {
-                Toast.info('Bem-vindo à Plataforma RoomStream!');
-            }
-
             // Setup keyboard shortcuts
             this.setupKeyboardShortcuts();
 
@@ -189,18 +188,29 @@ function platformApp() {
         },
 
         toggleSidebar() {
-            this.sidebarPinned = !this.sidebarPinned;
-            this.sidebarExpanded = this.sidebarPinned;
+            // Mobile: apenas toggle expand (não usa pin)
+            if (window.innerWidth < 1024) {
+                this.sidebarExpanded = !this.sidebarExpanded;
+            } 
+            // Desktop: toggle pin e expand juntos
+            else {
+                this.sidebarPinned = !this.sidebarPinned;
+                this.sidebarExpanded = this.sidebarPinned;
+            }
         },
 
-        // Hover handlers para sidebar
+        // Hover handlers para sidebar (apenas desktop)
         handleSidebarMouseEnter() {
-            this.sidebarExpanded = true;
+            // Só funciona em desktop (>= 1024px)
+            if (window.innerWidth >= 1024) {
+                this.sidebarExpanded = true;
+            }
         },
 
         handleSidebarMouseLeave() {
+            // Só funciona em desktop (>= 1024px)
             // Só fecha se não estiver fixada
-            if (!this.sidebarPinned) {
+            if (window.innerWidth >= 1024 && !this.sidebarPinned) {
                 this.sidebarExpanded = false;
             }
         },
@@ -426,10 +436,6 @@ function platformApp() {
                 this.rooms = Array.isArray(data) ? data : [];
                 this.updateStats();
                 this.log(`✅ ${this.rooms.length} salas carregadas`, 'success');
-
-                if (typeof Toast !== 'undefined') {
-                    Toast.success(`${this.rooms.length} salas encontradas`);
-                }
             } catch (error) {
                 this.log(`❌ Erro ao listar salas: ${error.message}`, 'error');
                 if (typeof Toast !== 'undefined') {
@@ -527,15 +533,22 @@ function platformApp() {
                                 senderName = msg.supabaseUser.email || msg.supabaseUser.name || 'Usuário Supabase';
                                 displayName = `${senderName} 🔒`;
                             } else {
-                                // Anonymous user - find by userId (if available) or clientId
-                                const messageKey = msg.userId || msg.clientId;
-                                const sender = data.participants.find(p => p.clientId === messageKey);
-                                if (sender?.name) {
-                                    senderName = sender.name;
-                                    displayName = sender.name;
+                                // Check if message already has participantName (backend field)
+                                if (msg.participantName) {
+                                    senderName = msg.participantName;
+                                    displayName = msg.participantName;
                                 } else {
-                                    senderName = 'Usuário Anônimo';
-                                    displayName = `Usuário Anônimo • ${msg.clientId}`;
+                                    // Anonymous user - find by userId (if available) or clientId
+                                    const messageKey = msg.userId || msg.clientId;
+                                    const sender = data.participants.find(p => p.clientId === messageKey);
+                                    
+                                    if (sender?.name) {
+                                        senderName = sender.name;
+                                        displayName = sender.name;
+                                    } else {
+                                        senderName = 'Usuário Anônimo';
+                                        displayName = `Usuário Anônimo • ${msg.clientId}`;
+                                    }
                                 }
                             }
 
@@ -572,8 +585,6 @@ function platformApp() {
                     if (this.currentActiveRoomId === data.roomId) {
                         this.isInRoom = false;
                     }
-                    
-                    Toast.info('Você saiu da sala');
                 });
 
                 this.socket.on('newMessage', (data) => {
@@ -592,16 +603,23 @@ function platformApp() {
                             senderName = data.supabaseUser.email || data.supabaseUser.name || 'Usuário Supabase';
                             displayName = `${senderName} 🔒`;
                         } else {
-                            // Find sender name from participants list using hybrid key
-                            const activeRoom = this.getActiveRoom(data.roomId);
-                            const messageKey = data.userId || data.clientId;
-                            const sender = activeRoom?.participants.find(p => p.clientId === messageKey);
-                            if (sender?.name) {
-                                senderName = sender.name;
-                                displayName = sender.name;
+                            // Check if message already has participantName (backend field)
+                            if (data.participantName) {
+                                senderName = data.participantName;
+                                displayName = data.participantName;
                             } else {
-                                senderName = 'Usuário Anônimo';
-                                displayName = `Usuário Anônimo • ${data.clientId}`;
+                                // Find sender name from participants list using hybrid key
+                                const activeRoom = this.getActiveRoom(data.roomId);
+                                const messageKey = data.userId || data.clientId;
+                                const sender = activeRoom?.participants.find(p => p.clientId === messageKey);
+                                
+                                if (sender?.name) {
+                                    senderName = sender.name;
+                                    displayName = sender.name;
+                                } else {
+                                    senderName = 'Usuário Anônimo';
+                                    displayName = `Usuário Anônimo • ${data.clientId}`;
+                                }
                             }
                         }
                     }
@@ -857,8 +875,6 @@ function platformApp() {
             if (this.isConnected && this.socket && !activeRoom.joined) {
                 this.joinRoom(roomId);
             }
-
-            Toast.info(`Sala: ${roomName}`);
         },
 
         joinRoom(roomId = null) {
@@ -1176,6 +1192,50 @@ function platformApp() {
                     supabaseId: null
                 };
             }
+        },
+
+        // ==================== PROFILE MODAL FUNCTIONS ====================
+        
+        // Open profile modal to view own profile
+        viewOwnProfile() {
+            this.profileMode = 'own';
+            this.viewingParticipant = null;
+            this.showProfileModal = true;
+        },
+
+        // Open profile modal to view another participant's profile
+        viewParticipantProfile(participant) {
+            // Don't allow viewing own profile this way (should use viewOwnProfile)
+            // Check both socket.id (for anonymous users) and supabaseUser.id (for authenticated users)
+            const isMySocketId = participant.clientId === this.socket?.id;
+            const isMySupabaseId = this.supabaseUser && participant.clientId === this.supabaseUser.id;
+            
+            if (isMySocketId || isMySupabaseId) {
+                this.viewOwnProfile();
+                return;
+            }
+
+            this.profileMode = 'viewing';
+            this.viewingParticipant = participant;
+            this.showProfileModal = true;
+            this.log(`👁️ Visualizando perfil de: ${participant.name || participant.clientId}`, 'info');
+        },
+
+        // Check if currently viewing another participant's profile
+        isViewingOtherProfile() {
+            return this.profileMode === 'viewing' && this.viewingParticipant !== null;
+        },
+
+        // Get display name for the profile being viewed
+        getProfileDisplayName() {
+            if (this.profileMode === 'own') {
+                return this.supabaseUser?.email || this.participantName || 'Meu Perfil';
+            } else if (this.viewingParticipant) {
+                return this.viewingParticipant.supabaseUser?.email 
+                    || this.viewingParticipant.name 
+                    || 'Usuário Anônimo';
+            }
+            return 'Perfil';
         }
     };
 }

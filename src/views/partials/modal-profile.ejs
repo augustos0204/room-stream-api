@@ -198,13 +198,38 @@
         <!-- ========================================== -->
         <!-- LOGGED IN: Profile View -->
         <!-- ========================================== -->
-        <template x-if="supabaseUser || apiKey">
-            <div>
+        <template x-if="supabaseUser || apiKey || isViewingOtherProfile()">
+            <div 
+                x-data="{
+                    // Choose data source based on profile mode
+                    get profileData() {
+                        if (profileMode === 'viewing' && viewingParticipant) {
+                            return {
+                                isOwn: false,
+                                supabase: viewingParticipant.supabaseUser || null,
+                                name: viewingParticipant.name || null,
+                                clientId: viewingParticipant.clientId,
+                                displayName: viewingParticipant.supabaseUser?.email 
+                                    || viewingParticipant.name 
+                                    || 'Usuário Anônimo'
+                            };
+                        } else {
+                            return {
+                                isOwn: true,
+                                supabase: supabaseUser,
+                                name: participantName,
+                                clientId: socket?.id,
+                                displayName: supabaseUser?.email || participantName || 'Meu Perfil'
+                            };
+                        }
+                    }
+                }"
+            >
                 <!-- Header with Cover Banner -->
                 <div class="relative">
                     <!-- Cover Banner with Pattern -->
                     <div class="h-24 md:h-32 rounded-t-xl overflow-hidden relative"
-                         :class="supabaseUser
+                         :class="profileData.supabase
                             ? 'bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600'
                             : 'bg-gradient-to-br from-blue-600 via-cyan-600 to-indigo-600'">
                         <!-- Animated Pattern Overlay -->
@@ -215,11 +240,20 @@
 
                     <!-- Close Button -->
                     <button
-                        @click="showProfileModal = false"
+                        @click="showProfileModal = false; viewingParticipant = null; profileMode = 'own';"
                         class="absolute top-4 right-4 p-2 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-lg transition-all duration-200 z-10"
+                        :title="profileData.isOwn ? 'Fechar' : 'Voltar'"
                     >
                         <i data-lucide="x" class="w-5 h-5 text-white"></i>
                     </button>
+                    
+                    <!-- Profile Mode Indicator (when viewing another user) -->
+                    <div x-show="!profileData.isOwn" class="absolute top-4 left-4 px-3 py-1.5 bg-blue-600/90 backdrop-blur-sm rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="eye" class="w-4 h-4 text-white"></i>
+                            <span class="text-xs font-semibold text-white uppercase tracking-wider">Visualizando</span>
+                        </div>
+                    </div>
 
                     <!-- Avatar & Badge Section (responsive) -->
                     <div class="absolute -bottom-16 left-0 right-0 px-6">
@@ -228,25 +262,25 @@
                             <div class="relative">
                                 <!-- Avatar Circle -->
                                 <div class="w-32 h-32 rounded-2xl border-4 border-gray-800 flex items-center justify-center overflow-hidden shadow-2xl"
-                                     :class="supabaseUser
+                                     :class="profileData.supabase
                                         ? 'bg-gradient-to-br from-green-600 to-emerald-600'
                                         : 'bg-gradient-to-br from-blue-600 to-cyan-600'">
                                     <!-- Show avatar image if available (Supabase only) -->
-                                    <template x-if="supabaseUser?.user_metadata?.avatar_url">
-                                        <img :src="supabaseUser.user_metadata.avatar_url"
+                                    <template x-if="profileData.supabase?.user_metadata?.avatar_url">
+                                        <img :src="profileData.supabase.user_metadata.avatar_url"
                                              alt="Avatar"
                                              class="w-full h-full object-cover"
                                              @error="$el.style.display='none'" />
                                     </template>
                                     <!-- Fallback to initial -->
-                                    <template x-if="!supabaseUser?.user_metadata?.avatar_url">
+                                    <template x-if="!profileData.supabase?.user_metadata?.avatar_url">
                                         <span class="text-4xl font-bold text-white"
-                                              x-text="(participantName || supabaseUser?.email || '?').charAt(0).toUpperCase()"></span>
+                                              x-text="profileData.displayName.charAt(0).toUpperCase()"></span>
                                     </template>
                                 </div>
 
-                                <!-- Online Status Badge -->
-                                <div class="absolute -bottom-1 -right-1 p-2 rounded-xl shadow-lg border-2 border-gray-800"
+                                <!-- Online Status Badge (only show for own profile) -->
+                                <div x-show="profileData.isOwn" class="absolute -bottom-1 -right-1 p-2 rounded-xl shadow-lg border-2 border-gray-800"
                                      :class="isConnected ? 'bg-green-500' : 'bg-gray-600'">
                                     <i :data-lucide="isConnected ? 'wifi' : 'wifi-off'"
                                        class="w-4 h-4 text-white"
@@ -256,16 +290,16 @@
 
                             <!-- Auth Badge -->
                             <div class="mb-4 px-4 py-2 rounded-lg shadow-lg backdrop-blur-sm"
-                                 :class="supabaseUser
+                                 :class="profileData.supabase
                                     ? 'bg-green-500/20 border border-green-500/50'
                                     : 'bg-blue-500/20 border border-blue-500/50'">
                                 <div class="flex items-center gap-2">
-                                    <i :data-lucide="supabaseUser ? 'shield-check' : 'key'"
+                                    <i :data-lucide="profileData.supabase ? 'shield-check' : 'key'"
                                        class="w-4 h-4"
-                                       :class="supabaseUser ? 'text-green-400' : 'text-blue-400'"></i>
+                                       :class="profileData.supabase ? 'text-green-400' : 'text-blue-400'"></i>
                                     <span class="text-xs font-semibold uppercase tracking-wider"
-                                          :class="supabaseUser ? 'text-green-300' : 'text-blue-300'"
-                                          x-text="supabaseUser ? 'Supabase Auth' : 'API Key'"></span>
+                                          :class="profileData.supabase ? 'text-green-300' : 'text-blue-300'"
+                                          x-text="profileData.supabase ? 'Supabase Auth' : (profileData.isOwn ? 'API Key' : 'Anônimo')"></span>
                                 </div>
                             </div>
                         </div>
@@ -278,7 +312,7 @@
                     <!-- ========================================== -->
                     <!-- SUPABASE PROFILE (Read-only) -->
                     <!-- ========================================== -->
-                    <template x-if="supabaseUser">
+                    <template x-if="profileData.supabase">
                         <div>
                             <!-- 2 Column Grid -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -297,10 +331,10 @@
                                 <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
                                     <div class="flex-1 min-w-0">
                                         <p class="text-xs text-gray-400 mb-1">User ID</p>
-                                        <p class="text-sm text-white font-mono truncate" x-text="supabaseUser?.id"></p>
+                                        <p class="text-sm text-white font-mono truncate" x-text="profileData.supabase?.id"></p>
                                     </div>
                                     <button
-                                        @click="navigator.clipboard.writeText(supabaseUser.id).then(() => Toast.success('ID copiado!'))"
+                                        @click="navigator.clipboard.writeText(profileData.supabase.id).then(() => Toast.success('ID copiado!'))"
                                         class="ml-3 p-2 hover:bg-gray-700/50 rounded-lg transition-colors group"
                                         title="Copiar ID"
                                     >
@@ -312,12 +346,12 @@
                                 <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
                                     <div>
                                         <p class="text-xs text-gray-400 mb-1">Email</p>
-                                        <p class="text-sm text-white" x-text="supabaseUser?.email"></p>
+                                        <p class="text-sm text-white" x-text="profileData.supabase?.email"></p>
                                     </div>
                                     <div class="flex items-center gap-1 text-xs"
-                                         :class="supabaseUser?.confirmed_at ? 'text-green-400' : 'text-yellow-400'">
-                                        <i :data-lucide="supabaseUser?.confirmed_at ? 'check-circle' : 'alert-circle'" class="w-3 h-3"></i>
-                                        <span x-text="supabaseUser?.confirmed_at ? 'Verificado' : 'Não verificado'"></span>
+                                         :class="profileData.supabase?.confirmed_at ? 'text-green-400' : 'text-yellow-400'">
+                                        <i :data-lucide="profileData.supabase?.confirmed_at ? 'check-circle' : 'alert-circle'" class="w-3 h-3"></i>
+                                        <span x-text="profileData.supabase?.confirmed_at ? 'Verificado' : 'Não verificado'"></span>
                                     </div>
                                 </div>
 
@@ -325,7 +359,7 @@
                                 <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
                                     <div>
                                         <p class="text-xs text-gray-400 mb-1">Nome de Exibição</p>
-                                        <p class="text-sm text-white" x-text="participantName"></p>
+                                        <p class="text-sm text-white" x-text="profileData.name || profileData.supabase?.email"></p>
                                     </div>
                                     <div class="flex items-center gap-1 text-xs text-gray-400">
                                         <i data-lucide="lock" class="w-3 h-3"></i>
@@ -334,8 +368,8 @@
                                 </div>
                             </div>
 
-                                <!-- Security & Account Section -->
-                                <div class="space-y-3">
+                                <!-- Security & Account Section (Only for own profile) -->
+                                <div class="space-y-3" x-show="profileData.isOwn">
                                     <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                         <i data-lucide="shield" class="w-4 h-4"></i>
                                         Segurança & Conta
@@ -345,14 +379,14 @@
                                 <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
                                     <span class="text-sm text-gray-400">Membro desde</span>
                                     <span class="text-sm text-white font-medium"
-                                          x-text="supabaseUser?.created_at ? new Date(supabaseUser.created_at).toLocaleDateString('pt-BR') : 'N/A'"></span>
+                                          x-text="profileData.supabase?.created_at ? new Date(profileData.supabase.created_at).toLocaleDateString('pt-BR') : 'N/A'"></span>
                                 </div>
 
                                 <!-- Last Sign In -->
                                 <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
                                     <span class="text-sm text-gray-400">Último acesso</span>
                                     <span class="text-sm text-white font-medium"
-                                          x-text="supabaseUser?.last_sign_in_at ? new Date(supabaseUser.last_sign_in_at).toLocaleDateString('pt-BR') + ' ' + new Date(supabaseUser.last_sign_in_at).toLocaleTimeString('pt-BR') : 'N/A'"></span>
+                                          x-text="profileData.supabase?.last_sign_in_at ? new Date(profileData.supabase.last_sign_in_at).toLocaleDateString('pt-BR') + ' ' + new Date(profileData.supabase.last_sign_in_at).toLocaleTimeString('pt-BR') : 'N/A'"></span>
                                 </div>
 
                                 <!-- Provider -->
@@ -360,14 +394,14 @@
                                     <span class="text-sm text-gray-400">Provider</span>
                                     <div class="flex items-center gap-2">
                                         <span class="text-sm text-white font-medium capitalize"
-                                              x-text="supabaseUser?.app_metadata?.provider || 'email'"></span>
+                                              x-text="profileData.supabase?.app_metadata?.provider || 'email'"></span>
                                         <i data-lucide="shield-check" class="w-4 h-4 text-green-400"></i>
                                     </div>
                                     </div>
                                 </div>
 
-                                <!-- Logout Button -->
-                                <div class="pt-2">
+                                <!-- Logout Button (only show for own profile) -->
+                                <div class="pt-2" x-show="profileData.isOwn">
                                     <button
                                         @click="handleSupabaseLogout()"
                                         class="w-full px-6 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-700/50 rounded-lg font-medium text-red-400 transition-all duration-200 flex items-center justify-center gap-2"
@@ -381,8 +415,8 @@
                             <!-- RIGHT COLUMN: Stats & Connection -->
                             <div class="space-y-6">
 
-                                <!-- Statistics Section -->
-                                <div class="space-y-3">
+                                <!-- Statistics Section (Only for own profile) -->
+                                <div class="space-y-3" x-show="profileData.isOwn">
                                     <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                         <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
                                         Estatísticas
@@ -403,8 +437,8 @@
                                     </div>
                                 </div>
 
-                                <!-- Connection Info -->
-                                <div class="space-y-3">
+                                <!-- Connection Info (Only for own profile) -->
+                                <div class="space-y-3" x-show="profileData.isOwn">
                                     <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                         <i data-lucide="activity" class="w-4 h-4"></i>
                                         Conexão
@@ -449,7 +483,7 @@
                     <!-- ========================================== -->
                     <!-- API KEY PROFILE (Editable) -->
                     <!-- ========================================== -->
-                    <template x-if="!supabaseUser && apiKey">
+                    <template x-if="!profileData.supabase && (profileData.isOwn ? apiKey : true)">
                         <div>
                             <!-- 2 Column Grid -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -464,37 +498,45 @@
                                         Informações Pessoais
                                     </h3>
 
-                                <!-- Participant Name (Editable) -->
-                                <form @submit.prevent="updateParticipantName()" class="space-y-3">
-                                    <div class="p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
-                                        <label for="profileName" class="block text-xs text-gray-400 mb-2">
-                                            Nome de Exibição
-                                        </label>
-                                        <div class="flex gap-2">
-                                            <input
-                                                id="profileName"
-                                                type="text"
-                                                x-model="participantName"
-                                                placeholder="Digite seu nome"
-                                                class="flex-1 bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all"
-                                            />
-                                            <button
-                                                type="submit"
-                                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors flex items-center gap-2"
-                                                title="Salvar nome"
-                                            >
-                                                <i data-lucide="save" class="w-4 h-4"></i>
-                                            </button>
+                                <!-- Participant Name (Editable) - Only for own profile -->
+                                <div x-show="profileData.isOwn">
+                                    <form @submit.prevent="updateParticipantName()" class="space-y-3">
+                                        <div class="p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
+                                            <label for="profileName" class="block text-xs text-gray-400 mb-2">
+                                                Nome de Exibição
+                                            </label>
+                                            <div class="flex gap-2">
+                                                <input
+                                                    id="profileName"
+                                                    type="text"
+                                                    x-model="participantName"
+                                                    placeholder="Digite seu nome"
+                                                    class="flex-1 bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                                                />
+                                                <button
+                                                    type="submit"
+                                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors flex items-center gap-2"
+                                                    title="Salvar nome"
+                                                >
+                                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                                </button>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-2">
+                                                Este nome será exibido nas salas de chat
+                                            </p>
                                         </div>
-                                        <p class="text-xs text-gray-500 mt-2">
-                                            Este nome será exibido nas salas de chat
-                                        </p>
-                                    </div>
-                                </form>
+                                    </form>
+                                </div>
+                                
+                                <!-- Display Name (Read-only for viewing others) -->
+                                <div x-show="!profileData.isOwn" class="p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
+                                    <p class="text-xs text-gray-400 mb-1">Nome de Exibição</p>
+                                    <p class="text-sm text-white" x-text="profileData.name || 'Usuário Anônimo'"></p>
+                                </div>
                                 </div>
 
-                                <!-- Security & API Key Section -->
-                                <div class="space-y-3">
+                                <!-- Security & API Key Section (Only for own profile) -->
+                                <div class="space-y-3" x-show="profileData.isOwn">
                                     <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                         <i data-lucide="shield" class="w-4 h-4"></i>
                                         Segurança & Autenticação
@@ -584,8 +626,8 @@
                                 </div>
                                 </div>
 
-                                <!-- Logout Button -->
-                                <div class="pt-2">
+                                <!-- Logout Button (only for own profile) -->
+                                <div class="pt-2" x-show="profileData.isOwn">
                                     <button
                                         @click="handleApiKeyLogout()"
                                         class="w-full px-6 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-700/50 rounded-lg font-medium text-red-400 transition-all duration-200 flex items-center justify-center gap-2"
@@ -599,8 +641,8 @@
                             <!-- RIGHT COLUMN: Stats & Connection -->
                             <div class="space-y-6">
 
-                                <!-- Statistics Section -->
-                                <div class="space-y-3">
+                                <!-- Statistics Section (Only for own profile) -->
+                                <div class="space-y-3" x-show="profileData.isOwn">
                                     <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                         <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
                                         Estatísticas
@@ -621,8 +663,8 @@
                                     </div>
                                 </div>
 
-                                <!-- Connection Info -->
-                                <div class="space-y-3">
+                                <!-- Connection Info (Only for own profile) -->
+                                <div class="space-y-3" x-show="profileData.isOwn">
                                     <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                         <i data-lucide="activity" class="w-4 h-4"></i>
                                         Conexão
