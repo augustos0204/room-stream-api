@@ -140,13 +140,15 @@
     </main>
 
     <!-- Modals -->
-    <%- include('../partials/modal-profile', { features: features }) %>
     <%- include('../partials/modal-create-room') %>
     <%- include('../partials/modal-chat') %>
     <%- include('../partials/modal-shortcuts') %>
 
     </div>
     <!-- End Platform Interface -->
+
+    <!-- Profile Modal -->
+    <%- include('../partials/modal-profile', { features: features }) %>
 
     <!-- Load utilities and app -->
     <script src="/view/assets/scripts/sanitizer.js"></script>
