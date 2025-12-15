@@ -2,19 +2,41 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { SupabaseService } from './supabase/supabase.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Configurar EJS como template engine
+  // Configurar múltiplos diretórios de views para suportar partials
+  app.setBaseViewsDir([
+    path.join(__dirname, 'views', 'public'),
+    path.join(__dirname, 'views'),
+  ]);
+  app.setViewEngine('ejs');
+
+  // Desabilitar cache do EJS em desenvolvimento para hot-reload
+  if (process.env.NODE_ENV !== 'production') {
+    app.set('view cache', false);
+    console.log('🔥 EJS cache desabilitado para hot-reload');
+  }
 
   // Configurar CORS para permitir ferramentas externas
   app.enableCors({
     origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'Accept'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization', // Supabase JWT tokens
+      'x-api-key', // API Key authentication
+      'Accept',
+    ],
     credentials: true,
   });
 
@@ -30,16 +52,28 @@ async function bootstrap() {
     }),
   );
 
-  // Aplicar filtro global de exceções para padronizar respostas de erro
-  app.useGlobalFilters(new HttpExceptionFilter());
+  // Apply global guards
+  const reflector = app.get(Reflector);
+
+  // Aplicar filtro global de exceções (captura TODAS as exceções, incluindo erros não-HTTP)
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   if (process.env.API_KEY) {
-    const reflector = app.get(Reflector);
     app.useGlobalGuards(new ApiKeyGuard(reflector));
     console.log('🔐 API Key authentication enabled');
   } else {
     console.log(
       '⚠️  API Key authentication disabled - set API_KEY env var to enable',
+    );
+  }
+
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    const supabaseService = app.get(SupabaseService);
+    app.useGlobalGuards(new SupabaseAuthGuard(supabaseService, reflector));
+    console.log('🔑 Supabase authentication enabled');
+  } else {
+    console.log(
+      '⚠️  Supabase authentication disabled',
     );
   }
 
@@ -63,6 +97,18 @@ async function bootstrap() {
         description: 'API key for authentication',
       },
       'api-key',
+    );
+  }
+
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    configBuilder.addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Supabase JWT token for authentication',
+      },
+      'supabase-token',
     );
   }
 

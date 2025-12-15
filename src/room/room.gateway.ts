@@ -8,10 +8,19 @@ import {
   WebSocketServer,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Logger, UsePipes, ValidationPipe, UseFilters } from '@nestjs/common';
+import {
+  Logger,
+  UsePipes,
+  ValidationPipe,
+  UseFilters,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { RoomService } from './room.service';
 import { EventsService } from '../events/events.service';
+import { SupabaseService } from '../supabase/supabase.service';
+import { User } from '@supabase/supabase-js';
 import {
   JoinRoomDto,
   LeaveRoomDto,
@@ -20,6 +29,14 @@ import {
   GetRoomInfoDto,
 } from './dto';
 import { WsExceptionFilter } from '../common/filters/websocket-exception.filter';
+
+// Estende o Socket para incluir dados do usuário autenticado
+interface AuthenticatedSocket extends Socket {
+  data: {
+    user?: User;
+    validationTimer?: NodeJS.Timeout; // Timer para validação periódica do token
+  };
+}
 
 @WebSocketGateway({
   namespace: process.env.WEBSOCKET_NAMESPACE || '/ws/rooms', // Namespace específico para salas
@@ -38,20 +55,29 @@ export class RoomGateway
   @WebSocketServer() server: Server;
   private logger: Logger = new Logger('RoomGateway');
 
+  // Intervalo de validação do token (em milissegundos)
+  // Padrão: 5 minutos
+  private readonly TOKEN_VALIDATION_INTERVAL =
+    parseInt(process.env.TOKEN_VALIDATION_INTERVAL || '300000', 10);
+
   constructor(
+    @Inject(forwardRef(() => RoomService))
     private readonly roomService: RoomService,
     private readonly eventsService: EventsService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   afterInit() {
     const apiKeyStatus = process.env.API_KEY ? 'enabled' : 'disabled';
+    const supabaseStatus = this.supabaseService.isEnabled()
+      ? 'enabled'
+      : 'disabled';
     this.logger.log(
-      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'} (API Key auth: ${apiKeyStatus})`,
+      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'} \nAPI Key auth: ${apiKeyStatus};\nSupabase auth: ${supabaseStatus};`,
     );
   }
 
-  handleConnection(client: Socket) {
-    // Validate API key if configured
+  async handleConnection(client: AuthenticatedSocket) {
     const API_KEY = process.env.API_KEY;
 
     if (API_KEY) {
@@ -60,17 +86,79 @@ export class RoomGateway
         (client.handshake.headers['x-api-key'] as string) ||
         (client.handshake.query?.apiKey as string);
 
-      if (!apiKey || apiKey !== API_KEY) {
+      if (apiKey === API_KEY) {
+        const namespace = client.nsp.name;
+        this.eventsService.emitMetricsEvent('metrics:client-connected', {
+          clientId: client.id,
+          namespace,
+          timestamp: new Date(),
+        });
+        this.logger.log(
+          `Cliente conectado no namespace ${namespace}: ${client.id}`,
+        );
+        return;
+      }
+    }
+
+    if (this.supabaseService.isEnabled()) {
+      const token = this.extractToken(client);
+
+      if (!token) {
         this.logger.warn(
-          `WebSocket connection rejected: invalid or missing API key from ${client.handshake.address}`,
+          `WebSocket connection rejected: missing Supabase token from ${client.handshake.address}`,
         );
         client.emit('error', {
           message:
-            'Authentication failed: Invalid or missing API key. Provide it via auth.apiKey, x-api-key header, or apiKey query parameter',
+            'Authentication failed: Missing Supabase token. Provide it via auth.token or Authorization header.',
         });
         client.disconnect();
         return;
       }
+
+      const user = await this.supabaseService.validateToken(token);
+
+      if (!user) {
+        this.logger.warn(
+          `WebSocket connection rejected: invalid Supabase token from ${client.handshake.address}`,
+        );
+        client.emit('error', {
+          message: 'Authentication failed: Invalid or expired Supabase token.',
+        });
+        client.disconnect();
+        return;
+      }
+
+      client.data.user = user;
+
+      this.logger.log(
+        `User authenticated via Supabase: ${user.id} (${user.email})`,
+      );
+
+      // Iniciar validação periódica do token Supabase
+      this.startTokenValidation(client);
+
+      const namespace = client.nsp.name;
+      this.eventsService.emitMetricsEvent('metrics:client-connected', {
+        clientId: client.id,
+        namespace,
+        timestamp: new Date(),
+      });
+      this.logger.log(
+        `Cliente conectado no namespace ${namespace}: ${client.id}`,
+      );
+      return;
+    }
+
+    if (API_KEY) {
+      this.logger.warn(
+        `WebSocket connection rejected: invalid or missing API key from ${client.handshake.address}`,
+      );
+      client.emit('error', {
+        message:
+          'Authentication failed: Invalid or missing API key. Provide it via auth.apiKey, x-api-key header, or apiKey query parameter',
+      });
+      client.disconnect();
+      return;
     }
 
     const namespace = client.nsp.name;
@@ -84,7 +172,134 @@ export class RoomGateway
     );
   }
 
-  handleDisconnect(client: Socket) {
+  /**
+   * Extrai token JWT da conexão WebSocket
+   * Verifica: auth.token, Authorization header
+   */
+  private extractToken(client: Socket): string | null {
+    // 1. Verificar auth.token (recomendado)
+    const authToken = client.handshake.auth?.token as string;
+    if (authToken) {
+      return authToken;
+    }
+
+    // 2. Verificar Authorization header
+    const authHeader = client.handshake.headers.authorization as string;
+    if (authHeader?.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+
+    return null;
+  }
+
+  /**
+   * Inicia a validação periódica do token Supabase
+   * Valida o token a cada intervalo configurado e desconecta se expirado
+   */
+  private startTokenValidation(client: AuthenticatedSocket): void {
+    // Verificar se Supabase está habilitado antes de iniciar validação
+    if (!this.supabaseService.isEnabled()) {
+      this.logger.debug(
+        'Validação periódica de token não iniciada: Supabase não está configurado',
+      );
+      return;
+    }
+
+    if (!client.data.user) {
+      return; // Não há usuário Supabase para validar
+    }
+
+    const userId = client.data.user.id;
+    const userEmail = client.data.user.email;
+
+    this.logger.debug(
+      `Iniciando validação periódica do token para usuário ${userId} a cada ${this.TOKEN_VALIDATION_INTERVAL / 1000}s`,
+    );
+
+    // Validar token periodicamente
+    const validationTimer = setInterval(async () => {
+      // Verificar novamente se Supabase ainda está habilitado
+      if (!this.supabaseService.isEnabled()) {
+        this.logger.warn(
+          'Supabase foi desabilitado durante a validação, parando timer',
+        );
+        this.stopTokenValidation(client);
+        return;
+      }
+
+      const token = this.extractToken(client);
+
+      if (!token) {
+        this.logger.warn(
+          `Token não encontrado para usuário ${userId}, desconectando`,
+        );
+        this.stopTokenValidation(client);
+        client.emit('error', {
+          message: 'Token not found. Please reconnect with a valid token.',
+        });
+        client.disconnect();
+        return;
+      }
+
+      const user = await this.supabaseService.validateToken(token);
+
+      if (!user) {
+        this.logger.warn(
+          `Token expirado ou inválido para usuário ${userId} (${userEmail}), desconectando`,
+        );
+        this.stopTokenValidation(client);
+        client.emit('tokenExpired', {
+          message: 'Your session has expired. Please log in again.',
+          userId: userId,
+        });
+        client.disconnect();
+        return;
+      }
+
+      this.logger.debug(
+        `Token validado com sucesso para usuário ${userId} (${userEmail})`,
+      );
+    }, this.TOKEN_VALIDATION_INTERVAL);
+
+    // Armazenar o timer no client.data para limpeza posterior
+    client.data.validationTimer = validationTimer;
+  }
+
+  /**
+   * Para a validação periódica do token
+   */
+  private stopTokenValidation(client: AuthenticatedSocket): void {
+    if (client.data.validationTimer) {
+      clearInterval(client.data.validationTimer);
+      client.data.validationTimer = undefined;
+      this.logger.debug(
+        `Validação periódica do token parada para cliente ${client.id}`,
+      );
+    }
+  }
+
+  /**
+   * Extracts minimal Supabase user data from authenticated socket
+   * @param client - Authenticated socket client
+   * @returns SupabaseUserData if user is authenticated, null otherwise
+   */
+  private extractSupabaseUserData(client: AuthenticatedSocket) {
+    const user = client.data?.user;
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email || null,
+      name: user.user_metadata?.name || null,
+    };
+  }
+
+  async handleDisconnect(client: AuthenticatedSocket) {
+    // Parar validação periódica do token se estiver ativa
+    this.stopTokenValidation(client);
+
     const namespace = client.nsp.name;
     this.eventsService.emitMetricsEvent('metrics:client-disconnected', {
       clientId: client.id,
@@ -95,91 +310,130 @@ export class RoomGateway
       `Cliente desconectado do namespace ${namespace}: ${client.id}`,
     );
 
+    const userId = client.data?.user?.id || null;
+    
+    const supabaseUserData = this.extractSupabaseUserData(client);
+
     // Remove o cliente de todas as salas ao desconectar
-    const rooms = this.roomService.getAllRooms();
-    rooms.forEach((room) => {
-      if (room.participants.includes(client.id)) {
-        const participantName = this.roomService.getParticipantName(
+    const rooms = await this.roomService.getAllRooms();
+    for (const room of rooms) {
+      // Check if participant exists using hybrid key
+      const participantKey = userId || client.id;
+      if (room.participants.includes(participantKey)) {
+        const participantName = await this.roomService.getParticipantName(
           room.id,
           client.id,
+          userId,
         );
-        this.roomService.leaveRoom(room.id, client.id);
+        
+        const displayName = participantName 
+          || supabaseUserData?.email 
+          || null;
+          
+        await this.roomService.leaveRoom(room.id, client.id, userId);
         client.to(room.id).emit('userLeft', {
           clientId: client.id,
-          participantName,
+          participantName: displayName,
           roomId: room.id,
           roomName: room.name,
           participantCount: room.participants.length,
         });
       }
-    });
+    }
   }
 
   @SubscribeMessage('joinRoom')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleJoinRoom(
+  async handleJoinRoom(
     @MessageBody() data: JoinRoomDto,
-    @ConnectedSocket() client: Socket,
-  ): void {
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ): Promise<void> {
     const { roomId, participantName } = data;
-    const room = this.roomService.getRoom(roomId);
+    const room = await this.roomService.getRoom(roomId);
 
     if (!room) {
       client.emit('error', { message: 'Sala não encontrada x1' });
       return;
     }
 
+    // Se usuário está autenticado via Supabase, usar dados do Supabase
+    const user = client.data?.user;
+    const displayName = user
+      ? user.email || user.user_metadata?.name || 'User'
+      : participantName || null;
+
+    // Extract Supabase user data
+    const supabaseUserData = this.extractSupabaseUserData(client);
+
     // Join no Socket.IO room
     client.join(roomId) as void;
 
     // Adicionar ao serviço
-    this.roomService.joinRoom(roomId, client.id, participantName || null);
+    await this.roomService.joinRoom(roomId, client.id, displayName, supabaseUserData);
 
     // Notificar outros usuários na sala
     client.to(roomId).emit('userJoined', {
       clientId: client.id,
-      participantName: participantName || null,
+      participantName: displayName,
       roomId: room.id,
       roomName: room.name,
       participantCount: room.participants.length,
+      supabaseUser: supabaseUserData || undefined,
     });
 
     // Confirmar entrada para o cliente
+    const participants = await this.roomService.getParticipantsWithNames(roomId);
     client.emit('joinedRoom', {
       roomId: room.id,
       roomName: room.name,
-      participants: this.roomService.getParticipantsWithNames(roomId),
+      participants,
       recentMessages: room.messages.slice(-10), // Últimas 10 mensagens
     });
 
-    this.logger.log(`Cliente ${client.id} entrou na sala: ${roomId}`);
+    this.logger.log(
+      `Cliente ${client.id} ${user ? `(Supabase user: ${user.id})` : '(anonymous)'} entrou na sala: ${roomId}`,
+    );
   }
 
   @SubscribeMessage('leaveRoom')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleLeaveRoom(
+  async handleLeaveRoom(
     @MessageBody() data: LeaveRoomDto,
-    @ConnectedSocket() client: Socket,
-  ): void {
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ): Promise<void> {
     const { roomId } = data;
+
+    // Extract userId from authenticated socket
+    const userId = client.data?.user?.id || null;
+    
+    // Extract Supabase user data for display name
+    const supabaseUserData = this.extractSupabaseUserData(client);
+
+    // Get participant name BEFORE removing from room
+    const participantName = await this.roomService.getParticipantName(
+      roomId,
+      client.id,
+      userId,
+    );
+    
+    // Use Supabase email as fallback if no custom name was set
+    const displayName = participantName 
+      || supabaseUserData?.email 
+      || null;
 
     // Leave no Socket.IO room
     client.leave(roomId) as void;
 
     // Remover do serviço
-    const success = this.roomService.leaveRoom(roomId, client.id);
+    const success = await this.roomService.leaveRoom(roomId, client.id, userId);
 
     if (success) {
-      const room = this.roomService.getRoom(roomId);
+      const room = await this.roomService.getRoom(roomId);
 
       // Notificar outros usuários na sala
-      const participantName = this.roomService.getParticipantName(
-        roomId,
-        client.id,
-      );
       client.to(roomId).emit('userLeft', {
         clientId: client.id,
-        participantName,
+        participantName: displayName,
         roomId: roomId,
         roomName: room?.name,
         participantCount: room?.participants.length || 0,
@@ -194,14 +448,22 @@ export class RoomGateway
 
   @SubscribeMessage('sendMessage')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleSendMessage(
+  async handleSendMessage(
     @MessageBody() data: SendMessageDto,
-    @ConnectedSocket() client: Socket,
-  ): void {
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ): Promise<void> {
     const { roomId, message } = data;
 
+    // Extract Supabase user data
+    const supabaseUserData = this.extractSupabaseUserData(client);
+
     // Adicionar mensagem ao serviço
-    const roomMessage = this.roomService.addMessage(roomId, client.id, message);
+    const roomMessage = await this.roomService.addMessage(
+      roomId,
+      client.id,
+      message,
+      supabaseUserData,
+    );
 
     if (!roomMessage) {
       client.emit('error', { message: 'Não foi possível enviar a mensagem' });
@@ -212,9 +474,11 @@ export class RoomGateway
     this.server.to(roomId).emit('newMessage', {
       id: roomMessage.id,
       clientId: roomMessage.clientId,
+      userId: roomMessage.userId,
       message: roomMessage.message,
       timestamp: roomMessage.timestamp,
       roomId: roomId,
+      supabaseUser: roomMessage.supabaseUser || undefined,
     });
 
     this.logger.log(
@@ -224,23 +488,25 @@ export class RoomGateway
 
   @SubscribeMessage('getRoomInfo')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleGetRoomInfo(
+  async handleGetRoomInfo(
     @MessageBody() data: GetRoomInfoDto,
     @ConnectedSocket() client: Socket,
-  ): void {
+  ): Promise<void> {
     const { roomId } = data;
-    const room = this.roomService.getRoom(roomId);
+    const room = await this.roomService.getRoom(roomId);
 
     if (!room) {
       client.emit('error', { message: 'Sala não encontrada x2' });
       return;
     }
 
+    const participants = await this.roomService.getParticipantsWithNames(roomId);
+
     client.emit('roomInfo', {
       id: room.id,
       name: room.name,
       participantCount: room.participants.length,
-      participants: this.roomService.getParticipantsWithNames(roomId),
+      participants,
       messageCount: room.messages.length,
       createdAt: room.createdAt,
     });
@@ -248,16 +514,31 @@ export class RoomGateway
 
   @SubscribeMessage('updateParticipantName')
   @UsePipes(new ValidationPipe({ transform: true }))
-  handleUpdateParticipantName(
+  async handleUpdateParticipantName(
     @MessageBody() data: UpdateParticipantNameDto,
-    @ConnectedSocket() client: Socket,
-  ): void {
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ): Promise<void> {
     const { roomId, participantName } = data;
 
-    const success = this.roomService.updateParticipantName(
+    // Se usuário está autenticado via Supabase, não permitir atualização de nome
+    const user = client.data?.user;
+    if (user) {
+      client.emit('error', {
+        message:
+          'Não é possível atualizar o nome de usuários autenticados.',
+      });
+      this.logger.warn(
+        `Tentativa de atualizar nome bloqueada para usuário autenticado: ${user.id}`,
+      );
+      return;
+    }
+
+    // For anonymous users, userId is null
+    const success = await this.roomService.updateParticipantName(
       roomId,
       client.id,
       participantName,
+      null, // Anonymous users don't have userId
     );
 
     if (success) {
@@ -281,5 +562,21 @@ export class RoomGateway
     } else {
       client.emit('error', { message: 'Não foi possível atualizar o nome' });
     }
+  }
+
+  /**
+   * Broadcast room deletion to all clients in the room
+   * Called by RoomService when a room is deleted
+   */
+  broadcastRoomDeleted(roomId: string, roomName: string): void {
+    this.server.to(roomId).emit('roomDeleted', {
+      roomId,
+      roomName,
+      message: `A sala "${roomName}" foi deletada`,
+    });
+
+    this.logger.log(
+      `Broadcast de deleção enviado para sala ${roomId} (${roomName})`,
+    );
   }
 }

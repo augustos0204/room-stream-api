@@ -1,0 +1,222 @@
+<!-- Profile Page -->
+<div class="space-y-6 animate-fade-in max-w-2xl mx-auto">
+
+    <!-- Profile Header -->
+    <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+        <div class="flex items-center gap-4">
+            <div class="w-20 h-20 rounded-full flex items-center justify-center"
+                 :class="supabaseUser ? 'bg-gradient-to-br from-green-500 to-emerald-500' : 'bg-gradient-to-br from-blue-500 to-cyan-500'">
+                <i :data-lucide="supabaseUser ? 'user' : 'key'" class="w-10 h-10 text-white"></i>
+            </div>
+            <div class="flex-1">
+                <h2 class="text-2xl font-bold text-white" x-text="supabaseUser ? supabaseUser.email : (participantName || 'Usuário')"></h2>
+                <p class="text-sm text-gray-400" x-text="supabaseUser ? 'Supabase Authentication' : 'API Key Authentication'"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase Profile (Read-only) -->
+    <div x-show="supabaseUser" class="dark-glass rounded-xl border border-gray-700/50">
+        <div class="flex items-center gap-3 p-6 border-b border-gray-700/50">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center">
+                <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-white">Perfil Supabase</h3>
+                <p class="text-sm text-gray-400">Informações autenticadas pelo Supabase</p>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <!-- User ID -->
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">User ID</label>
+                <div class="px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+                    <p class="text-white font-mono text-sm" x-text="supabaseUser?.id"></p>
+                </div>
+            </div>
+
+            <!-- Email -->
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Email</label>
+                <div class="px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+                    <p class="text-white" x-text="supabaseUser?.email"></p>
+                </div>
+            </div>
+
+            <!-- Display Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Nome de Exibição</label>
+                <div class="px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+                    <p class="text-white" x-text="participantName"></p>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">
+                    ℹ️ Nome derivado automaticamente do Supabase (não editável)
+                </p>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="pt-4">
+                <button
+                    @click="handleSupabaseLogout()"
+                    class="w-full px-6 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-700/50 rounded-lg font-medium text-red-400 transition-colors flex items-center justify-center gap-2"
+                >
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <span>Sair da Conta</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Profile (Editable) -->
+    <div x-show="!supabaseUser && apiKey" class="dark-glass rounded-xl border border-gray-700/50">
+        <div class="flex items-center gap-3 p-6 border-b border-gray-700/50">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
+                <i data-lucide="key" class="w-5 h-5 text-white"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-white">Perfil API Key</h3>
+                <p class="text-sm text-gray-400">Informações editáveis</p>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- Participant Name (Editable) -->
+            <form @submit.prevent="updateParticipantName()" class="space-y-4">
+                <div>
+                    <label for="profileName" class="block text-sm font-medium text-gray-300 mb-2">
+                        Nome de Exibição
+                    </label>
+                    <input
+                        id="profileName"
+                        type="text"
+                        x-model="participantName"
+                        placeholder="Digite seu nome"
+                        class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all"
+                    />
+                    <p class="text-xs text-gray-500 mt-2">
+                        Este nome será exibido nas salas de chat
+                    </p>
+                </div>
+
+                <button
+                    type="submit"
+                    class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-white transition-colors flex items-center gap-2"
+                >
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span>Salvar Nome</span>
+                </button>
+            </form>
+
+            <!-- API Key Info (Read-only, masked) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">API Key</label>
+                <div class="px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg flex items-center justify-between">
+                    <p class="text-white font-mono text-sm">
+                        <span x-text="showApiKey ? apiKey : '•'.repeat(32)"></span>
+                    </p>
+                    <button
+                        @click="showApiKey = !showApiKey"
+                        class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                    >
+                        <i :data-lucide="showApiKey ? 'eye-off' : 'eye'" class="w-4 h-4 text-gray-400"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">
+                    🔒 Salva localmente no navegador
+                </p>
+            </div>
+
+            <!-- Change API Key -->
+            <div>
+                <button
+                    @click="showChangeApiKeyForm = !showChangeApiKeyForm"
+                    class="w-full px-6 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg font-medium text-gray-300 transition-colors flex items-center justify-center gap-2"
+                >
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span>Alterar API Key</span>
+                </button>
+            </div>
+
+            <!-- Change API Key Form (Collapsible) -->
+            <div x-show="showChangeApiKeyForm" x-collapse>
+                <form @submit.prevent="handleChangeApiKey()" class="space-y-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700/50">
+                    <div>
+                        <label for="newApiKey" class="block text-sm font-medium text-gray-300 mb-2">
+                            Nova API Key
+                        </label>
+                        <input
+                            id="newApiKey"
+                            type="password"
+                            x-model="newApiKeyInput"
+                            placeholder="Digite a nova API Key"
+                            class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 transition-all font-mono"
+                            required
+                        />
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button
+                            type="submit"
+                            class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-white transition-colors flex items-center justify-center gap-2"
+                        >
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            <span>Confirmar</span>
+                        </button>
+                        <button
+                            type="button"
+                            @click="showChangeApiKeyForm = false; newApiKeyInput = ''"
+                            class="px-6 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg font-medium text-gray-300 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="pt-4">
+                <button
+                    @click="handleApiKeyLogout()"
+                    class="w-full px-6 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-700/50 rounded-lg font-medium text-red-400 transition-colors flex items-center justify-center gap-2"
+                >
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <span>Sair da Conta</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Info -->
+    <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <i data-lucide="info" class="w-5 h-5 text-gray-400"></i>
+            <h3 class="font-bold text-white">Informações de Conexão</h3>
+        </div>
+
+        <div class="space-y-3 text-sm">
+            <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                <span class="text-gray-400">Status WebSocket:</span>
+                <span class="font-medium" :class="isConnected ? 'text-green-400' : 'text-red-400'"
+                      x-text="isConnected ? 'Conectado' : 'Desconectado'"></span>
+            </div>
+
+            <template x-if="isConnected && socket">
+                <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                    <span class="text-gray-400">Socket ID:</span>
+                    <span class="font-mono text-xs text-gray-300 truncate ml-2" x-text="socket.id"></span>
+                </div>
+            </template>
+
+            <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                <span class="text-gray-400">Namespace:</span>
+                <span class="font-mono text-xs text-gray-300" x-text="wsNamespace"></span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg">
+                <span class="text-gray-400">Base URL:</span>
+                <span class="font-mono text-xs text-gray-300 truncate ml-2" x-text="baseUrl"></span>
+            </div>
+        </div>
+    </div>
+</div>

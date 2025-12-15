@@ -1,0 +1,505 @@
+<!-- Full Screen Login Page -->
+<div class="fixed inset-0 z-[100] bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950">
+    <!-- Animated Background Grid -->
+    <div class="absolute inset-0 pointer-events-none opacity-20">
+        <div class="absolute inset-0" style="background-image: linear-gradient(rgba(139, 92, 246, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(139, 92, 246, 0.1) 1px, transparent 1px); background-size: 50px 50px;"></div>
+    </div>
+
+    <!-- Animated Background Shapes -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <!-- Large Floating Orbs -->
+        <div 
+            class="absolute top-20 left-20 w-72 h-72 rounded-full blur-3xl animate-pulse transition-colors duration-1000"
+            :class="loginMethod === 'supabase' ? 'bg-green-500/10' : 'bg-purple-500/10'"
+        ></div>
+        <div 
+            class="absolute bottom-20 right-20 w-96 h-96 rounded-full blur-3xl animate-pulse transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-emerald-500/10' : 'bg-blue-500/10'"
+            style="animation-delay: 1s;"
+        ></div>
+        <div 
+            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-3xl animate-pulse transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-teal-500/5' : 'bg-pink-500/5'"
+            style="animation-delay: 2s;"
+        ></div>
+        
+        <!-- Floating Orbs with Movement -->
+        <div 
+            class="absolute top-10 right-1/4 w-64 h-64 rounded-full blur-2xl transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-emerald-500/10' : 'bg-cyan-500/10'"
+            style="animation: floatLoginOrbs 20s ease-in-out infinite;"
+        ></div>
+        <div 
+            class="absolute bottom-32 left-1/3 w-80 h-80 rounded-full blur-3xl transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-green-500/10' : 'bg-indigo-500/10'"
+            style="animation: floatLoginOrbs 25s ease-in-out infinite reverse;"
+        ></div>
+        <div 
+            class="absolute top-1/3 right-10 w-56 h-56 rounded-full blur-2xl transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-teal-500/15' : 'bg-pink-500/15'"
+            style="animation: floatLoginOrbs 18s ease-in-out infinite; animation-delay: 1s;"
+        ></div>
+        
+        <!-- Small Particles -->
+        <div 
+            class="absolute top-40 left-1/4 w-3 h-3 rounded-full transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-green-400/30' : 'bg-purple-400/30'"
+            style="animation: particle 15s linear infinite;"
+        ></div>
+        <div 
+            class="absolute top-60 right-1/3 w-2 h-2 rounded-full transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-emerald-400/40' : 'bg-cyan-400/40'"
+            style="animation: particle 12s linear infinite; animation-delay: 2s;"
+        ></div>
+        <div 
+            class="absolute bottom-40 left-1/2 w-2.5 h-2.5 rounded-full transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-teal-400/35' : 'bg-pink-400/35'"
+            style="animation: particle 18s linear infinite; animation-delay: 4s;"
+        ></div>
+        <div 
+            class="absolute top-1/2 right-1/4 w-3 h-3 rounded-full transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-emerald-400/30' : 'bg-blue-400/30'"
+            style="animation: particle 20s linear infinite; animation-delay: 6s;"
+        ></div>
+        <div 
+            class="absolute bottom-1/3 left-1/4 w-2 h-2 rounded-full transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-green-400/40' : 'bg-indigo-400/40'"
+            style="animation: particle 16s linear infinite; animation-delay: 3s;"
+        ></div>
+        
+        <!-- Glowing Lines -->
+        <div 
+            class="absolute top-0 left-1/4 w-px h-full transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-gradient-to-b from-transparent via-green-500/20 to-transparent' : 'bg-gradient-to-b from-transparent via-purple-500/20 to-transparent'"
+            style="animation: shimmer 3s ease-in-out infinite;"
+        ></div>
+        <div 
+            class="absolute top-0 right-1/3 w-px h-full transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-gradient-to-b from-transparent via-emerald-500/20 to-transparent' : 'bg-gradient-to-b from-transparent via-cyan-500/20 to-transparent'"
+            style="animation: shimmer 4s ease-in-out infinite; animation-delay: 1s;"
+        ></div>
+        <div 
+            class="absolute top-1/4 left-0 w-full h-px transition-colors duration-1000" 
+            :class="loginMethod === 'supabase' ? 'bg-gradient-to-r from-transparent via-teal-500/20 to-transparent' : 'bg-gradient-to-r from-transparent via-pink-500/20 to-transparent'"
+            style="animation: shimmer 3.5s ease-in-out infinite; animation-delay: 0.5s;"
+        ></div>
+    </div>
+
+    <!-- Custom Animations -->
+    <style>
+        @keyframes floatLoginOrbs {
+            0%, 100% {
+                transform: translateY(0px) translateX(0px);
+            }
+            33% {
+                transform: translateY(-30px) translateX(20px);
+            }
+            66% {
+                transform: translateY(20px) translateX(-20px);
+            }
+        }
+
+        @keyframes particle {
+            0% {
+                transform: translateY(0) translateX(0) scale(1);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(50px) scale(0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes shimmer {
+            0%, 100% {
+                opacity: 0.3;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+    </style>
+
+    <!-- Desktop: Side-by-Side Layout -->
+    <div class="hidden md:grid md:grid-cols-2 md:gap-12 lg:gap-16 md:px-8 lg:px-16 xl:px-24 h-full">
+        <!-- Left Side: Logo & Welcome -->
+        <div class="flex flex-col items-center justify-center text-center animate-slide-up py-8">
+            <div class="mb-8 animate-float">
+                <%- include('../partials/logo', { size: 'xl', className: '!w-32 !h-32 lg:!w-32 lg:!h-32' }) %>
+            </div>
+            <h1 class="text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                Bem-vindo ao<br/>RoomStream
+            </h1>
+            <p class="text-base lg:text-lg text-gray-400 mb-8 max-w-md">Faça login para acessar a plataforma de chat em tempo real</p>
+        </div>
+
+        <!-- Right Side: Login Form -->
+        <div class="flex items-center justify-center py-8">
+            <div class="w-full max-w-md">
+                <!-- Login Card -->
+                <div class="dark-glass rounded-2xl border border-gray-700/50 p-8 shadow-2xl animate-slide-up" style="animation-delay: 0.1s;">
+            <!-- Tabs: Supabase ou API Key -->
+            <!-- Switch sempre visível, mas mostra apenas opções disponíveis -->
+            <div class="relative flex gap-2 mb-6 p-1 bg-gray-800/50 rounded-lg">
+                <!-- Sliding Background -->
+                <% const hasMultipleAuthMethods = features.supabaseAuth && features.apiKeyAuth; %>
+                <div 
+                    class="absolute inset-y-1 rounded-lg transition-all duration-300 ease-out shadow-lg"
+                    :class="loginMethod === 'supabase' 
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
+                        : 'bg-gradient-to-r from-purple-600 to-pink-600'"
+                    <% if (hasMultipleAuthMethods) { %>
+                    :style="{
+                        left: loginMethod === 'supabase' ? '4px' : 'calc(50% + 4px)',
+                        width: 'calc(50% - 8px)'
+                    }"
+                    <% } else { %>
+                    style="left: 4px; width: calc(100% - 8px);"
+                    <% } %>
+                ></div>
+                
+                <!-- Botão Supabase (apenas se disponível) -->
+                <% if (features.supabaseAuth) { %>
+                <button
+                    @click="loginMethod = 'supabase'"
+                    class="relative z-10 flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
+                    :class="loginMethod === 'supabase' 
+                        ? 'text-white' 
+                        : 'text-gray-400 hover:text-gray-200'"
+                >
+                    <i data-lucide="shield-check" class="w-4 h-4 inline-block mr-2"></i>
+                    E-mail
+                </button>
+                <% } %>
+                
+                <!-- Botão API Key (apenas se disponível) -->
+                <% if (features.apiKeyAuth) { %>
+                <button
+                    @click="loginMethod = 'apikey'"
+                    class="relative z-10 flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
+                    :class="loginMethod === 'apikey' 
+                        ? 'text-white' 
+                        : 'text-gray-400 hover:text-gray-200'"
+                >
+                    <i data-lucide="key" class="w-4 h-4 inline-block mr-2"></i>
+                    API Key
+                </button>
+                <% } %>
+            </div>
+
+            <!-- Forms Container with Overflow Hidden -->
+            <div class="relative overflow-hidden min-h-[250px]">
+                <!-- Supabase Login -->
+                <% if (features.supabaseAuth) { %>
+                <div 
+                    x-show="loginMethod === 'supabase'" 
+                    x-transition:enter="transition-all duration-500 ease-out"
+                    x-transition:enter-start="opacity-0 translate-x-full"
+                    x-transition:enter-end="opacity-100 translate-x-0"
+                    x-transition:leave="transition-all duration-500 ease-in"
+                    x-transition:leave-start="opacity-100 translate-x-0"
+                    x-transition:leave-end="opacity-0 -translate-x-full"
+                    class="absolute inset-0 w-full space-y-4"
+                >
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        <i data-lucide="mail" class="w-4 h-4 inline-block mr-1"></i>
+                        Email
+                    </label>
+                    <input
+                        x-model="supabaseEmail"
+                        type="email"
+                        placeholder="seu-email@exemplo.com"
+                        @keydown.enter="handleSupabaseLogin()"
+                        class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition-all"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        <i data-lucide="lock" class="w-4 h-4 inline-block mr-1"></i>
+                        Senha
+                    </label>
+                    <input
+                        x-model="supabasePassword"
+                        type="password"
+                        placeholder="Sua senha"
+                        @keydown.enter="handleSupabaseLogin()"
+                        class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition-all"
+                    />
+                </div>
+
+                <!-- Error Message -->
+                <div x-show="supabaseError" x-transition class="bg-red-900/30 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm">
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                        <span x-text="supabaseError"></span>
+                    </div>
+                </div>
+
+                <button
+                    @click="handleSupabaseLogin()"
+                    :disabled="supabaseLoading"
+                    class="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 shadow-lg shadow-green-500/25 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    <span x-show="!supabaseLoading" class="flex items-center gap-2">
+                        <i data-lucide="log-in" class="w-5 h-5"></i>
+                        Entrar
+                    </span>
+                    <span x-show="supabaseLoading" class="flex items-center gap-2">
+                        <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Entrando...
+                    </span>
+                </button>
+                </div>
+                <% } %>
+
+                <!-- API Key Login -->
+                <div 
+                    x-show="loginMethod === 'apikey'" 
+                    x-transition:enter="transition-all duration-500 ease-out"
+                    x-transition:enter-start="opacity-0 -translate-x-full"
+                    x-transition:enter-end="opacity-100 translate-x-0"
+                    x-transition:leave="transition-all duration-500 ease-in"
+                    x-transition:leave-start="opacity-100 translate-x-0"
+                    x-transition:leave-end="opacity-0 translate-x-full"
+                    class="absolute inset-0 w-full space-y-4"
+                >
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        <i data-lucide="user" class="w-4 h-4 inline-block mr-1"></i>
+                        Seu Nome (opcional)
+                    </label>
+                    <input
+                        x-model="participantName"
+                        type="text"
+                        placeholder="Como deseja ser chamado?"
+                        class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        <i data-lucide="key" class="w-4 h-4 inline-block mr-1"></i>
+                        API Key
+                    </label>
+                    <input
+                        x-model="apiKeyInput"
+                        type="password"
+                        placeholder="Digite sua API Key"
+                        @keydown.enter="handleApiKeyLogin()"
+                        class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
+                    />
+                </div>
+
+                <button
+                    @click="handleApiKeyLogin()"
+                    class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2"
+                >
+                    <i data-lucide="log-in" class="w-5 h-5"></i>
+                    Entrar
+                </button>
+                </div>
+            </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile: Fixed Bottom Sheet Layout -->
+    <div class="md:hidden flex flex-col h-full">
+        <!-- Top: Logo & Welcome (Scrollable) -->
+        <div class="flex-1 overflow-y-auto flex items-center justify-center p-6">
+            <div class="w-full max-w-md text-center">
+                <div class="inline-flex items-center justify-center mb-6 animate-float">
+                    <%- include('../partials/logo', { size: 'lg' }) %>
+                </div>
+                <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                    Bem-vindo ao RoomStream
+                </h1>
+                <p class="text-gray-400">Faça login para acessar a plataforma</p>
+            </div>
+        </div>
+
+        <!-- Bottom: Login Form (Fixed) -->
+        <div class="flex-shrink-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700/50 rounded-t-3xl shadow-2xl">
+            <!-- Decorative Handle -->
+            <div class="flex justify-center py-3">
+                <div class="w-12 h-1.5 rounded-full bg-gray-600"></div>
+            </div>
+
+            <!-- Form Content -->
+            <div class="px-6 pb-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <!-- Tabs: Supabase ou API Key -->
+                <!-- Switch sempre visível, mas mostra apenas opções disponíveis -->
+                <div class="relative flex gap-2 mb-6 p-1 bg-gray-800/50 rounded-lg">
+                    <!-- Sliding Background -->
+                    <% const hasBothAuthMethods = features.supabaseAuth && features.apiKeyAuth; %>
+                    <div 
+                        class="absolute inset-y-1 rounded-lg transition-all duration-300 ease-out shadow-lg"
+                        :class="loginMethod === 'supabase' 
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
+                            : 'bg-gradient-to-r from-purple-600 to-pink-600'"
+                        <% if (hasBothAuthMethods) { %>
+                        :style="{
+                            left: loginMethod === 'supabase' ? '4px' : 'calc(50% + 4px)',
+                            width: 'calc(50% - 8px)'
+                        }"
+                        <% } else { %>
+                        style="left: 4px; width: calc(100% - 8px);"
+                        <% } %>
+                    ></div>
+                    
+                    <!-- Botão Supabase (apenas se disponível) -->
+                    <% if (features.supabaseAuth) { %>
+                    <button
+                        @click="loginMethod = 'supabase'"
+                        class="relative z-10 flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
+                        :class="loginMethod === 'supabase' 
+                            ? 'text-white' 
+                            : 'text-gray-400 hover:text-gray-200'"
+                    >
+                        <i data-lucide="shield-check" class="w-4 h-4 inline-block mr-2"></i>
+                        Supabase
+                    </button>
+                    <% } %>
+                    
+                    <!-- Botão API Key (apenas se disponível) -->
+                    <% if (features.apiKeyAuth) { %>
+                    <button
+                        @click="loginMethod = 'apikey'"
+                        class="relative z-10 flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
+                        :class="loginMethod === 'apikey' 
+                            ? 'text-white' 
+                            : 'text-gray-400 hover:text-gray-200'"
+                    >
+                        <i data-lucide="key" class="w-4 h-4 inline-block mr-2"></i>
+                        API Key
+                    </button>
+                    <% } %>
+                </div>
+
+                <!-- Forms Container with Overflow Hidden -->
+                <div class="relative overflow-hidden min-h-[320px]">
+                    <!-- Supabase Login -->
+                    <% if (features.supabaseAuth) { %>
+                    <div 
+                        x-show="loginMethod === 'supabase'" 
+                        x-transition:enter="transition-all duration-500 ease-out"
+                        x-transition:enter-start="opacity-0 translate-x-full"
+                        x-transition:enter-end="opacity-100 translate-x-0"
+                        x-transition:leave="transition-all duration-500 ease-in"
+                        x-transition:leave-start="opacity-100 translate-x-0"
+                        x-transition:leave-end="opacity-0 -translate-x-full"
+                        class="absolute inset-0 w-full space-y-4"
+                    >
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            <i data-lucide="mail" class="w-4 h-4 inline-block mr-1"></i>
+                            Email
+                        </label>
+                        <input
+                            x-model="supabaseEmail"
+                            type="email"
+                            placeholder="seu-email@exemplo.com"
+                            @keydown.enter="handleSupabaseLogin()"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition-all"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            <i data-lucide="lock" class="w-4 h-4 inline-block mr-1"></i>
+                            Senha
+                        </label>
+                        <input
+                            x-model="supabasePassword"
+                            type="password"
+                            placeholder="Sua senha"
+                            @keydown.enter="handleSupabaseLogin()"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition-all"
+                        />
+                    </div>
+
+                    <!-- Error Message -->
+                    <div x-show="supabaseError" x-transition class="bg-red-900/30 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm">
+                        <div class="flex items-start gap-2">
+                            <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                            <span x-text="supabaseError"></span>
+                        </div>
+                    </div>
+
+                    <button
+                        @click="handleSupabaseLogin()"
+                        :disabled="supabaseLoading"
+                        class="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 shadow-lg shadow-green-500/25 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        <span x-show="!supabaseLoading" class="flex items-center gap-2">
+                            <i data-lucide="log-in" class="w-5 h-5"></i>
+                            Entrar com Supabase
+                        </span>
+                        <span x-show="supabaseLoading" class="flex items-center gap-2">
+                            <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Entrando...
+                        </span>
+                    </button>
+                    </div>
+                    <% } %>
+
+                    <!-- API Key Login -->
+                    <div 
+                        x-show="loginMethod === 'apikey'" 
+                        x-transition:enter="transition-all duration-500 ease-out"
+                        x-transition:enter-start="opacity-0 -translate-x-full"
+                        x-transition:enter-end="opacity-100 translate-x-0"
+                        x-transition:leave="transition-all duration-500 ease-in"
+                        x-transition:leave-start="opacity-100 translate-x-0"
+                        x-transition:leave-end="opacity-0 translate-x-full"
+                        class="absolute inset-0 w-full space-y-4"
+                    >
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            <i data-lucide="user" class="w-4 h-4 inline-block mr-1"></i>
+                            Seu Nome (opcional)
+                        </label>
+                        <input
+                            x-model="participantName"
+                            type="text"
+                            placeholder="Como deseja ser chamado?"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            <i data-lucide="key" class="w-4 h-4 inline-block mr-1"></i>
+                            API Key
+                        </label>
+                        <input
+                            x-model="apiKeyInput"
+                            type="password"
+                            placeholder="Digite sua API Key"
+                            @keydown.enter="handleApiKeyLogin()"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
+                        />
+                    </div>
+
+                    <button
+                        @click="handleApiKeyLogin()"
+                        class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2"
+                    >
+                        <i data-lucide="log-in" class="w-5 h-5"></i>
+                        Entrar com API Key
+                    </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
