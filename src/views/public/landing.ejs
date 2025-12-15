@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RoomStream API - Real-time Data & Room Management</title>
-    <meta name="description" content="API WebSocket em tempo real para gerenciamento de salas de chat com NestJS, Socket.IO e Redis.">
+    <meta name="description" content="API WebSocket em tempo real para gerenciamento de salas com NestJS, Socket.IO e Redis.">
     <link rel="icon" type="image/svg+xml" href="/view/assets/media/favicon.svg">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -53,22 +53,7 @@
             <div class="flex justify-between items-center h-16">
                 <!-- Logo -->
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-full h-full">
-                            <defs>
-                                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
-                                    <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
-                                </linearGradient>
-                            </defs>
-                            <rect width="100" height="100" rx="20" fill="url(#grad1)"/>
-                            <rect x="35" y="35" width="30" height="30" transform="rotate(45 50 50)" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9"/>
-                            <circle cx="50" cy="50" r="5" fill="#ffffff">
-                                <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
-                            </circle>
-                        </svg>
-                    </div>
+                    <%- include('../partials/logo', { size: 'sm', withBackground: false, withShadow: false }) %>
                     <span class="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
                         RoomStream
                     </span>
@@ -84,7 +69,7 @@
                         <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
                         <span>Dashboard</span>
                     </a>
-                    <a href="/health" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                    <a href="/health" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2 hidden">
                         <i data-lucide="heart-pulse" class="w-4 h-4"></i>
                         <span>Status</span>
                     </a>
@@ -140,20 +125,20 @@
 
                 <!-- Stats -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-                    <div class="glass-effect rounded-xl p-6 border border-white/10">
-                        <div class="text-3xl font-bold text-purple-400 mb-2">WebSocket</div>
+                    <div class="glass-effect rounded-xl border border-white/10 flex flex-col items-center justify-center p-6">
+                        <div class="text-2xl font-bold text-purple-400 mb-2">WebSocket</div>
                         <div class="text-sm text-gray-400">Comunicação Real-time</div>
                     </div>
-                    <div class="glass-effect rounded-xl p-6 border border-white/10">
-                        <div class="text-3xl font-bold text-blue-400 mb-2">REST API</div>
+                    <div class="glass-effect rounded-xl border border-white/10 flex flex-col items-center justify-center p-6">
+                        <div class="text-2xl font-bold text-blue-400 mb-2">REST API</div>
                         <div class="text-sm text-gray-400">Endpoints HTTP</div>
                     </div>
-                    <div class="glass-effect rounded-xl p-6 border border-white/10">
-                        <div class="text-3xl font-bold text-cyan-400 mb-2">Redis</div>
+                    <div class="glass-effect rounded-xl border border-white/10 flex flex-col items-center justify-center p-6">
+                        <div class="text-2xl font-bold text-cyan-400 mb-2">Redis</div>
                         <div class="text-sm text-gray-400">Persistência Opcional</div>
                     </div>
-                    <div class="glass-effect rounded-xl p-6 border border-white/10">
-                        <div class="text-3xl font-bold text-green-400 mb-2">TypeScript</div>
+                    <div class="glass-effect rounded-xl border border-white/10 flex flex-col items-center justify-center p-6">
+                        <div class="text-2xl font-bold text-green-400 mb-2">TypeScript</div>
                         <div class="text-sm text-gray-400">Type-safe</div>
                     </div>
                 </div>
@@ -171,7 +156,7 @@
                     </span>
                 </h2>
                 <p class="text-xl text-gray-400">
-                    Tudo que você precisa para construir aplicações de chat em tempo real
+                    Tudo que você precisa para construir aplicações com transmissão de dados em tempo real
                 </p>
             </div>
 
@@ -183,7 +168,7 @@
                     </div>
                     <h3 class="text-xl font-bold mb-3">Real-time WebSocket</h3>
                     <p class="text-gray-400">
-                        Comunicação bidirecional instantânea com Socket.IO para mensagens em tempo real.
+                        Comunicação bidirecional instantânea com Socket.IO para transmissões em tempo real.
                     </p>
                 </div>
 
@@ -205,7 +190,7 @@
                     </div>
                     <h3 class="text-xl font-bold mb-3">Gerenciamento de Salas</h3>
                     <p class="text-gray-400">
-                        Crie, gerencie e monitore salas de chat com participantes e mensagens isoladas.
+                        Crie, gerencie e monitore salas com participantes e dados isolados.
                     </p>
                 </div>
 
@@ -318,7 +303,7 @@
                     Pronto para Começar?
                 </h2>
                 <p class="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-                    Explore a documentação da API ou acesse o dashboard para criar sua primeira sala de chat.
+                    Explore a documentação da API ou acesse o dashboard para criar sua primeira sala.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <a href="/api-docs" class="px-8 py-4 glass-effect border border-purple-500/50 hover:border-purple-400 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
@@ -339,26 +324,17 @@
         <div class="max-w-7xl mx-auto">
             <div class="flex flex-col md:flex-row justify-between items-center gap-6">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-full h-full opacity-70">
-                            <defs>
-                                <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
-                                </linearGradient>
-                            </defs>
-                            <rect width="100" height="100" rx="20" fill="url(#grad2)"/>
-                            <circle cx="50" cy="50" r="5" fill="#ffffff"/>
-                        </svg>
+                    <div class="opacity-70">
+                        <%- include('../partials/logo', { size: 'xs', withBackground: false, withShadow: false }) %>
                     </div>
                     <span class="text-gray-400">RoomStream API • <%= new Date().getFullYear() %></span>
                 </div>
                 <div class="flex items-center gap-6">
-                    <a href="/health" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                    <a href="/health" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2 hidden">
                         <i data-lucide="heart-pulse" class="w-4 h-4"></i>
                         <span>Status</span>
                     </a>
-                    <a href="/metrics" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                    <a href="/metrics" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2 hidden">
                         <i data-lucide="activity" class="w-4 h-4"></i>
                         <span>Métricas</span>
                     </a>
