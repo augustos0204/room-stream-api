@@ -310,8 +310,9 @@ export class RoomGateway
       `Cliente desconectado do namespace ${namespace}: ${client.id}`,
     );
 
-    // Extract userId from authenticated socket
     const userId = client.data?.user?.id || null;
+    
+    const supabaseUserData = this.extractSupabaseUserData(client);
 
     // Remove o cliente de todas as salas ao desconectar
     const rooms = await this.roomService.getAllRooms();
@@ -324,10 +325,15 @@ export class RoomGateway
           client.id,
           userId,
         );
+        
+        const displayName = participantName 
+          || supabaseUserData?.email 
+          || null;
+          
         await this.roomService.leaveRoom(room.id, client.id, userId);
         client.to(room.id).emit('userLeft', {
           clientId: client.id,
-          participantName,
+          participantName: displayName,
           roomId: room.id,
           roomName: room.name,
           participantCount: room.participants.length,
@@ -399,6 +405,21 @@ export class RoomGateway
 
     // Extract userId from authenticated socket
     const userId = client.data?.user?.id || null;
+    
+    // Extract Supabase user data for display name
+    const supabaseUserData = this.extractSupabaseUserData(client);
+
+    // Get participant name BEFORE removing from room
+    const participantName = await this.roomService.getParticipantName(
+      roomId,
+      client.id,
+      userId,
+    );
+    
+    // Use Supabase email as fallback if no custom name was set
+    const displayName = participantName 
+      || supabaseUserData?.email 
+      || null;
 
     // Leave no Socket.IO room
     client.leave(roomId) as void;
@@ -410,14 +431,9 @@ export class RoomGateway
       const room = await this.roomService.getRoom(roomId);
 
       // Notificar outros usuários na sala
-      const participantName = await this.roomService.getParticipantName(
-        roomId,
-        client.id,
-        userId,
-      );
       client.to(roomId).emit('userLeft', {
         clientId: client.id,
-        participantName,
+        participantName: displayName,
         roomId: roomId,
         roomName: room?.name,
         participantCount: room?.participants.length || 0,
