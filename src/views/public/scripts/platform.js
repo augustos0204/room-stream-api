@@ -14,6 +14,7 @@ function platformApp() {
         socket: null,
         isConnected: false,
         connecting: false,
+        pendingRoomToOpen: null, // {roomId, roomName} - sala para abrir após conexão
 
         // ==================== CONFIG & FORM DATA ====================
         baseUrl: window.location.origin,
@@ -77,6 +78,12 @@ function platformApp() {
         // Profile Modal Mode
         profileMode: 'own', // 'own' = viewing own profile, 'viewing' = viewing another participant
         viewingParticipant: null, // Stores participant data when viewing another user's profile
+        
+        // Bottom Sheet Swipe State (for mobile modals)
+        swipeStartY: 0,
+        swipeCurrentY: 0,
+        swipeDelta: 0,
+        swipeThreshold: 100, // pixels to swipe down to close
 
         // ==================== SUPABASE ====================
         supabaseClient: null,
@@ -484,16 +491,29 @@ function platformApp() {
                     this.connecting = false;
                     this.log(`✅ Conectado! Socket ID: ${this.socket.id}`, 'success');
                     Toast.success('Conectado ao WebSocket!');
+                    
+                    // Abrir sala pendente após conexão
+                    if (this.pendingRoomToOpen) {
+                        const { roomId, roomName } = this.pendingRoomToOpen;
+                        this.pendingRoomToOpen = null; // Limpa a fila
+                        this.log(`🚪 Abrindo sala pendente: ${roomName}`, 'info');
+                        // Usar setTimeout para garantir que o socket está totalmente pronto
+                        setTimeout(() => {
+                            this.openRoom(roomId, roomName);
+                        }, 100);
+                    }
                 });
 
                 this.socket.on('disconnect', (reason) => {
                     this.isConnected = false;
+                    this.pendingRoomToOpen = null; // Limpa sala pendente ao desconectar
                     this.log(`❌ Desconectado: ${reason}`, 'error');
                 });
 
                 this.socket.on('connect_error', (error) => {
                     this.connecting = false;
                     this.isConnected = false;
+                    this.pendingRoomToOpen = null; // Limpa sala pendente em caso de erro
                     this.log(`❌ Erro de conexão: ${error.message}`, 'error');
                     Toast.error('Erro ao conectar');
                 });
@@ -838,6 +858,22 @@ function platformApp() {
         },
 
         openRoom(roomId, roomName) {
+            // Auto-connect WebSocket if not connected
+            if (!this.isConnected && !this.connecting) {
+                Toast.info('Conectando ao WebSocket...');
+                // Armazena a sala para abrir após conexão
+                this.pendingRoomToOpen = { roomId, roomName };
+                this.connect();
+                return; // Espera conexão ser estabelecida
+            }
+
+            // Se ainda está conectando, armazena a sala pendente
+            if (this.connecting) {
+                this.pendingRoomToOpen = { roomId, roomName };
+                Toast.info('Aguardando conexão...');
+                return;
+            }
+
             // Check if room is already open
             let activeRoom = this.getActiveRoom(roomId);
             
@@ -1236,6 +1272,43 @@ function platformApp() {
                     || 'Usuário Anônimo';
             }
             return 'Perfil';
+        },
+
+        // ==================== BOTTOM SHEET SWIPE HANDLERS ====================
+        
+        handleSheetTouchStart(event) {
+            this.swipeStartY = event.touches[0].clientY;
+            this.swipeCurrentY = this.swipeStartY;
+            this.swipeDelta = 0;
+        },
+
+        handleSheetTouchMove(event, sheetElement) {
+            this.swipeCurrentY = event.touches[0].clientY;
+            this.swipeDelta = this.swipeCurrentY - this.swipeStartY;
+            
+            // Só permite arrastar para baixo (delta positivo)
+            if (this.swipeDelta > 0) {
+                // Aplicar transformação com resistência (rubber band effect)
+                const resistance = Math.min(this.swipeDelta / 2, 200);
+                sheetElement.style.transform = `translateY(${resistance}px)`;
+                sheetElement.style.transition = 'none';
+            }
+        },
+
+        handleSheetTouchEnd(event, sheetElement, modalStateProperty) {
+            // Se arrastou mais que o threshold, fecha a modal
+            if (this.swipeDelta > this.swipeThreshold) {
+                this[modalStateProperty] = false;
+            }
+            
+            // Reset transform com transição
+            sheetElement.style.transition = 'transform 300ms ease-out';
+            sheetElement.style.transform = '';
+            
+            // Reset state
+            this.swipeStartY = 0;
+            this.swipeCurrentY = 0;
+            this.swipeDelta = 0;
         }
     };
 }
