@@ -552,6 +552,43 @@ Para guia completo sobre configuração opcional do Supabase, incluindo estraté
 - **Health**: `/health` - Service health check
 - **Metrics**: `/metrics` - System metrics and observability
 
+## Error Handling
+
+The application has a comprehensive error handling system with custom error pages for browser requests:
+
+### Exception Filters
+
+**Global Exception Filter**: `AllExceptionsFilter` (applied globally in `main.ts`)
+- Catches **ALL** exceptions (both HTTP and non-HTTP errors)
+- Automatically renders custom error pages for browser requests to `/view` routes
+- Returns JSON responses for API routes
+- Handles EJS parsing errors, database errors, and other unexpected exceptions
+
+**Error Pages** (located in `src/views/public/`):
+- `404.ejs` - Not Found (404)
+- `403.ejs` - Forbidden (403)
+- `500.ejs` - Internal Server Error (500)
+
+**Behavior**:
+- Browser requests to `/view/*` routes → Renders custom EJS error page
+- API routes (e.g., `/room`, `/health`) → Returns JSON error response
+- Error pages include: status code, error message, timestamp, and path
+
+**Development vs Production Mode**:
+- **Development** (`NODE_ENV !== 'production'`): Shows full error details (status, path, timestamp, message) with `[DEV]` badge
+- **Production**: Hides all technical details - only shows generic error message already in the page text
+- In production mode, the entire "Details" section is hidden for security reasons
+
+**Implementation**:
+- Filter: `src/common/filters/all-exceptions.filter.ts`
+- API route detection: `src/common/config/api-routes.config.ts`
+- Applied in: `src/main.ts:59` with `app.useGlobalFilters(new AllExceptionsFilter())`
+
+**Logging**:
+- All exceptions are logged with full stack traces
+- HTTP errors show request method, URL, and error details
+- Non-HTTP errors (e.g., EJS errors) include full stack trace for debugging
+
 ## Common Patterns
 
 ### Adding New WebSocket Events
