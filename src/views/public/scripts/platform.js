@@ -134,36 +134,65 @@ function platformApp() {
             await this.initializeSupabase();
 
             this.log('🚀 RoomStream Platform carregada', 'success');
-            this.log('💡 Use o menu lateral para navegar', 'info');
-
-            // Only fetch rooms if not pre-loaded
-            if (!window.INITIAL_DATA?.rooms) {
-                this.listRooms();
-            }
-
-            // Fetch metrics on init (after auth is loaded)
-            this.fetchMetrics();
-
-            // Start metrics auto-update (every 30 seconds)
-            this.startMetricsAutoUpdate();
 
             // Initialize Lucide icons
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
 
-            // Setup keyboard shortcuts
-            this.setupKeyboardShortcuts();
+            // Só inicializa features da plataforma se usuário estiver autenticado
+            if (this.isAuthenticated()) {
+                this.log('💡 Use o menu lateral para navegar', 'info');
 
-            // Setup ESC key to close modals
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    this.showProfileModal = false;
-                    this.showChatModal = false;
-                    this.showShortcutsModal = false;
-                    this.showCreateRoomModal = false;
+                // Only fetch rooms if not pre-loaded
+                if (!window.INITIAL_DATA?.rooms) {
+                    this.listRooms();
                 }
-            });
+
+                // Fetch metrics on init (after auth is loaded)
+                this.fetchMetrics();
+
+                // Start metrics auto-update (every 30 seconds)
+                this.startMetricsAutoUpdate();
+
+                // Setup keyboard shortcuts
+                this.setupKeyboardShortcuts();
+
+                // Setup ESC key to close modals (apenas quando autenticado)
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.isAuthenticated()) {
+                        this.showProfileModal = false;
+                        this.showChatModal = false;
+                        this.showShortcutsModal = false;
+                        this.showCreateRoomModal = false;
+                    }
+                });
+            } else {
+                this.log('👋 Bem-vindo! Faça login para começar', 'info');
+            }
+        },
+
+        // ==================== AUTH HELPER ====================
+        isAuthenticated() {
+            return !!(this.apiKey || this.supabaseUser);
+        },
+
+        initializePlatformFeatures() {
+            // Só inicializa se ainda não foi inicializado
+            if (this.metricsInterval) {
+                return; // Já inicializado
+            }
+
+            this.log('💡 Inicializando features da plataforma...', 'info');
+
+            // Fetch initial data
+            this.listRooms();
+            this.fetchMetrics();
+
+            // Start auto-updates
+            this.startMetricsAutoUpdate();
+
+            this.log('✅ Plataforma pronta para uso', 'success');
         },
 
         // ==================== NAVIGATION ====================
@@ -224,6 +253,11 @@ function platformApp() {
 
         setupKeyboardShortcuts() {
             document.addEventListener('keydown', (e) => {
+                // Não processa atalhos se não estiver autenticado
+                if (!this.isAuthenticated()) {
+                    return;
+                }
+
                 // Ctrl/Cmd + keys para navegar
                 if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
                     switch(e.key) {
@@ -345,6 +379,11 @@ function platformApp() {
                 Toast.success('Login realizado com sucesso!');
                 this.log('✅ Autenticado via Supabase: ' + this.participantName, 'success');
 
+                // Inicializar features da plataforma após login
+                this.$nextTick(() => {
+                    this.initializePlatformFeatures();
+                });
+
             } catch (error) {
                 console.error('Login error:', error);
                 this.supabaseError = error.message || 'Erro ao fazer login';
@@ -392,6 +431,11 @@ function platformApp() {
 
             Toast.success('Login realizado com sucesso!');
             this.log('🔑 Autenticado via API Key', 'success');
+
+            // Inicializar features da plataforma após login
+            this.$nextTick(() => {
+                this.initializePlatformFeatures();
+            });
         },
 
         handleApiKeyLogout() {
