@@ -10,20 +10,26 @@
                 <button
                     @click="toggleSidebar()"
                     class="p-2 rounded-lg transition-all duration-200 relative"
-                    :class="sidebarPinned ? 'bg-purple-600/20 text-purple-400 hover:bg-purple-600/30' : 'hover:bg-gray-700/50 text-gray-400'"
-                    :title="sidebarPinned ? 'Desafixar Sidebar' : 'Fixar Sidebar'"
+                    :class="sidebarExpanded && window.innerWidth < 1024 ? 'bg-purple-600/20 text-purple-400' : sidebarPinned ? 'bg-purple-600/20 text-purple-400 hover:bg-purple-600/30' : 'hover:bg-gray-700/50 text-gray-400'"
+                    :title="window.innerWidth < 1024 ? (sidebarExpanded ? 'Fechar Menu' : 'Abrir Menu') : (sidebarPinned ? 'Desafixar Sidebar' : 'Fixar Sidebar')"
                 >
-                    <i :data-lucide="sidebarPinned ? 'pin' : 'pin-off'" class="w-5 h-5"></i>
-                    <!-- Indicador visual de estado fixado -->
+                    <!-- Mobile: Menu Icon -->
+                    <i data-lucide="menu" class="w-5 h-5 lg:hidden" x-show="!sidebarExpanded"></i>
+                    <i data-lucide="x" class="w-5 h-5 lg:hidden" x-show="sidebarExpanded"></i>
+                    
+                    <!-- Desktop: Pin Icon -->
+                    <i :data-lucide="sidebarPinned ? 'pin' : 'pin-off'" class="w-5 h-5 hidden lg:block"></i>
+                    
+                    <!-- Indicador visual de estado fixado (desktop only) -->
                     <div 
                         x-show="sidebarPinned" 
-                        class="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full animate-pulse"
+                        class="hidden lg:block absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full animate-pulse"
                     ></div>
                 </button>
                 
                 <div class="flex items-center gap-3 animate-float">
                     <%- include('../partials/logo', { size: 'xs' }) %>
-                    <div class="hidden sm:block">
+                    <div>
                         <h1 class="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent leading-tight">
                             RoomStream
                         </h1>
@@ -53,36 +59,10 @@
                 <i data-lucide="plus-circle" class="w-4 h-4"></i>
                 <span class="hidden md:inline">Nova Sala</span>
             </button>
-            <!-- Connection Status -->
-            <div
-                class="flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
-                :class="isConnected
-                    ? 'bg-green-900/20 border-green-700/50'
-                    : connecting
-                    ? 'bg-yellow-900/20 border-yellow-700/50'
-                    : 'bg-gray-800/50 border-gray-700/50'"
-            >
-                <div class="relative">
-                    <div
-                        class="w-2 h-2 rounded-full"
-                        :class="isConnected ? 'bg-green-500' : connecting ? 'bg-yellow-500' : 'bg-gray-500'"
-                    ></div>
-                    <div
-                        x-show="isConnected"
-                        class="absolute inset-0 w-2 h-2 rounded-full bg-green-500 animate-ping"
-                    ></div>
-                </div>
-                <span
-                    class="text-xs font-medium hidden sm:inline"
-                    :class="isConnected ? 'text-green-400' : connecting ? 'text-yellow-400' : 'text-gray-400'"
-                    x-text="isConnected ? 'Online' : connecting ? 'Conectando...' : 'Offline'"
-                ></span>
-            </div>
-
-            <!-- Keyboard Shortcuts Button -->
+            <!-- Keyboard Shortcuts Button (Desktop only) -->
             <button
                 @click="showShortcutsModal = true"
-                class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                class="hidden md:block p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
                 title="Atalhos de teclado"
             >
                 <i data-lucide="keyboard" class="w-5 h-5 text-gray-400"></i>

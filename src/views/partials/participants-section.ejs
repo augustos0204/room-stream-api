@@ -31,20 +31,22 @@
 
                 <div class="space-y-<%= isMobile ? '3' : '2' %>">
                     <template x-for="participant in roomParticipants" :key="participant.clientId">
-                        <div class="bg-gray-900/50 rounded-lg p-<%= isMobile ? '4' : '3' %> border border-gray-700 hover:border-gray-600 transition-colors"
-                             :class="participant.clientId === socket?.id ? 'border-blue-500 bg-blue-900/20' : ''">
+                        <div 
+                            @click="viewParticipantProfile(participant)"
+                            class="bg-gray-900/50 rounded-lg p-<%= isMobile ? '4' : '3' %> border border-gray-700 hover:border-blue-500/50 hover:bg-gray-800/50 transition-all cursor-pointer"
+                             :class="participant.clientId === socket?.id ? 'border-blue-500 bg-blue-900/20' : ''"
+                             title="Clique para ver perfil">
                             <div class="flex items-center gap-3">
                                 <div class="<%= isMobile ? 'w-10 h-10' : 'w-8 h-8' %> bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                                     <i data-lucide="user" class="<%= isMobile ? 'w-5 h-5' : 'w-4 h-4' %> text-white"></i>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 <%= isMobile ? 'mb-1' : '' %>">
+                                    <div class="flex items-center gap-2">
                                         <p class="font-medium text-white <%= isMobile ? 'text-base' : 'text-sm' %> truncate"
                                            x-text="participant.name || 'Usuário Anônimo'"></p>
                                         <span x-show="participant.clientId === socket?.id"
                                               class="px-2 py-<%= isMobile ? '1' : '0.5' %> bg-blue-600/20 text-blue-300 rounded text-xs <%= isMobile ? 'font-semibold' : '' %>">Você</span>
                                     </div>
-                                    <p class="<%= isMobile ? 'text-sm' : 'text-xs' %> text-gray-400 <%= isMobile ? 'font-mono' : 'truncate' %>" x-text="'ID: ' + participant.clientId"></p>
                                 </div>
                                 <% if (!isMobile) { %>
                                 <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Online"></div>
