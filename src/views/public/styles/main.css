@@ -1,3 +1,13 @@
+/* Força tema escuro para barras de navegação do sistema */
+:root {
+    color-scheme: dark;
+}
+
+html, body {
+    color-scheme: dark;
+    background-color: #0f172a; /* slate-950 - cor sólida para o navegador detectar */
+}
+
 /* Tailwind Custom Animations */
 @keyframes fadeIn {
     0% { opacity: 0; transform: translateY(10px); }
