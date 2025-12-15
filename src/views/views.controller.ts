@@ -137,6 +137,16 @@ export class ViewsController {
     });
   }
 
+  @Get('assets/manifest.json')
+  getManifest(@Res() res: Response) {
+    res.setHeader('Content-Type', 'application/manifest+json');
+    return res.sendFile('manifest.json', { root: './src/views/public' }, (err) => {
+      if (err) {
+        this.render404(res, '/view/assets/manifest.json');
+      }
+    });
+  }
+
   @Get(':viewName')
   getView(@Param('viewName') viewName: string, @Res() res: Response) {
     try {
