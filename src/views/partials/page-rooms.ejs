@@ -12,14 +12,25 @@
                 </h2>
             </div>
 
-            <button
-                @click="listRooms()"
-                class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
-                :disabled="isLoadingRooms"
-                title="Atualizar lista"
-            >
-                <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-400" :class="isLoadingRooms && 'animate-spin'"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <button
+                    @click="showCreateRoomModal = true"
+                    class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-medium text-sm text-white transition-all duration-200 flex items-center gap-2"
+                    title="Criar nova sala"
+                >
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Nova Sala</span>
+                </button>
+                
+                <button
+                    @click="listRooms()"
+                    class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                    :disabled="isLoadingRooms"
+                    title="Atualizar lista"
+                >
+                    <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-400" :class="isLoadingRooms && 'animate-spin'"></i>
+                </button>
+            </div>
         </div>
 
         <div class="p-6">

@@ -243,9 +243,9 @@
                             @keydown.ctrl.enter="sendMessage(); $nextTick(() => $refs.chatInput?.focus())"
                         />
                         <button
-                            type="submit"
-                            @mousedown.prevent
-                            @touchstart.prevent
+                            type="button"
+                            @click="sendMessage(); $nextTick(() => $refs.chatInput?.focus())"
+                            @touchend.prevent="sendMessage(); $nextTick(() => $refs.chatInput?.focus())"
                             class="w-10 h-10 sm:w-auto sm:h-auto sm:px-6 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 flex-shrink-0"
                             :disabled="!isConnected || !currentRoomId || !message.trim()"
                             title="Enviar mensagem"
