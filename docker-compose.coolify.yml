@@ -10,7 +10,7 @@ services:
     expose:
       - "3000"
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
       
       # CORS - configure com seu domínio no Coolify

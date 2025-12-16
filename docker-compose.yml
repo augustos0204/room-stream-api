@@ -12,7 +12,7 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       # Configurações do servidor
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
 
       # CORS - ajustar para produção
