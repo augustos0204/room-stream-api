@@ -147,20 +147,24 @@
             <!-- Tabs: Supabase ou API Key -->
             <!-- Switch sempre visível, mas mostra apenas opções disponíveis -->
             <div class="relative flex gap-2 mb-6 p-1 bg-gray-800/50 rounded-lg">
-                <!-- Sliding Background -->
+                <!-- Sliding Background (GPU-accelerated with transform) -->
                 <% const hasMultipleAuthMethods = features.supabaseAuth && features.apiKeyAuth; %>
                 <div 
-                    class="absolute inset-y-1 rounded-lg transition-all duration-300 ease-out shadow-lg"
-                    :class="loginMethod === 'supabase' 
-                        ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
-                        : 'bg-gradient-to-r from-purple-600 to-pink-600'"
+                    class="absolute inset-y-1 left-1 rounded-lg transition-transform duration-300 ease-out shadow-lg will-change-transform"
+                    :class="[
+                        loginMethod === 'supabase' 
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
+                            : 'bg-gradient-to-r from-purple-600 to-pink-600',
+                        <% if (hasMultipleAuthMethods) { %>
+                        loginMethod === 'supabase' ? 'translate-x-0' : 'translate-x-full'
+                        <% } else { %>
+                        'translate-x-0'
+                        <% } %>
+                    ]"
                     <% if (hasMultipleAuthMethods) { %>
-                    :style="{
-                        left: loginMethod === 'supabase' ? '4px' : 'calc(50% + 4px)',
-                        width: 'calc(50% - 8px)'
-                    }"
+                    style="width: calc(50% - 8px);"
                     <% } else { %>
-                    style="left: 4px; width: calc(100% - 8px);"
+                    style="width: calc(100% - 8px);"
                     <% } %>
                 ></div>
                 
@@ -193,19 +197,19 @@
                 <% } %>
             </div>
 
-            <!-- Forms Container with Overflow Hidden -->
-            <div class="relative overflow-hidden min-h-[250px]">
+            <!-- Forms Container with Grid Stacking (altura dinâmica) -->
+            <div class="grid [&>*]:col-start-1 [&>*]:row-start-1 overflow-hidden">
                 <!-- Supabase Login -->
                 <% if (features.supabaseAuth) { %>
                 <div 
                     x-show="loginMethod === 'supabase'" 
-                    x-transition:enter="transition-all duration-500 ease-out"
-                    x-transition:enter-start="opacity-0 translate-x-full"
+                    x-transition:enter="transition-all duration-300 ease-out"
+                    x-transition:enter-start="opacity-0 translate-x-8"
                     x-transition:enter-end="opacity-100 translate-x-0"
-                    x-transition:leave="transition-all duration-500 ease-in"
+                    x-transition:leave="transition-all duration-300 ease-in"
                     x-transition:leave-start="opacity-100 translate-x-0"
-                    x-transition:leave-end="opacity-0 -translate-x-full"
-                    class="absolute inset-0 w-full space-y-4"
+                    x-transition:leave-end="opacity-0 -translate-x-8"
+                    class="w-full space-y-4"
                 >
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">
@@ -261,15 +265,16 @@
                 <% } %>
 
                 <!-- API Key Login -->
+                <% if (features.apiKeyAuth) { %>
                 <div 
                     x-show="loginMethod === 'apikey'" 
-                    x-transition:enter="transition-all duration-500 ease-out"
-                    x-transition:enter-start="opacity-0 -translate-x-full"
+                    x-transition:enter="transition-all duration-300 ease-out"
+                    x-transition:enter-start="opacity-0 -translate-x-8"
                     x-transition:enter-end="opacity-100 translate-x-0"
-                    x-transition:leave="transition-all duration-500 ease-in"
+                    x-transition:leave="transition-all duration-300 ease-in"
                     x-transition:leave-start="opacity-100 translate-x-0"
-                    x-transition:leave-end="opacity-0 translate-x-full"
-                    class="absolute inset-0 w-full space-y-4"
+                    x-transition:leave-end="opacity-0 translate-x-8"
+                    class="w-full space-y-4"
                 >
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">
@@ -306,6 +311,7 @@
                     Entrar
                 </button>
                 </div>
+                <% } %>
             </div>
                 </div>
             </div>
@@ -327,32 +333,36 @@
             </div>
         </div>
 
-        <!-- Bottom: Login Form (Fixed) -->
-        <div class="flex-shrink-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700/50 rounded-t-3xl shadow-2xl">
+        <!-- Bottom: Login Form (Dynamic Height Bottom Sheet) -->
+        <div class="flex-shrink-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700/50 rounded-t-3xl shadow-2xl max-h-[80vh] pb-6">
             <!-- Decorative Handle -->
             <div class="flex justify-center py-3">
                 <div class="w-12 h-1.5 rounded-full bg-gray-600"></div>
             </div>
 
-            <!-- Form Content -->
-            <div class="px-6 pb-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <!-- Form Content (altura dinâmica com limite) -->
+            <div class="px-6 pb-6 pb-safe overflow-y-auto custom-scrollbar">
                 <!-- Tabs: Supabase ou API Key -->
                 <!-- Switch sempre visível, mas mostra apenas opções disponíveis -->
                 <div class="relative flex gap-2 mb-6 p-1 bg-gray-800/50 rounded-lg">
-                    <!-- Sliding Background -->
+                    <!-- Sliding Background (GPU-accelerated with transform) -->
                     <% const hasBothAuthMethods = features.supabaseAuth && features.apiKeyAuth; %>
                     <div 
-                        class="absolute inset-y-1 rounded-lg transition-all duration-300 ease-out shadow-lg"
-                        :class="loginMethod === 'supabase' 
-                            ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
-                            : 'bg-gradient-to-r from-purple-600 to-pink-600'"
+                        class="absolute inset-y-1 left-1 rounded-lg transition-transform duration-300 ease-out shadow-lg will-change-transform"
+                        :class="[
+                            loginMethod === 'supabase' 
+                                ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
+                                : 'bg-gradient-to-r from-purple-600 to-pink-600',
+                            <% if (hasBothAuthMethods) { %>
+                            loginMethod === 'supabase' ? 'translate-x-0' : 'translate-x-full'
+                            <% } else { %>
+                            'translate-x-0'
+                            <% } %>
+                        ]"
                         <% if (hasBothAuthMethods) { %>
-                        :style="{
-                            left: loginMethod === 'supabase' ? '4px' : 'calc(50% + 4px)',
-                            width: 'calc(50% - 8px)'
-                        }"
+                        style="width: calc(50% - 8px);"
                         <% } else { %>
-                        style="left: 4px; width: calc(100% - 8px);"
+                        style="width: calc(100% - 8px);"
                         <% } %>
                     ></div>
                     
@@ -385,19 +395,19 @@
                     <% } %>
                 </div>
 
-                <!-- Forms Container with Overflow Hidden -->
-                <div class="relative overflow-hidden min-h-[320px]">
+                <!-- Forms Container with Grid Stacking (altura dinâmica) -->
+                <div class="grid [&>*]:col-start-1 [&>*]:row-start-1 overflow-hidden">
                     <!-- Supabase Login -->
                     <% if (features.supabaseAuth) { %>
                     <div 
                         x-show="loginMethod === 'supabase'" 
-                        x-transition:enter="transition-all duration-500 ease-out"
-                        x-transition:enter-start="opacity-0 translate-x-full"
+                        x-transition:enter="transition-all duration-300 ease-out"
+                        x-transition:enter-start="opacity-0 translate-x-8"
                         x-transition:enter-end="opacity-100 translate-x-0"
-                        x-transition:leave="transition-all duration-500 ease-in"
+                        x-transition:leave="transition-all duration-300 ease-in"
                         x-transition:leave-start="opacity-100 translate-x-0"
-                        x-transition:leave-end="opacity-0 -translate-x-full"
-                        class="absolute inset-0 w-full space-y-4"
+                        x-transition:leave-end="opacity-0 -translate-x-8"
+                        class="w-full space-y-4"
                     >
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">
@@ -453,15 +463,16 @@
                     <% } %>
 
                     <!-- API Key Login -->
+                    <% if (features.apiKeyAuth) { %>
                     <div 
                         x-show="loginMethod === 'apikey'" 
-                        x-transition:enter="transition-all duration-500 ease-out"
-                        x-transition:enter-start="opacity-0 -translate-x-full"
+                        x-transition:enter="transition-all duration-300 ease-out"
+                        x-transition:enter-start="opacity-0 -translate-x-8"
                         x-transition:enter-end="opacity-100 translate-x-0"
-                        x-transition:leave="transition-all duration-500 ease-in"
+                        x-transition:leave="transition-all duration-300 ease-in"
                         x-transition:leave-start="opacity-100 translate-x-0"
-                        x-transition:leave-end="opacity-0 translate-x-full"
-                        class="absolute inset-0 w-full space-y-4"
+                        x-transition:leave-end="opacity-0 translate-x-8"
+                        class="w-full space-y-4"
                     >
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">
@@ -498,6 +509,7 @@
                         Entrar com API Key
                     </button>
                     </div>
+                    <% } %>
                 </div>
             </div>
         </div>
