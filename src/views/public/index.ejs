@@ -1,22 +1,23 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <% const isDev = process.env.NODE_ENV !== 'production'; %>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <!-- Theme color para barra de sistema no mobile (Android/iOS) -->
-    <meta name="theme-color" content="#1e1b4b">
+    <meta name="theme-color" content="<%= isDev ? '#ea580c' : '#1e1b4b' %>">
     <meta name="color-scheme" content="dark">
-    <meta name="msapplication-navbutton-color" content="#1e1b4b">
+    <meta name="msapplication-navbutton-color" content="<%= isDev ? '#ea580c' : '#1e1b4b' %>">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     
-    <!-- PWA Manifest -->
+    <!-- PWA Manifest (backend decide qual retornar baseado em NODE_ENV) -->
     <link rel="manifest" href="/view/assets/manifest.json">
     
-    <title><%= appName || 'RoomStream' %> - Platform</title>
-    <link rel="icon" type="image/svg+xml" href="/view/assets/media/favicon.svg">
+    <title><%= appName || 'RoomStream' %><%= isDev ? ' (DEV)' : '' %> - Platform</title>
+    <link rel="icon" type="image/svg+xml" href="/view/assets/media/<%= isDev ? 'favicon-dev.svg' : 'favicon.svg' %>">
 
     <!-- External Dependencies -->
     <script src="/socket.io/socket.io.js"></script>
