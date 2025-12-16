@@ -1,3 +1,27 @@
+/* Força tema escuro para barras de navegação do sistema */
+:root {
+    color-scheme: dark;
+}
+
+html, body {
+    color-scheme: dark;
+    background-color: #0f172a; /* slate-950 - cor sólida para o navegador detectar */
+}
+
+/* Safe Area padding para dispositivos com notch/gestos */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+.px-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+}
+
 /* Tailwind Custom Animations */
 @keyframes fadeIn {
     0% { opacity: 0; transform: translateY(10px); }

@@ -137,6 +137,19 @@ export class ViewsController {
     });
   }
 
+  @Get('assets/manifest.json')
+  getManifest(@Res() res: Response) {
+    const isDev = process.env.NODE_ENV !== 'production';
+    const manifestFile = isDev ? 'manifest-dev.json' : 'manifest.json';
+    
+    res.setHeader('Content-Type', 'application/manifest+json');
+    return res.sendFile(manifestFile, { root: './src/views/public' }, (err) => {
+      if (err) {
+        this.render404(res, '/view/assets/manifest.json');
+      }
+    });
+  }
+
   @Get(':viewName')
   getView(@Param('viewName') viewName: string, @Res() res: Response) {
     try {

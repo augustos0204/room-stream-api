@@ -1,10 +1,23 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <% const isDev = process.env.NODE_ENV !== 'production'; %>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= appName || 'RoomStream' %> - Platform</title>
-    <link rel="icon" type="image/svg+xml" href="/view/assets/media/favicon.svg">
+    
+    <!-- Theme color para barra de sistema no mobile (Android/iOS) -->
+    <meta name="theme-color" content="<%= isDev ? '#ea580c' : '#1e1b4b' %>">
+    <meta name="color-scheme" content="dark">
+    <meta name="msapplication-navbutton-color" content="<%= isDev ? '#ea580c' : '#1e1b4b' %>">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- PWA Manifest (backend decide qual retornar baseado em NODE_ENV) -->
+    <link rel="manifest" href="/view/assets/manifest.json">
+    
+    <title><%= appName || 'RoomStream' %><%= isDev ? ' (DEV)' : '' %> - Platform</title>
+    <link rel="icon" type="image/svg+xml" href="/view/assets/media/<%= isDev ? 'favicon-dev.svg' : 'favicon.svg' %>">
 
     <!-- External Dependencies -->
     <script src="/socket.io/socket.io.js"></script>
@@ -84,7 +97,8 @@
     <% } %>
 </head>
 
-<body class="bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-mono min-h-screen overflow-hidden"
+<body class="bg-slate-950 bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-mono overflow-hidden min-h-[100dvh] h-[100dvh]"
+      style="color-scheme: dark;"
       x-data="platformApp()"
       x-init="init()">
 
