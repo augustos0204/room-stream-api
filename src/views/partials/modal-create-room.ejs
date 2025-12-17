@@ -28,13 +28,15 @@
         x-transition:leave="transition ease-in duration-200"
         x-transition:leave-start="translate-y-0 md:opacity-100 md:scale-100"
         x-transition:leave-end="translate-y-full md:opacity-0 md:scale-95 md:translate-y-0"
-        @touchstart="handleSheetTouchStart($event)"
-        @touchmove="handleSheetTouchMove($event, $refs.createRoomSheet)"
-        @touchend="handleSheetTouchEnd($event, $refs.createRoomSheet, 'showCreateRoomModal')"
         @click.stop
     >
-        <!-- Drag Handle (Mobile Only) -->
-        <div class="md:hidden flex justify-center py-3 cursor-grab active:cursor-grabbing">
+        <!-- Drag Handle (Mobile Only) - Swipe area -->
+        <div 
+            class="md:hidden flex justify-center py-3 cursor-grab active:cursor-grabbing"
+            @touchstart="handleSheetTouchStart($event)"
+            @touchmove="handleSheetTouchMove($event, $refs.createRoomSheet)"
+            @touchend="handleSheetTouchEnd($event, $refs.createRoomSheet, 'showCreateRoomModal')"
+        >
             <div class="w-12 h-1.5 rounded-full bg-gray-600 transition-colors hover:bg-gray-400"></div>
         </div>
         <!-- Header -->
