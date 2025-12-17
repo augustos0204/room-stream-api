@@ -446,13 +446,13 @@ export class RoomGateway
     }
   }
 
-  @SubscribeMessage('sendMessage')
+  @SubscribeMessage('emit')
   @UsePipes(new ValidationPipe({ transform: true }))
-  async handleSendMessage(
+  async handleEmit(
     @MessageBody() data: SendMessageDto,
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
-    const { roomId, message } = data;
+    const { roomId, message, event = 'message' } = data;
 
     // Extract Supabase user data
     const supabaseUserData = this.extractSupabaseUserData(client);
@@ -463,18 +463,20 @@ export class RoomGateway
       client.id,
       message,
       supabaseUserData,
+      event,
     );
 
     if (!roomMessage) {
-      client.emit('error', { message: 'Não foi possível enviar a mensagem' });
+      client.emit('error', { message: 'Não foi possível enviar o evento' });
       return;
     }
 
-    // Enviar mensagem para todos os usuários na sala
-    this.server.to(roomId).emit('newMessage', {
+    // Emitir evento customizado para todos os usuários na sala
+    this.server.to(roomId).emit(event, {
       id: roomMessage.id,
       clientId: roomMessage.clientId,
       userId: roomMessage.userId,
+      event: roomMessage.event,
       message: roomMessage.message,
       timestamp: roomMessage.timestamp,
       roomId: roomId,
@@ -482,8 +484,22 @@ export class RoomGateway
     });
 
     this.logger.log(
-      `Mensagem enviada na sala ${roomId} por ${client.id}: ${message}`,
+      `Evento [${event}] emitido na sala ${roomId} por ${client.id}: ${message}`,
     );
+  }
+
+  /**
+   * Alias for 'emit' event - backwards compatibility
+   * @deprecated Use 'emit' event instead
+   */
+  @SubscribeMessage('sendMessage')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async handleSendMessage(
+    @MessageBody() data: SendMessageDto,
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ): Promise<void> {
+    // Delegate to handleEmit with default event 'message'
+    return this.handleEmit({ ...data, event: data.event || 'message' }, client);
   }
 
   @SubscribeMessage('getRoomInfo')

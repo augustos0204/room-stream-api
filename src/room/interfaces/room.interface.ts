@@ -18,12 +18,13 @@ export interface Room {
 /**
  * Room message structure
  *
- * Represents a single message in a chat room.
+ * Represents a single message/event in a chat room.
  */
 export interface RoomMessage {
   id: string;
   clientId: string;
   userId?: string; // Supabase User ID (persistent) - optional for anonymous users
+  event: string;
   message: string;
   timestamp: Date;
   participantName?: string | null;

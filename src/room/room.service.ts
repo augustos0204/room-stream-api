@@ -128,6 +128,7 @@ export class RoomService {
     clientId: string,
     message: string,
     supabaseUser?: SupabaseUserData | null,
+    event: string = 'message',
   ): Promise<RoomMessage | null> {
     const room = await this.memoryService.getRoom(roomId);
     if (!room) {
@@ -141,13 +142,14 @@ export class RoomService {
       id: this.generateMessageId(),
       clientId,
       userId: supabaseUser?.id,
+      event,
       message,
       timestamp: new Date(),
       supabaseUser: supabaseUser || undefined,
     };
 
     await this.memoryService.addMessage(roomId, roomMessage);
-    this.logger.log(`Mensagem adicionada à sala ${roomId}: ${message}`);
+    this.logger.log(`Evento [${event}] adicionado à sala ${roomId}: ${message}`);
 
     this.eventsService.emitMetricsEvent('metrics:message-sent', {
       messageId: roomMessage.id,
