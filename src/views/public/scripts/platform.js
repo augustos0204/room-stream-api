@@ -26,6 +26,10 @@ function platformApp() {
         newRoomName: '',
         participantName: '',
         message: '',
+        currentEvent: 'message', // Evento atual para envio (default: 'message')
+        showEventMenu: false, // Controla visibilidade do menu de eventos
+        customEventInput: '', // Input para evento customizado
+        recentEvents: ['message'], // Histórico de eventos usados recentemente
         loginMethod: '', // 'supabase' or 'apikey' - será definido dinamicamente baseado nas opções disponíveis
 
         // ==================== MULTIPLE ROOMS STATE ====================
@@ -798,58 +802,18 @@ function platformApp() {
                     // Load recent messages
                     if (data.recentMessages && data.recentMessages.length > 0) {
                         this.roomLog(`📜 Carregando ${data.recentMessages.length} mensagens recentes...`, 'info', null, null, null, null, null, data.roomId);
+                        
+                        // Temporarily disable auto-scroll counter for history messages
+                        const originalAutoScroll = this.autoScroll;
+                        this.autoScroll = false;
+                        
                         data.recentMessages.forEach(msg => {
-                            let senderName, displayName;
-
-                            // Check if message is from current user (by Supabase userId or clientId)
-                            const isMyMessage = (msg.userId && this.supabaseUser?.id === msg.userId) ||
-                                              (msg.clientId === this.socket.id);
-
-                            if (isMyMessage) {
-                                senderName = 'Você';
-                                displayName = 'Você';
-                            } else if (msg.supabaseUser) {
-                                // Other authenticated user
-                                senderName = msg.supabaseUser.email || msg.supabaseUser.name || 'Usuário Supabase';
-                                displayName = `${senderName} 🔒`;
-                            } else {
-                                // Check if message already has participantName (backend field)
-                                if (msg.participantName) {
-                                    senderName = msg.participantName;
-                                    displayName = msg.participantName;
-                                } else {
-                                    // Anonymous user - find by userId (if available) or clientId
-                                    const messageKey = msg.userId || msg.clientId;
-                                    const sender = data.participants.find(p => p.clientId === messageKey);
-                                    
-                                    if (sender?.name) {
-                                        senderName = sender.name;
-                                        displayName = sender.name;
-                                    } else {
-                                        senderName = 'Usuário Anônimo';
-                                        displayName = `Usuário Anônimo • ${msg.clientId}`;
-                                    }
-                                }
-                            }
-
-                            // Sanitize message if Sanitizer is available
-                            const sanitizedMessage = typeof Sanitizer !== 'undefined'
-                                ? Sanitizer.sanitizeMessage(msg.message)
-                                : msg.message;
-
-                            this.roomLog(
-                                sanitizedMessage,
-                                'user_message',
-                                senderName,
-                                msg.timestamp,
-                                displayName,
-                                msg.clientId,
-                                msg.supabaseUser,
-                                data.roomId
-                            );
+                            // Reutiliza o handler de mensagens, adicionando roomId
+                            this.handleIncomingMessage({ ...msg, roomId: data.roomId });
                         });
                         
-                        // Auto scroll após carregar mensagens recentes
+                        // Restore auto-scroll and scroll to bottom
+                        this.autoScroll = originalAutoScroll;
                         if (this.currentActiveRoomId === data.roomId) {
                             this.scrollToBottom();
                         }
@@ -863,75 +827,39 @@ function platformApp() {
                     const activeRoom = this.getActiveRoom(data.roomId);
                     if (activeRoom) {
                         activeRoom.joined = false;
-                        this.roomLog(`👋 Você saiu da sala`, 'info', null, null, null, null, null, data.roomId);
+                        // Limpa o histórico de mensagens ao sair da sala
+                        activeRoom.logs = [];
+                        activeRoom.participants = [];
                     }
                     
-                    // Update legacy property if this is the current room
+                    // Update legacy properties if this is the current room
                     if (this.currentActiveRoomId === data.roomId) {
                         this.isInRoom = false;
+                        this.roomLogs = [];
+                        this.roomParticipants = [];
                     }
+                    
+                    this.log(`👋 Saiu da sala ${data.roomId}`, 'info');
                 });
 
-                this.socket.on('newMessage', (data) => {
-                    // Check if message is from current user (by Supabase userId or clientId)
-                    const isMyMessage = (data.userId && this.supabaseUser?.id === data.userId) ||
-                                      (data.clientId === this.socket.id);
-                    let senderName;
-                    let displayName;
+                // Lista de eventos do sistema que NÃO são eventos de sala customizados
+                const systemEvents = [
+                    'connect', 'disconnect', 'error', 'connect_error',
+                    'joinedRoom', 'leftRoom', 'userJoined', 'userLeft',
+                    'roomInfo', 'roomDeleted', 'participantNameUpdated',
+                    'tokenExpired'
+                ];
 
-                    if (isMyMessage) {
-                        senderName = 'Você';
-                        displayName = 'Você';
-                    } else {
-                        // Prefer Supabase user data if available
-                        if (data.supabaseUser) {
-                            senderName = data.supabaseUser.email || data.supabaseUser.name || 'Usuário Supabase';
-                            displayName = `${senderName} 🔒`;
-                        } else {
-                            // Check if message already has participantName (backend field)
-                            if (data.participantName) {
-                                senderName = data.participantName;
-                                displayName = data.participantName;
-                            } else {
-                                // Find sender name from participants list using hybrid key
-                                const activeRoom = this.getActiveRoom(data.roomId);
-                                const messageKey = data.userId || data.clientId;
-                                const sender = activeRoom?.participants.find(p => p.clientId === messageKey);
-                                
-                                if (sender?.name) {
-                                    senderName = sender.name;
-                                    displayName = sender.name;
-                                } else {
-                                    senderName = 'Usuário Anônimo';
-                                    displayName = `Usuário Anônimo • ${data.clientId}`;
-                                }
-                            }
-                        }
+                // Handler universal para TODOS os eventos (incluindo customizados)
+                this.socket.onAny((eventName, data) => {
+                    // Ignora eventos do sistema
+                    if (systemEvents.includes(eventName)) {
+                        return;
                     }
 
-                    // Sanitize message if Sanitizer is available
-                    const sanitizedMessage = typeof Sanitizer !== 'undefined'
-                        ? Sanitizer.sanitizeMessage(data.message)
-                        : data.message;
-
-                    this.roomLog(
-                        sanitizedMessage,
-                        'user_message',
-                        senderName,
-                        data.timestamp,
-                        displayName,
-                        data.clientId,
-                        data.supabaseUser,
-                        data.roomId
-                    );
-
-                    // Auto scroll to bottom only for current room
-                    if (this.currentActiveRoomId === data.roomId) {
-                        // Incrementa contador se autoScroll está desabilitado
-                        if (!this.autoScroll) {
-                            this.unreadWhileScrolled++;
-                        }
-                        this.scrollToBottom();
+                    // Verifica se é um evento de sala (tem roomId)
+                    if (data && data.roomId) {
+                        this.handleIncomingMessage(data, eventName);
                     }
                 });
 
@@ -1322,15 +1250,141 @@ function platformApp() {
                 return;
             }
 
-            this.socket.emit('sendMessage', {
-                roomId: this.currentActiveRoomId,
-                message: this.message
-            });
-
+            this.emitToRoom(this.currentActiveRoomId, this.message, this.currentEvent);
             this.message = '';
+            
+            // Adiciona ao histórico de eventos recentes (se não for 'message' e não existir)
+            if (this.currentEvent !== 'message' && !this.recentEvents.includes(this.currentEvent)) {
+                this.recentEvents.unshift(this.currentEvent);
+                // Mantém apenas os últimos 5 eventos
+                if (this.recentEvents.length > 6) {
+                    this.recentEvents = this.recentEvents.slice(0, 6);
+                }
+            }
             
             // Auto scroll após enviar mensagem
             this.scrollToBottom();
+        },
+
+        /**
+         * Define o evento atual para envio de mensagens
+         * @param {string} event - Nome do evento
+         */
+        setCurrentEvent(event) {
+            if (!event || !event.trim()) return;
+            this.currentEvent = event.trim();
+            this.showEventMenu = false;
+            this.customEventInput = '';
+            Toast.success(`Evento alterado para: ${this.currentEvent}`);
+        },
+
+        /**
+         * Define um evento customizado a partir do input
+         */
+        setCustomEvent() {
+            if (!this.customEventInput.trim()) {
+                Toast.error('Digite o nome do evento');
+                return;
+            }
+            // Valida o formato do evento
+            const eventName = this.customEventInput.trim();
+            if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(eventName)) {
+                Toast.error('Evento inválido. Use apenas letras, números, _ ou -');
+                return;
+            }
+            this.setCurrentEvent(eventName);
+        },
+
+        /**
+         * Emite um evento customizado para uma sala
+         * @param {string} roomId - ID da sala
+         * @param {string} message - Conteúdo da mensagem/evento
+         * @param {string} event - Nome do evento (default: 'message')
+         */
+        emitToRoom(roomId, message, event = 'message') {
+            if (!this.socket || !this.isConnected) {
+                Toast.error('Não está conectado ao WebSocket');
+                return;
+            }
+
+            this.socket.emit('emit', {
+                roomId,
+                message,
+                event
+            });
+        },
+
+        /**
+         * Handler centralizado para mensagens/eventos recebidos
+         * Processa eventos de sala e exibe no chat
+         * @param {Object} data - Dados do evento
+         * @param {string} eventName - Nome do evento (default: 'message' ou data.event)
+         */
+        handleIncomingMessage(data, eventName = null) {
+            // Determina o nome do evento (prioridade: parâmetro > data.event > 'message')
+            const event = eventName || data.event || 'message';
+            
+            // Check if message is from current user (by Supabase userId or clientId)
+            const isMyMessage = (data.userId && this.supabaseUser?.id === data.userId) ||
+                              (data.clientId === this.socket.id);
+            let senderName;
+            let displayName;
+
+            if (isMyMessage) {
+                senderName = 'Você';
+                displayName = 'Você';
+            } else {
+                // Prefer Supabase user data if available
+                if (data.supabaseUser) {
+                    senderName = data.supabaseUser.email || data.supabaseUser.name || 'Usuário Supabase';
+                    displayName = `${senderName} 🔒`;
+                } else {
+                    // Check if message already has participantName (backend field)
+                    if (data.participantName) {
+                        senderName = data.participantName;
+                        displayName = data.participantName;
+                    } else {
+                        // Find sender name from participants list using hybrid key
+                        const activeRoom = this.getActiveRoom(data.roomId);
+                        const messageKey = data.userId || data.clientId;
+                        const sender = activeRoom?.participants.find(p => p.clientId === messageKey);
+                        
+                        if (sender?.name) {
+                            senderName = sender.name;
+                            displayName = sender.name;
+                        } else {
+                            senderName = 'Usuário Anônimo';
+                            displayName = `Usuário Anônimo • ${data.clientId}`;
+                        }
+                    }
+                }
+            }
+
+            // Sanitize message if Sanitizer is available
+            const sanitizedMessage = typeof Sanitizer !== 'undefined'
+                ? Sanitizer.sanitizeMessage(data.message)
+                : data.message;
+
+            this.roomLog(
+                sanitizedMessage,
+                'user_message',
+                senderName,
+                data.timestamp,
+                displayName,
+                data.clientId,
+                data.supabaseUser,
+                data.roomId,
+                event // Passa o nome do evento para o roomLog
+            );
+
+            // Auto scroll to bottom only for current room
+            if (this.currentActiveRoomId === data.roomId) {
+                // Incrementa contador se autoScroll está desabilitado
+                if (!this.autoScroll) {
+                    this.unreadWhileScrolled++;
+                }
+                this.scrollToBottom();
+            }
         },
 
         updateParticipantName() {
@@ -1356,7 +1410,7 @@ function platformApp() {
             Toast.success('Nome atualizado');
         },
 
-        roomLog(message, type = 'info', senderName = null, timestamp = null, displayName = null, senderId = null, supabaseUser = null, roomId = null) {
+        roomLog(message, type = 'info', senderName = null, timestamp = null, displayName = null, senderId = null, supabaseUser = null, roomId = null, eventName = null) {
             const targetRoomId = roomId || this.currentActiveRoomId;
             const activeRoom = this.getActiveRoom(targetRoomId);
             
@@ -1369,7 +1423,8 @@ function platformApp() {
                     timestamp: timestamp || new Date().toISOString(),
                     displayName,
                     senderId,
-                    supabaseUser
+                    supabaseUser,
+                    eventName // Nome do evento customizado
                 });
                 if (this.roomLogs.length > 100) {
                     this.roomLogs = this.roomLogs.slice(-100);
@@ -1384,7 +1439,8 @@ function platformApp() {
                 timestamp: timestamp || new Date().toISOString(),
                 displayName,
                 senderId,
-                supabaseUser
+                supabaseUser,
+                eventName // Nome do evento customizado
             });
 
             if (activeRoom.logs.length > 100) {
