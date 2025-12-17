@@ -49,16 +49,6 @@
 
         <!-- Right: Actions -->
         <div class="flex items-center gap-3">
-            <!-- Create Room Button (only on rooms page) -->
-            <button
-                x-show="currentPage === 'rooms'"
-                @click="showCreateRoomModal = true"
-                class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-medium text-sm text-white transition-all duration-200 flex items-center gap-2"
-                title="Criar nova sala"
-            >
-                <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                <span class="hidden md:inline">Nova Sala</span>
-            </button>
             <!-- Keyboard Shortcuts Button (Desktop only) -->
             <button
                 @click="showShortcutsModal = true"
@@ -66,16 +56,6 @@
                 title="Atalhos de teclado"
             >
                 <i data-lucide="keyboard" class="w-5 h-5 text-gray-400"></i>
-            </button>
-
-            <!-- Refresh Rooms -->
-            <button
-                @click="listRooms()"
-                class="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
-                :disabled="isLoadingRooms"
-                title="Atualizar salas"
-            >
-                <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-400" :class="isLoadingRooms && 'animate-spin'"></i>
             </button>
 
             <!-- Connect/Disconnect Toggle -->

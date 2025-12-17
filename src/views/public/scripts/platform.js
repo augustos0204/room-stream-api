@@ -43,6 +43,7 @@ function platformApp() {
         logs: [],
         roomLogs: [], // Deprecated - use activeRoom.logs
         autoScroll: true,
+        unreadWhileScrolled: 0, // Contador de mensagens novas enquanto autoScroll está desabilitado
         metrics: {
             connections: { total: 0, active: 0 },
             rooms: { total: 0, active: 0 },
@@ -847,6 +848,11 @@ function platformApp() {
                                 data.roomId
                             );
                         });
+                        
+                        // Auto scroll após carregar mensagens recentes
+                        if (this.currentActiveRoomId === data.roomId) {
+                            this.scrollToBottom();
+                        }
                     }
 
                     Toast.success(`Entrou na sala ${data.roomName}!`);
@@ -921,12 +927,11 @@ function platformApp() {
 
                     // Auto scroll to bottom only for current room
                     if (this.currentActiveRoomId === data.roomId) {
-                        this.$nextTick(() => {
-                            const chatMessages = this.$refs.chatMessages;
-                            if (chatMessages && this.autoScroll) {
-                                chatMessages.scrollTop = chatMessages.scrollHeight;
-                            }
-                        });
+                        // Incrementa contador se autoScroll está desabilitado
+                        if (!this.autoScroll) {
+                            this.unreadWhileScrolled++;
+                        }
+                        this.scrollToBottom();
                     }
                 });
 
@@ -1017,6 +1022,49 @@ function platformApp() {
         },
 
         // ==================== UTILITIES ====================
+        
+        /**
+         * Scroll para o final das mensagens do chat
+         * Usa $nextTick para garantir que o DOM foi atualizado
+         */
+        scrollToBottom(force = false) {
+            if (!this.autoScroll && !force) return;
+            
+            this.$nextTick(() => {
+                const chatMessages = this.$refs.chatMessages;
+                if (chatMessages) {
+                    chatMessages.scrollTo({
+                        top: chatMessages.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                    // Reabilita autoScroll e reseta contador quando forçado
+                    if (force) {
+                        this.autoScroll = true;
+                        this.unreadWhileScrolled = 0;
+                    }
+                }
+            });
+        },
+
+        /**
+         * Handler de scroll do chat
+         * Detecta se o usuário está no final da lista para controlar autoScroll
+         */
+        handleChatScroll(event) {
+            const el = event.target;
+            // Margem de tolerância de 50px para considerar "no final"
+            const threshold = 50;
+            const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+            
+            // Se voltou ao final, reseta o contador de mensagens não lidas
+            if (isAtBottom && !this.autoScroll) {
+                this.unreadWhileScrolled = 0;
+            }
+            
+            // Atualiza autoScroll baseado na posição
+            this.autoScroll = isAtBottom;
+        },
+
         log(message, type = 'info') {
             const timestamp = new Date().toLocaleTimeString('pt-BR');
             const fullTimestamp = new Date().toLocaleString('pt-BR');
@@ -1162,6 +1210,9 @@ function platformApp() {
 
             // Open chat modal
             this.showChatModal = true;
+            
+            // Auto scroll ao abrir o modal
+            this.scrollToBottom();
 
             // Auto join if connected and not already joined
             if (this.isConnected && this.socket && !activeRoom.joined) {
@@ -1261,12 +1312,7 @@ function platformApp() {
             activeRoom.unreadCount = 0;
 
             // Auto-scroll to bottom
-            this.$nextTick(() => {
-                const chatMessages = this.$refs.chatMessages;
-                if (chatMessages && this.autoScroll) {
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                }
-            });
+            this.scrollToBottom();
         },
 
         sendMessage() {
@@ -1282,6 +1328,9 @@ function platformApp() {
             });
 
             this.message = '';
+            
+            // Auto scroll após enviar mensagem
+            this.scrollToBottom();
         },
 
         updateParticipantName() {
