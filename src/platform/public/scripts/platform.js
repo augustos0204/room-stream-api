@@ -419,11 +419,6 @@ function platformApp() {
                             e.preventDefault();
                             this.showShortcutsModal = !this.showShortcutsModal;
                             break;
-                        case 'r':
-                        case 'R':
-                            e.preventDefault();
-                            this.listRooms();
-                            break;
                         case 'w':
                         case 'W':
                             e.preventDefault();
