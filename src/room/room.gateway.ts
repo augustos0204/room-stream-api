@@ -367,7 +367,7 @@ export class RoomGateway
     // If connected as application
     const app = client.data?.application;
     if (app) {
-      return `[App] ${app.name}`;
+      return app.name;
     }
 
     // If connected as Supabase user
