@@ -108,6 +108,24 @@ function platformApp() {
             myActiveRooms: []
         },
 
+        // ==================== APPLICATIONS ====================
+        applications: [],
+        selectedApplication: null,
+        applicationForm: {
+            name: '',
+            description: '',
+            isActive: true
+        },
+        showCreateApplicationModal: false,
+        showEditApplicationModal: false,
+        showApiKeyModal: false,
+        showDeleteApplicationModal: false,
+        showRegenerateKeyModal: false,
+        isLoadingApplications: false,
+        isSavingApplication: false,
+        isDeletingApplication: false,
+        isRegeneratingKey: false,
+
         // ==================== INITIALIZE ====================
         async init() {
             // Load configuration from window.ENV (NOT API_KEY)
@@ -175,12 +193,6 @@ function platformApp() {
                     this.listRooms();
                 }
 
-                // Fetch metrics on init (after auth is loaded)
-                this.fetchMetrics();
-
-                // Start metrics auto-update (every 30 seconds)
-                this.startMetricsAutoUpdate();
-
                 // Setup keyboard shortcuts
                 this.setupKeyboardShortcuts();
 
@@ -213,10 +225,6 @@ function platformApp() {
 
             // Fetch initial data
             this.listRooms();
-            this.fetchMetrics();
-
-            // Start auto-updates
-            this.startMetricsAutoUpdate();
             
             // Start Supabase token refresh check (if using Supabase)
             this.startTokenRefreshCheck();
@@ -228,9 +236,9 @@ function platformApp() {
         navigateTo(page) {
             this.currentPage = page;
 
-            // Update metrics immediately when navigating to dashboard
-            if (page === 'dashboard') {
-                this.fetchMetrics();
+            // Load applications when navigating to applications page
+            if (page === 'applications') {
+                this.loadApplications();
             }
 
             // Update icons
@@ -1503,23 +1511,6 @@ function platformApp() {
             }
         },
 
-        // Start auto-updating metrics every 30 seconds
-        startMetricsAutoUpdate() {
-            // Clear any existing interval
-            if (this.metricsInterval) {
-                clearInterval(this.metricsInterval);
-            }
-
-            // Set up new interval
-            this.metricsInterval = setInterval(() => {
-                // Only auto-update if we're on the dashboard page
-                if (this.currentPage === 'dashboard') {
-                    this.fetchMetrics();
-                }
-            }, 30000); // 30 seconds
-
-            this.log('⏱️ Auto-atualização de métricas iniciada (30s)', 'info');
-        },
 
         // Stop auto-updating metrics
         stopMetricsAutoUpdate() {
@@ -1660,6 +1651,313 @@ function platformApp() {
             this.swipeStartY = 0;
             this.swipeCurrentY = 0;
             this.swipeDelta = 0;
+        },
+
+        // ==================== APPLICATIONS MANAGEMENT ====================
+
+        /**
+         * Load all applications for the current user
+         */
+        async loadApplications() {
+            if (!this.supabaseToken) {
+                this.applications = [];
+                return;
+            }
+
+            this.isLoadingApplications = true;
+            try {
+                const response = await this.authenticatedFetch(`${this.baseUrl}/application`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                this.applications = await response.json();
+                this.log(`✅ ${this.applications.length} aplicações carregadas`, 'success');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao carregar aplicações: ${error.message}`, 'error');
+                    Toast.error('Erro ao carregar aplicações');
+                }
+            } finally {
+                this.isLoadingApplications = false;
+            }
+        },
+
+        /**
+         * Create a new application
+         */
+        async createApplication() {
+            if (!this.applicationForm.name.trim()) {
+                Toast.error('Digite o nome da aplicação');
+                return;
+            }
+
+            this.isSavingApplication = true;
+            try {
+                const response = await this.authenticatedFetch(`${this.baseUrl}/application`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: this.applicationForm.name,
+                        description: this.applicationForm.description || null
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const newApp = await response.json();
+                
+                // Show the API key to the user
+                this.selectedApplication = newApp;
+                this.showCreateApplicationModal = false;
+                this.showApiKeyModal = true;
+                
+                // Reload applications list
+                await this.loadApplications();
+                
+                this.resetApplicationForm();
+                Toast.success('Aplicação criada com sucesso!');
+                this.log(`✅ Aplicação criada: ${newApp.name}`, 'success');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao criar aplicação: ${error.message}`, 'error');
+                    Toast.error('Erro ao criar aplicação');
+                }
+            } finally {
+                this.isSavingApplication = false;
+            }
+        },
+
+        /**
+         * Update an existing application
+         */
+        async updateApplication() {
+            if (!this.selectedApplication || !this.applicationForm.name.trim()) {
+                Toast.error('Digite o nome da aplicação');
+                return;
+            }
+
+            this.isSavingApplication = true;
+            try {
+                const response = await this.authenticatedFetch(
+                    `${this.baseUrl}/application/${this.selectedApplication.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: this.applicationForm.name,
+                            description: this.applicationForm.description || null,
+                            isActive: this.applicationForm.isActive
+                        })
+                    }
+                );
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                await this.loadApplications();
+                this.closeApplicationModal();
+                Toast.success('Aplicação atualizada com sucesso!');
+                this.log(`✅ Aplicação atualizada: ${this.applicationForm.name}`, 'success');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao atualizar aplicação: ${error.message}`, 'error');
+                    Toast.error('Erro ao atualizar aplicação');
+                }
+            } finally {
+                this.isSavingApplication = false;
+            }
+        },
+
+        /**
+         * Delete an application
+         */
+        async deleteApplication() {
+            if (!this.selectedApplication) return;
+
+            this.isDeletingApplication = true;
+            try {
+                const response = await this.authenticatedFetch(
+                    `${this.baseUrl}/application/${this.selectedApplication.id}`,
+                    { method: 'DELETE' }
+                );
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                await this.loadApplications();
+                this.showDeleteApplicationModal = false;
+                this.selectedApplication = null;
+                Toast.success('Aplicação excluída com sucesso!');
+                this.log(`✅ Aplicação excluída`, 'success');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao excluir aplicação: ${error.message}`, 'error');
+                    Toast.error('Erro ao excluir aplicação');
+                }
+            } finally {
+                this.isDeletingApplication = false;
+            }
+        },
+
+        /**
+         * Regenerate API key for an application
+         */
+        async regenerateKey() {
+            if (!this.selectedApplication) return;
+
+            this.isRegeneratingKey = true;
+            try {
+                const response = await this.authenticatedFetch(
+                    `${this.baseUrl}/application/${this.selectedApplication.id}/regenerate-key`,
+                    { method: 'POST' }
+                );
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const updatedApp = await response.json();
+                this.selectedApplication = updatedApp;
+                
+                await this.loadApplications();
+                this.showRegenerateKeyModal = false;
+                this.showApiKeyModal = true;
+                
+                Toast.success('API Key regenerada com sucesso!');
+                this.log(`✅ API Key regenerada para: ${updatedApp.name}`, 'success');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao regenerar API Key: ${error.message}`, 'error');
+                    Toast.error('Erro ao regenerar API Key');
+                }
+            } finally {
+                this.isRegeneratingKey = false;
+            }
+        },
+
+        /**
+         * Toggle application active status
+         */
+        async toggleApplicationStatus(app) {
+            try {
+                const response = await this.authenticatedFetch(
+                    `${this.baseUrl}/application/${app.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ isActive: !app.isActive })
+                    }
+                );
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                await this.loadApplications();
+                Toast.success(app.isActive ? 'Aplicação desativada' : 'Aplicação ativada');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    Toast.error('Erro ao alterar status');
+                }
+            }
+        },
+
+        /**
+         * View full API key for an application
+         */
+        async viewApplicationKey(app) {
+            try {
+                const response = await this.authenticatedFetch(
+                    `${this.baseUrl}/application/${app.id}`
+                );
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                this.selectedApplication = await response.json();
+                this.showApiKeyModal = true;
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    Toast.error('Erro ao carregar API Key');
+                }
+            }
+        },
+
+        /**
+         * Copy API key to clipboard
+         */
+        async copyApiKey(app) {
+            try {
+                const response = await this.authenticatedFetch(
+                    `${this.baseUrl}/application/${app.id}`
+                );
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const fullApp = await response.json();
+                await navigator.clipboard.writeText(fullApp.key);
+                Toast.success('API Key copiada!');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    Toast.error('Erro ao copiar API Key');
+                }
+            }
+        },
+
+        /**
+         * Copy full API key from modal
+         */
+        async copyFullApiKey() {
+            if (!this.selectedApplication?.key) return;
+            
+            try {
+                await navigator.clipboard.writeText(this.selectedApplication.key);
+                Toast.success('API Key copiada!');
+            } catch (error) {
+                Toast.error('Erro ao copiar');
+            }
+        },
+
+        /**
+         * Open edit modal for an application
+         */
+        editApplication(app) {
+            this.selectedApplication = app;
+            this.applicationForm = {
+                name: app.name,
+                description: app.description || '',
+                isActive: app.isActive
+            };
+            this.showEditApplicationModal = true;
+        },
+
+        /**
+         * Open delete confirmation modal
+         */
+        confirmDeleteApplication(app) {
+            this.selectedApplication = app;
+            this.showDeleteApplicationModal = true;
+        },
+
+        /**
+         * Open regenerate key confirmation modal
+         */
+        confirmRegenerateKey(app) {
+            this.selectedApplication = app;
+            this.showRegenerateKeyModal = true;
+        },
+
+        /**
+         * Close create/edit modal
+         */
+        closeApplicationModal() {
+            this.showCreateApplicationModal = false;
+            this.showEditApplicationModal = false;
+            this.selectedApplication = null;
+            this.resetApplicationForm();
+        },
+
+        /**
+         * Reset application form
+         */
+        resetApplicationForm() {
+            this.applicationForm = {
+                name: '',
+                description: '',
+                isActive: true
+            };
         }
     };
 }
