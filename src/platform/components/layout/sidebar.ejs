@@ -1,3 +1,39 @@
+<%
+// Configuração dos links da sidebar
+const sidebarLinks = [
+    {
+        id: 'dashboard',
+        label: 'Dashboard',
+        icon: 'bar-chart-3',
+        activeGradient: 'from-blue-600/30 to-cyan-600/30',
+        activeBorder: 'border-blue-500/50',
+        activeText: 'text-blue-300',
+        counter: null,
+        requiresSupabase: false
+    },
+    {
+        id: 'rooms',
+        label: 'Salas',
+        icon: 'layout-grid',
+        activeGradient: 'from-purple-600/30 to-pink-600/30',
+        activeBorder: 'border-purple-500/50',
+        activeText: 'text-purple-300',
+        counter: 'rooms',
+        requiresSupabase: false
+    },
+    {
+        id: 'applications',
+        label: 'Aplicações',
+        icon: 'plug',
+        activeGradient: 'from-orange-600/30 to-amber-600/30',
+        activeBorder: 'border-orange-500/50',
+        activeText: 'text-orange-300',
+        counter: 'applications',
+        requiresSupabase: true
+    }
+];
+%>
+
 <!-- Platform Sidebar Navigation -->
 <aside
     class="sidebar fixed left-0 h-[100dvh] border-r border-gray-700/50 transition-all duration-300 flex flex-col pt-[73px] dark-glass shadow-2xl"
@@ -17,74 +53,38 @@
 
     <!-- Navigation Items -->
     <nav class="p-2 space-y-1 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar" style="scrollbar-width: thin;">
-        <!-- Dashboard -->
-        <button
-            @click="navigateTo('dashboard')"
-            class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 relative group overflow-visible"
-            :class="currentPage === 'dashboard'
-                ? 'bg-gradient-to-r from-blue-600/30 to-cyan-600/30 border border-blue-500/50 text-blue-300'
-                : 'hover:bg-gray-700/30 text-gray-400 hover:text-gray-200'"
-        >
-            <i data-lucide="bar-chart-3" class="w-5 h-5 flex-shrink-0"></i>
-            <span x-show="sidebarExpanded" class="font-medium whitespace-nowrap">Dashboard</span>
-            <!-- Tooltip quando fechada -->
-            <div 
-                x-show="!sidebarExpanded" 
-                class="absolute left-full ml-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-            >
-                Dashboard
-            </div>
-        </button>
-
-        <!-- Rooms -->
-        <button
-            @click="navigateTo('rooms')"
-            class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 relative group overflow-visible"
-            :class="currentPage === 'rooms'
-                ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-purple-500/50 text-purple-300'
-                : 'hover:bg-gray-700/30 text-gray-400 hover:text-gray-200'"
-        >
-            <i data-lucide="layout-grid" class="w-5 h-5 flex-shrink-0"></i>
-            <span x-show="sidebarExpanded" class="font-medium whitespace-nowrap">Salas</span>
-            <span
-                x-show="sidebarExpanded && rooms.length > 0"
-                class="ml-auto px-2 py-0.5 text-xs rounded-full bg-gray-700"
-                x-text="rooms.length"
-            ></span>
-            <!-- Tooltip quando fechada -->
-            <div 
-                x-show="!sidebarExpanded" 
-                class="absolute left-full ml-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-            >
-                Salas <span x-show="rooms.length > 0" class="ml-1 px-1.5 py-0.5 bg-gray-700 rounded text-xs" x-text="rooms.length"></span>
-            </div>
-        </button>
-
-        <!-- Applications (only for Supabase users) -->
+        <% sidebarLinks.forEach(function(link) { %>
+        <% if (link.requiresSupabase) { %>
         <template x-if="supabaseUser">
+        <% } %>
             <button
-                @click="navigateTo('applications')"
+                @click="navigateTo('<%= link.id %>')"
                 class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 relative group overflow-visible"
-                :class="currentPage === 'applications'
-                    ? 'bg-gradient-to-r from-orange-600/30 to-amber-600/30 border border-orange-500/50 text-orange-300'
+                :class="currentPage === '<%= link.id %>'
+                    ? 'bg-gradient-to-r <%= link.activeGradient %> border <%= link.activeBorder %> <%= link.activeText %>'
                     : 'hover:bg-gray-700/30 text-gray-400 hover:text-gray-200'"
             >
-                <i data-lucide="plug" class="w-5 h-5 flex-shrink-0"></i>
-                <span x-show="sidebarExpanded" class="font-medium whitespace-nowrap">Aplicações</span>
+                <i data-lucide="<%= link.icon %>" class="w-5 h-5 flex-shrink-0"></i>
+                <span x-show="sidebarExpanded" class="font-medium whitespace-nowrap"><%= link.label %></span>
+                <% if (link.counter) { %>
                 <span
-                    x-show="sidebarExpanded && applications.length > 0"
+                    x-show="sidebarExpanded && <%= link.counter %>.length > 0"
                     class="ml-auto px-2 py-0.5 text-xs rounded-full bg-gray-700"
-                    x-text="applications.length"
+                    x-text="<%= link.counter %>.length"
                 ></span>
+                <% } %>
                 <!-- Tooltip quando fechada -->
                 <div 
                     x-show="!sidebarExpanded" 
                     class="absolute left-full ml-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
                 >
-                    Aplicações <span x-show="applications.length > 0" class="ml-1 px-1.5 py-0.5 bg-gray-700 rounded text-xs" x-text="applications.length"></span>
+                    <%= link.label %><% if (link.counter) { %> <span x-show="<%= link.counter %>.length > 0" class="ml-1 px-1.5 py-0.5 bg-gray-700 rounded text-xs" x-text="<%= link.counter %>.length"></span><% } %>
                 </div>
             </button>
+        <% if (link.requiresSupabase) { %>
         </template>
+        <% } %>
+        <% }); %>
     </nav>
 
     <!-- User Profile / Login Area (Bottom) -->
