@@ -42,7 +42,7 @@ COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 
 # Copiar arquivos estáticos (HTML, CSS, JS)
-COPY --from=builder --chown=nestjs:nodejs /app/src/views/public ./src/views/public
+COPY --from=builder --chown=nestjs:nodejs /app/src/platform/public ./src/platform/public
 
 # Copiar package.json para referência
 COPY --from=builder --chown=nestjs:nodejs /app/package.json ./
