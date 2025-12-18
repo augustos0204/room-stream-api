@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { User } from '@supabase/supabase-js';
 
 /**
  * Extended Express Request with authentication data
@@ -14,4 +15,5 @@ export interface AuthenticatedRequest extends Request {
   query: Request['query'] & {
     apiKey?: string;
   };
+  user?: User;
 }
