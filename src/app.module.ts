@@ -10,6 +10,7 @@ import { HealthModule } from './health/health.module';
 import { PlatformModule } from './platform/platform.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { ApplicationModule } from './application/application.module';
+import { GithubModule } from './github/github.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ApplicationModule } from './application/application.module';
     PlatformModule,
     SupabaseModule,
     ApplicationModule,
+    GithubModule,
   ],
   controllers: [AppController],
   providers: [AppService],
