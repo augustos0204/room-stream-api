@@ -18,7 +18,7 @@
                     <i data-lucide="x" class="w-5 h-5 lg:hidden" x-show="sidebarExpanded"></i>
                     
                     <!-- Desktop: Pin Icon -->
-                    <i :data-lucide="sidebarPinned ? 'pin' : 'pin-off'" class="w-5 h-5 hidden lg:block"></i>
+                    <i :data-lucide="sidebarPinned ? 'pin' : 'pin-off'" class="w-5 h-5 hidden cursor-pointer lg:block"></i>
                     
                     <!-- Indicador visual de estado fixado (desktop only) -->
                     <div 
@@ -27,7 +27,7 @@
                     ></div>
                 </button>
                 
-                <div class="flex items-center gap-3 animate-float">
+                <div class="flex items-center gap-3 animate-float select-none">
                     <%- include('../ui/logo', { size: 'xs' }) %>
                     <div>
                         <h1 class="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent leading-tight">
