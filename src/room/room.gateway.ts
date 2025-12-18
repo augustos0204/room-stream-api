@@ -20,6 +20,7 @@ import { Server, Socket } from 'socket.io';
 import { RoomService } from './room.service';
 import { EventsService } from '../events/events.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ApplicationService } from '../application/application.service';
 import { User } from '@supabase/supabase-js';
 import {
   JoinRoomDto,
@@ -30,10 +31,20 @@ import {
 } from './dto';
 import { WsExceptionFilter } from '../common/filters/websocket-exception.filter';
 
-// Estende o Socket para incluir dados do usuário autenticado
+/**
+ * Data structure for application connection
+ */
+interface ApplicationData {
+  id: string;
+  name: string;
+  createdBy: string;
+}
+
+// Estende o Socket para incluir dados do usuário autenticado ou aplicação
 interface AuthenticatedSocket extends Socket {
   data: {
     user?: User;
+    application?: ApplicationData; // Dados da aplicação conectada
     validationTimer?: NodeJS.Timeout; // Timer para validação periódica do token
   };
 }
@@ -65,6 +76,7 @@ export class RoomGateway
     private readonly roomService: RoomService,
     private readonly eventsService: EventsService,
     private readonly supabaseService: SupabaseService,
+    private readonly applicationService: ApplicationService,
   ) {}
 
   afterInit() {
@@ -73,13 +85,53 @@ export class RoomGateway
       ? 'enabled'
       : 'disabled';
     this.logger.log(
-      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'} \nAPI Key auth: ${apiKeyStatus};\nSupabase auth: ${supabaseStatus};`,
+      `Room Gateway inicializado no namespace ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'} \nAPI Key auth: ${apiKeyStatus};\nSupabase auth: ${supabaseStatus};\nApplication auth: enabled;`,
     );
   }
 
   async handleConnection(client: AuthenticatedSocket) {
     const API_KEY = process.env.API_KEY;
 
+    // 1. Check for Application API Key (x-app-key)
+    const appKey: string | undefined =
+      (client.handshake.auth?.appKey as string) ||
+      (client.handshake.headers['x-app-key'] as string) ||
+      (client.handshake.query?.appKey as string);
+
+    if (appKey) {
+      const application = await this.applicationService.validateApiKey(appKey);
+      
+      if (application) {
+        // Store application data in socket
+        client.data.application = {
+          id: application.id,
+          name: application.name,
+          createdBy: application.created_by,
+        };
+
+        const namespace = client.nsp.name;
+        this.eventsService.emitMetricsEvent('metrics:client-connected', {
+          clientId: client.id,
+          namespace,
+          timestamp: new Date(),
+        });
+        this.logger.log(
+          `Application connected: ${application.name} (${application.id}) on ${namespace}`,
+        );
+        return;
+      } else {
+        this.logger.warn(
+          `WebSocket connection rejected: invalid x-app-key from ${client.handshake.address}`,
+        );
+        client.emit('error', {
+          message: 'Authentication failed: Invalid or inactive application key.',
+        });
+        client.disconnect();
+        return;
+      }
+    }
+
+    // 2. Check for global API Key
     if (API_KEY) {
       const apiKey: string | undefined =
         (client.handshake.auth?.apiKey as string) ||
@@ -100,6 +152,7 @@ export class RoomGateway
       }
     }
 
+    // 3. Check for Supabase token
     if (this.supabaseService.isEnabled()) {
       const token = this.extractToken(client);
 
@@ -149,6 +202,7 @@ export class RoomGateway
       return;
     }
 
+    // 4. Reject if API_KEY is configured but not provided
     if (API_KEY) {
       this.logger.warn(
         `WebSocket connection rejected: invalid or missing API key from ${client.handshake.address}`,
@@ -161,6 +215,7 @@ export class RoomGateway
       return;
     }
 
+    // 5. No authentication required (development mode)
     const namespace = client.nsp.name;
     this.eventsService.emitMetricsEvent('metrics:client-connected', {
       clientId: client.id,
@@ -296,6 +351,51 @@ export class RoomGateway
     };
   }
 
+  /**
+   * Extracts application data from authenticated socket
+   * @param client - Authenticated socket client
+   * @returns ApplicationData if application is connected, null otherwise
+   */
+  private extractApplicationData(client: AuthenticatedSocket): ApplicationData | null {
+    return client.data?.application || null;
+  }
+
+  /**
+   * Gets display name for a client (user, application, or anonymous)
+   */
+  private getClientDisplayName(client: AuthenticatedSocket, participantName?: string): string | null {
+    // If connected as application
+    const app = client.data?.application;
+    if (app) {
+      return `[App] ${app.name}`;
+    }
+
+    // If connected as Supabase user
+    const user = client.data?.user;
+    if (user) {
+      return user.email || user.user_metadata?.name || 'User';
+    }
+
+    // Anonymous user with custom name
+    return participantName || null;
+  }
+
+  /**
+   * Gets the participant key for storage (applicationId, userId, or clientId)
+   */
+  private getParticipantKey(client: AuthenticatedSocket): string {
+    // Application has priority
+    if (client.data?.application) {
+      return `app_${client.data.application.id}`;
+    }
+    // Then Supabase user
+    if (client.data?.user) {
+      return client.data.user.id;
+    }
+    // Fallback to socket ID
+    return client.id;
+  }
+
   async handleDisconnect(client: AuthenticatedSocket) {
     // Parar validação periódica do token se estiver ativa
     this.stopTokenValidation(client);
@@ -306,19 +406,26 @@ export class RoomGateway
       namespace,
       timestamp: new Date(),
     });
-    this.logger.log(
-      `Cliente desconectado do namespace ${namespace}: ${client.id}`,
-    );
+
+    const application = this.extractApplicationData(client);
+    if (application) {
+      this.logger.log(
+        `Application disconnected: ${application.name} (${application.id})`,
+      );
+    } else {
+      this.logger.log(
+        `Cliente desconectado do namespace ${namespace}: ${client.id}`,
+      );
+    }
 
     const userId = client.data?.user?.id || null;
-    
     const supabaseUserData = this.extractSupabaseUserData(client);
 
     // Remove o cliente de todas as salas ao desconectar
     const rooms = await this.roomService.getAllRooms();
     for (const room of rooms) {
       // Check if participant exists using hybrid key
-      const participantKey = userId || client.id;
+      const participantKey = this.getParticipantKey(client);
       if (room.participants.includes(participantKey)) {
         const participantName = await this.roomService.getParticipantName(
           room.id,
@@ -327,6 +434,7 @@ export class RoomGateway
         );
         
         const displayName = participantName 
+          || application?.name
           || supabaseUserData?.email 
           || null;
           
@@ -337,6 +445,7 @@ export class RoomGateway
           roomId: room.id,
           roomName: room.name,
           participantCount: room.participants.length,
+          isApplication: !!application,
         });
       }
     }
@@ -356,14 +465,12 @@ export class RoomGateway
       return;
     }
 
-    // Se usuário está autenticado via Supabase, usar dados do Supabase
-    const user = client.data?.user;
-    const displayName = user
-      ? user.email || user.user_metadata?.name || 'User'
-      : participantName || null;
+    // Get display name based on connection type
+    const displayName = this.getClientDisplayName(client, participantName);
 
-    // Extract Supabase user data
+    // Extract data based on connection type
     const supabaseUserData = this.extractSupabaseUserData(client);
+    const applicationData = this.extractApplicationData(client);
 
     // Join no Socket.IO room
     client.join(roomId) as void;
@@ -379,6 +486,8 @@ export class RoomGateway
       roomName: room.name,
       participantCount: room.participants.length,
       supabaseUser: supabaseUserData || undefined,
+      application: applicationData || undefined,
+      isApplication: !!applicationData,
     });
 
     // Confirmar entrada para o cliente
@@ -390,8 +499,10 @@ export class RoomGateway
       recentMessages: room.messages.slice(-10), // Últimas 10 mensagens
     });
 
+    const user = client.data?.user;
+    const app = client.data?.application;
     this.logger.log(
-      `Cliente ${client.id} ${user ? `(Supabase user: ${user.id})` : '(anonymous)'} entrou na sala: ${roomId}`,
+      `Cliente ${client.id} ${app ? `(App: ${app.name})` : user ? `(Supabase user: ${user.id})` : '(anonymous)'} entrou na sala: ${roomId}`,
     );
   }
 
@@ -406,8 +517,9 @@ export class RoomGateway
     // Extract userId from authenticated socket
     const userId = client.data?.user?.id || null;
     
-    // Extract Supabase user data for display name
+    // Extract data for display name
     const supabaseUserData = this.extractSupabaseUserData(client);
+    const applicationData = this.extractApplicationData(client);
 
     // Get participant name BEFORE removing from room
     const participantName = await this.roomService.getParticipantName(
@@ -416,8 +528,9 @@ export class RoomGateway
       userId,
     );
     
-    // Use Supabase email as fallback if no custom name was set
+    // Use appropriate fallback for display name
     const displayName = participantName 
+      || applicationData?.name
       || supabaseUserData?.email 
       || null;
 
@@ -437,6 +550,7 @@ export class RoomGateway
         roomId: roomId,
         roomName: room?.name,
         participantCount: room?.participants.length || 0,
+        isApplication: !!applicationData,
       });
 
       // Confirmar saída para o cliente
@@ -454,8 +568,9 @@ export class RoomGateway
   ): Promise<void> {
     const { roomId, message, event = 'message' } = data;
 
-    // Extract Supabase user data
+    // Extract data based on connection type
     const supabaseUserData = this.extractSupabaseUserData(client);
+    const applicationData = this.extractApplicationData(client);
 
     // Adicionar mensagem ao serviço
     const roomMessage = await this.roomService.addMessage(
@@ -481,10 +596,12 @@ export class RoomGateway
       timestamp: roomMessage.timestamp,
       roomId: roomId,
       supabaseUser: roomMessage.supabaseUser || undefined,
+      application: applicationData || undefined,
+      isApplication: !!applicationData,
     });
 
     this.logger.log(
-      `Evento [${event}] emitido na sala ${roomId} por ${client.id}: ${message}`,
+      `Evento [${event}] emitido na sala ${roomId} por ${applicationData ? `App:${applicationData.name}` : client.id}: ${message}`,
     );
   }
 
@@ -535,6 +652,15 @@ export class RoomGateway
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
     const { roomId, participantName } = data;
+
+    // Se é uma aplicação, não permitir atualização de nome
+    const app = client.data?.application;
+    if (app) {
+      client.emit('error', {
+        message: 'Aplicações não podem atualizar o nome.',
+      });
+      return;
+    }
 
     // Se usuário está autenticado via Supabase, não permitir atualização de nome
     const user = client.data?.user;
