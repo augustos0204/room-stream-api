@@ -83,7 +83,7 @@
                     </template>
 
                     <template x-for="room in rooms" :key="room.id">
-                        <%- include('../partials/room-card', { isMobile: isMobile || false }) %>
+                        <%- include('../ui/room-card', { isMobile: isMobile || false }) %>
                     </template>
                 </div>
             </div>

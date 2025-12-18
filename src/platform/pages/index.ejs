@@ -14,10 +14,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     
     <!-- PWA Manifest (backend decide qual retornar baseado em NODE_ENV) -->
-    <link rel="manifest" href="/view/assets/manifest.json">
+    <link rel="manifest" href="/platform/assets/manifest.json">
     
     <title><%= appName || 'RoomStream' %><%= isDev ? ' (DEV)' : '' %> - Platform</title>
-    <link rel="icon" type="image/svg+xml" href="/view/assets/media/<%= isDev ? 'favicon-dev.svg' : 'favicon.svg' %>">
+    <link rel="icon" type="image/svg+xml" href="/platform/assets/media/<%= isDev ? 'favicon-dev.svg' : 'favicon.svg' %>">
 
     <!-- External Dependencies -->
     <script src="/socket.io/socket.io.js"></script>
@@ -56,7 +56,19 @@
     </script>
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/view/assets/styles/main.css">
+    <link rel="stylesheet" href="/platform/assets/styles/main.css">
+
+    <!-- Hide elements until Alpine initializes -->
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        /* Loader animation */
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+        .loader-pulse { animation: pulse-glow 1.5s ease-in-out infinite; }
+    </style>
 
     <!-- Centralized Configuration -->
     <%
@@ -64,7 +76,6 @@
         supabaseUrl: supabaseUrl || null,
         supabaseAnonKey: supabaseAnonKey || null,
         wsNamespace: wsNamespace || '/ws/rooms',
-        // API_KEY removida do servidor - carregada do localStorage
         appName: appName || 'RoomStream',
         appVersion: appVersion || '1.0.0',
         environment: process.env.NODE_ENV || 'development'
@@ -72,9 +83,11 @@
 
     const features = {
         supabaseAuth: !!(supabaseUrl && supabaseAnonKey),
-        // API Key auth disponível apenas se configurada no backend
         apiKeyAuth: !!apiKey
     };
+    
+    // Páginas disponíveis (descobertas pelo PagesService)
+    const validPages = availablePages || ['index', 'dashboard', 'rooms', 'applications'];
     %>
 
     <script>
@@ -90,6 +103,11 @@
             serverTime: '<%= serverTime || new Date().toISOString() %>',
             timestamp: Date.now()
         };
+        
+        // SPA Routing - página inicial definida pelo servidor
+        window.INITIAL_PAGE = '<%= currentPage || "dashboard" %>';
+        window.VALID_PAGES = <%- JSON.stringify(availablePages || []) %>;
+        window.SPA_PAGES = <%- JSON.stringify(spaPages || []) %>;
     </script>
 
     <% if (features.supabaseAuth) { %>
@@ -107,24 +125,43 @@
         Pular para conteúdo principal
     </a>
 
+    <!-- Loading Screen (enquanto Alpine inicializa) -->
+    <div 
+        x-show="isInitializing"
+        x-transition:leave="transition ease-in duration-300"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950 bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950"
+    >
+        <div class="text-center">
+            <!-- Logo animado -->
+            <div class="loader-pulse mb-6">
+                <%- include('../components/ui/logo', { size: 'lg', withBackground: true, withShadow: true }) %>
+            </div>
+            <!-- Texto de loading -->
+            <p class="text-gray-400 text-sm animate-pulse">Carregando...</p>
+        </div>
+    </div>
+
     <!-- Full Screen Login Page (quando não autenticado) -->
     <div 
-        x-show="!apiKey && !supabaseUser"
+        x-cloak
+        x-show="!isInitializing && !apiKey && !supabaseUser"
         x-transition:enter="transition ease-out duration-500"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
     >
-        <%- include('../partials/page-login', { features: features }) %>
+        <%- include('./login', { features: features }) %>
     </div>
 
     <!-- Platform Interface (quando autenticado) -->
-    <div x-show="apiKey || supabaseUser" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+    <div x-cloak x-show="!isInitializing && (apiKey || supabaseUser)" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
 
     <!-- Platform Topbar (Fixed at Top) -->
-    <%- include('../partials/platform-topbar', { features: features }) %>
+    <%- include('../components/layout/topbar', { features: features }) %>
 
     <!-- Platform Sidebar (Below Topbar) -->
-    <%- include('../partials/platform-sidebar') %>
+    <%- include('../components/layout/sidebar') %>
 
     <!-- Main Content Area -->
     <main
@@ -134,29 +171,21 @@
     >
         <div class="p-6 h-[calc(100vh-5rem)] overflow-y-auto custom-scrollbar">
 
-            <!-- Dashboard Page (Main/Default) -->
-            <div x-show="currentPage === 'dashboard'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
-                <%- include('../partials/page-dashboard') %>
-            </div>
-
-            <!-- Rooms Page -->
-            <div x-show="currentPage === 'rooms'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
-                <%- include('../partials/page-rooms') %>
-            </div>
-
-            <!-- Applications Page (Supabase users only) -->
-            <div x-show="currentPage === 'applications' && supabaseUser" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
-                <%- include('../partials/page-applications') %>
-            </div>
-
-            <!-- Settings Page -->
-            <div x-show="currentPage === 'settings'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
-                <div class="dark-glass rounded-xl border border-gray-700/50 p-12 text-center max-w-2xl mx-auto">
-                    <i data-lucide="settings" class="w-20 h-20 text-gray-600 mx-auto mb-6"></i>
-                    <h2 class="text-2xl font-bold text-white mb-3">Configurações</h2>
-                    <p class="text-gray-400">Em breve...</p>
-                </div>
-            </div>
+            <%# Loop dinâmico de páginas SPA - carrega automaticamente todas as páginas em pages/ %>
+            <% (spaPages || []).forEach(function(pageName) { %>
+                <%# Páginas especiais com condições extras %>
+                <% if (pageName === 'applications') { %>
+                    <!-- Applications Page (Supabase users only) -->
+                    <div x-show="currentPage === '<%= pageName %>' && supabaseUser" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
+                        <%- include('./' + pageName) %>
+                    </div>
+                <% } else { %>
+                    <!-- <%= pageName.charAt(0).toUpperCase() + pageName.slice(1) %> Page -->
+                    <div x-show="currentPage === '<%= pageName %>'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
+                        <%- include('./' + pageName) %>
+                    </div>
+                <% } %>
+            <% }); %>
 
         </div>
     </main>
@@ -221,20 +250,20 @@
     </div>
 
     <!-- Modals -->
-    <%- include('../partials/modal-create-room') %>
-    <%- include('../partials/modal-chat') %>
-    <%- include('../partials/modal-shortcuts') %>
+    <%- include('../components/modals/create-room') %>
+    <%- include('../components/modals/chat') %>
+    <%- include('../components/modals/shortcuts') %>
 
     </div>
     <!-- End Platform Interface -->
 
     <!-- Profile Modal -->
-    <%- include('../partials/modal-profile', { features: features }) %>
+    <%- include('../components/modals/profile', { features: features }) %>
 
     <!-- Load utilities and app -->
-    <script src="/view/assets/scripts/sanitizer.js"></script>
-    <script src="/view/assets/scripts/toast.js"></script>
-    <script src="/view/assets/scripts/platform.js"></script>
+    <script src="/platform/assets/scripts/sanitizer.js"></script>
+    <script src="/platform/assets/scripts/toast.js"></script>
+    <script src="/platform/assets/scripts/platform.js"></script>
 
     <!-- Initialize Lucide icons after Alpine loads -->
     <script>

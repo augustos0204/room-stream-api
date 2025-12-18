@@ -85,25 +85,6 @@
                 </div>
             </button>
         </template>
-
-        <!-- Settings -->
-        <button
-            @click="navigateTo('settings')"
-            class="w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 relative group overflow-visible"
-            :class="currentPage === 'settings'
-                ? 'bg-gradient-to-r from-gray-600/30 to-slate-600/30 border border-gray-500/50 text-gray-300'
-                : 'hover:bg-gray-700/30 text-gray-400 hover:text-gray-200'"
-        >
-            <i data-lucide="settings" class="w-5 h-5 flex-shrink-0"></i>
-            <span x-show="sidebarExpanded" class="font-medium whitespace-nowrap">Configurações</span>
-            <!-- Tooltip quando fechada -->
-            <div 
-                x-show="!sidebarExpanded" 
-                class="absolute left-full ml-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-            >
-                Configurações
-            </div>
-        </button>
     </nav>
 
     <!-- User Profile / Login Area (Bottom) -->

@@ -4,8 +4,12 @@
  */
 function platformApp() {
     return {
+        // ==================== INITIALIZATION ====================
+        isInitializing: true, // True até o init() completar
+
         // ==================== NAVIGATION & ROUTING ====================
-        currentPage: 'dashboard', // 'dashboard', 'rooms', 'settings'
+        currentPage: 'dashboard', // 'dashboard', 'rooms', 'applications', 'settings'
+        validPages: ['dashboard', 'rooms', 'applications', 'settings'], // Valid page names
         sidebarExpanded: false, // Sidebar começa fechada
         sidebarPinned: false, // Se está fixada (não fecha com hover out)
         metricsInterval: null, // Interval for auto-updating metrics
@@ -134,6 +138,16 @@ function platformApp() {
                 // API_KEY não é mais carregada do servidor
             }
 
+            // Load valid pages from server (SPA pages only)
+            if (window.SPA_PAGES) {
+                this.validPages = window.SPA_PAGES;
+            } else if (window.VALID_PAGES) {
+                this.validPages = window.VALID_PAGES;
+            }
+
+            // Initialize SPA routing (reads page from URL or server)
+            this.initializeRouting();
+
             // Load API Key from localStorage
             const savedApiKey = localStorage.getItem('apiKey');
             if (savedApiKey) {
@@ -208,6 +222,9 @@ function platformApp() {
             } else {
                 this.log('👋 Bem-vindo! Faça login para começar', 'info');
             }
+
+            // Initialization complete - hide loader
+            this.isInitializing = false;
         },
 
         // ==================== AUTH HELPER ====================
@@ -233,8 +250,90 @@ function platformApp() {
         },
 
         // ==================== NAVIGATION ====================
+        
+        /**
+         * Initialize SPA routing
+         * Reads page from URL path, hash, or server-provided initial page
+         */
+        initializeRouting() {
+            // Priority: 1) URL path, 2) Hash, 3) Server-provided, 4) Default
+            const urlPage = this.getPageFromUrl();
+            const hashPage = window.location.hash.slice(1);
+            const serverPage = window.INITIAL_PAGE;
+            
+            if (urlPage && this.validPages.includes(urlPage)) {
+                this.currentPage = urlPage;
+            } else if (hashPage && this.validPages.includes(hashPage)) {
+                this.currentPage = hashPage;
+                // Update URL to use path instead of hash
+                this.updateUrl(false);
+            } else if (serverPage && this.validPages.includes(serverPage)) {
+                this.currentPage = serverPage;
+            }
+            
+            // Listen for browser back/forward navigation
+            window.addEventListener('popstate', (event) => {
+                if (event.state?.page) {
+                    this.currentPage = event.state.page;
+                } else {
+                    this.currentPage = this.getPageFromUrl() || 'dashboard';
+                }
+                this.onPageChange();
+            });
+            
+            this.log(`📍 Página inicial: ${this.currentPage}`, 'info');
+        },
+        
+        /**
+         * Extract page name from current URL path
+         */
+        getPageFromUrl() {
+            const path = window.location.pathname;
+            // Match /platform/pageName pattern
+            const match = path.match(/^\/platform\/([a-z-]+)$/);
+            return match ? match[1] : null;
+        },
+        
+        /**
+         * Update URL without reloading
+         * @param {boolean} pushState - Whether to push a new history state
+         */
+        updateUrl(pushState = true) {
+            const newPath = this.currentPage === 'dashboard' 
+                ? '/platform' 
+                : `/platform/${this.currentPage}`;
+            
+            if (window.location.pathname !== newPath) {
+                if (pushState) {
+                    history.pushState({ page: this.currentPage }, '', newPath);
+                } else {
+                    history.replaceState({ page: this.currentPage }, '', newPath);
+                }
+            }
+        },
+        
+        /**
+         * Called when page changes (for side effects)
+         */
+        onPageChange() {
+            // Update icons
+            this.$nextTick(() => {
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            });
+        },
+
         navigateTo(page) {
+            if (!this.validPages.includes(page)) {
+                this.log(`⚠️ Página inválida: ${page}`, 'warning');
+                return;
+            }
+            
             this.currentPage = page;
+            
+            // Update URL
+            this.updateUrl();
 
             // Load applications when navigating to applications page
             if (page === 'applications') {

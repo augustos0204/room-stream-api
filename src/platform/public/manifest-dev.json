@@ -2,14 +2,14 @@
   "name": "RoomStream Platform (DEV)",
   "short_name": "RoomStream DEV",
   "description": "Real-time WebSocket API for chat rooms - Development",
-  "start_url": "/view",
+  "start_url": "/platform",
   "display": "fullscreen",
   "background_color": "#7c2d12",
   "theme_color": "#ea580c",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/view/assets/media/favicon-dev.svg",
+      "src": "/platform/assets/media/favicon-dev.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

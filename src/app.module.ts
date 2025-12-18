@@ -7,7 +7,7 @@ import { MemoryModule } from './memory/memory.module';
 import { RoomModule } from './room/room.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { HealthModule } from './health/health.module';
-import { ViewsModule } from './views/views.module';
+import { PlatformModule } from './platform/platform.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { ApplicationModule } from './application/application.module';
 
@@ -19,7 +19,7 @@ import { ApplicationModule } from './application/application.module';
     MemoryModule,
     MetricsModule,
     RoomModule,
-    ViewsModule,
+    PlatformModule,
     SupabaseModule,
     ApplicationModule,
   ],

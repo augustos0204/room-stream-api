@@ -14,11 +14,11 @@
     <meta name="mobile-web-app-capable" content="yes">
     
     <!-- PWA Manifest (backend decide qual retornar baseado em NODE_ENV) -->
-    <link rel="manifest" href="/view/assets/manifest.json">
+    <link rel="manifest" href="/platform/assets/manifest.json">
     
     <title>RoomStream API<%= isDev ? ' (DEV)' : '' %> - Real-time Data & Room Management</title>
     <meta name="description" content="API WebSocket em tempo real para gerenciamento de salas com NestJS, Socket.IO e Redis.">
-    <link rel="icon" type="image/svg+xml" href="/view/assets/media/<%= isDev ? 'favicon-dev.svg' : 'favicon.svg' %>">
+    <link rel="icon" type="image/svg+xml" href="/platform/assets/media/<%= isDev ? 'favicon-dev.svg' : 'favicon.svg' %>">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -49,7 +49,7 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="/view/assets/styles/main.css">
+    <link rel="stylesheet" href="/platform/assets/styles/main.css">
 </head>
 <body class="bg-slate-950 bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-sans h-[100dvh]" style="color-scheme: dark;">
     
@@ -66,7 +66,7 @@
             <div class="flex justify-between items-center h-16">
                 <!-- Logo -->
                 <div class="flex items-center gap-3">
-                    <%- include('../partials/logo', { size: 'sm', withBackground: false, withShadow: false }) %>
+                    <%- include('../components/ui/logo', { size: 'sm', withBackground: false, withShadow: false }) %>
                     <span class="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
                         RoomStream
                     </span>
@@ -78,7 +78,7 @@
                         <i data-lucide="book-open" class="w-4 h-4"></i>
                         <span>API Docs</span>
                     </a>
-                    <a href="/view" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                    <a href="/platform" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
                         <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
                         <span>Dashboard</span>
                     </a>
@@ -89,7 +89,7 @@
                 </div>
 
                 <!-- CTA Button -->
-                <a href="/view" class="hidden md:block px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg">
+                <a href="/platform" class="hidden md:block px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg">
                     Começar
                 </a>
             </div>
@@ -126,7 +126,7 @@
 
                 <!-- CTA Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-                    <a href="/view" class="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl flex items-center justify-center gap-2">
+                    <a href="/platform" class="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl flex items-center justify-center gap-2">
                         <span>Acessar Dashboard</span>
                         <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
                     </a>
@@ -323,7 +323,7 @@
                         <i data-lucide="book-open" class="w-5 h-5"></i>
                         <span>Documentação API</span>
                     </a>
-                    <a href="/view" class="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center justify-center gap-2">
+                    <a href="/platform" class="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center justify-center gap-2">
                         <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
                         <span>Abrir Dashboard</span>
                     </a>
@@ -338,7 +338,7 @@
             <div class="flex flex-col md:flex-row justify-between items-center gap-6">
                 <div class="flex items-center gap-3">
                     <div class="opacity-70">
-                        <%- include('../partials/logo', { size: 'xs', withBackground: false, withShadow: false }) %>
+                        <%- include('../components/ui/logo', { size: 'xs', withBackground: false, withShadow: false }) %>
                     </div>
                     <span class="text-gray-400">RoomStream API • <%= new Date().getFullYear() %></span>
                 </div>

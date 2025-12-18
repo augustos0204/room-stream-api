@@ -51,9 +51,9 @@ const backgroundClasses = backgroundSizeMap[logoSize] || backgroundSizeMap['md']
 <div class="inline-flex items-center justify-center <%= backgroundClasses %> rounded-2xl bg-gradient-to-br <%= bgGradient %> shadow-2xl <%= extraClasses %>">
     <div class="logo-icon relative <%= logoClasses %>">
         <% if (isDev) { %>
-            <%- include('../partials/logo-svg-dev') %>
+            <%- include('./logo-svg-dev') %>
         <% } else { %>
-            <%- include('../partials/logo-svg') %>
+            <%- include('./logo-svg') %>
         <% } %>
     </div>
 </div>
@@ -61,9 +61,9 @@ const backgroundClasses = backgroundSizeMap[logoSize] || backgroundSizeMap['md']
 <!-- Logo without background -->
 <div class="<%= showShadow ? 'logo-icon' : '' %> relative <%= logoClasses %> <%= extraClasses %>">
     <% if (isDev) { %>
-        <%- include('../partials/logo-svg-dev') %>
+        <%- include('./logo-svg-dev') %>
     <% } else { %>
-        <%- include('../partials/logo-svg') %>
+        <%- include('./logo-svg') %>
     <% } %>
 </div>
 <% } %>
