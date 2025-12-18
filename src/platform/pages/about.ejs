@@ -1,0 +1,260 @@
+<!-- About Page - Developer Profile -->
+<%
+const github = typeof githubUser !== 'undefined' ? githubUser : null;
+const repos = typeof githubRepos !== 'undefined' ? githubRepos : [];
+const languages = typeof topLanguages !== 'undefined' ? topLanguages : [];
+
+// Fallbacks
+const name = github?.name || 'Desenvolvedor';
+const bio = github?.bio || 'Desenvolvedor apaixonado por tecnologia';
+const avatar = github?.avatar_url || 'https://github.com/identicons/default.png';
+const location = github?.location || null;
+const company = github?.company || null;
+const blog = github?.blog || null;
+const twitterUsername = github?.twitter_username || null;
+const publicRepos = github?.public_repos || 0;
+const followers = github?.followers || 0;
+const githubUrl = github?.html_url || 'https://github.com';
+const memberSince = github?.created_at ? new Date(github.created_at).getFullYear() : null;
+%>
+
+<div class="space-y-6 max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <div class="p-3 rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 shadow-lg shadow-violet-500/20">
+            <i data-lucide="user-circle" class="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white"></i>
+        </div>
+        <div>
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-white">Sobre</h1>
+            <p class="text-gray-400 text-sm md:text-base">Conheça o desenvolvedor por trás do RoomStream</p>
+        </div>
+    </div>
+
+    <!-- Profile Card -->
+    <div class="dark-glass rounded-xl border border-gray-700/50 overflow-hidden">
+        <!-- Cover/Banner -->
+        <div class="h-32 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 relative">
+            <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNC0yIDQtMiA0LTItMi0yLTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
+        </div>
+
+        <!-- Profile Info -->
+        <div class="px-6 pb-6">
+            <!-- Avatar -->
+            <div class="relative -mt-16 mb-4">
+                <img 
+                    src="<%= avatar %>" 
+                    alt="<%= name %>"
+                    class="w-32 h-32 rounded-full border-4 border-gray-900 shadow-xl"
+                />
+                <div class="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-gray-900"></div>
+            </div>
+
+            <!-- Name & Title -->
+            <div class="mb-4">
+                <h2 class="text-2xl font-bold text-white"><%= name %></h2>
+                <p class="text-purple-400">Full Stack Developer</p>
+            </div>
+
+            <!-- Bio -->
+            <% if (bio) { %>
+            <p class="text-gray-300 mb-6"><%= bio %></p>
+            <% } %>
+
+            <!-- Meta Info -->
+            <div class="flex flex-wrap gap-4 text-sm text-gray-400 mb-6">
+                <% if (location) { %>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                    <span><%= location %></span>
+                </div>
+                <% } %>
+                <% if (company) { %>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="building-2" class="w-4 h-4"></i>
+                    <span><%= company %></span>
+                </div>
+                <% } %>
+                <% if (blog) { %>
+                <a href="<%= blog.startsWith('http') ? blog : 'https://' + blog %>" target="_blank" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <i data-lucide="link" class="w-4 h-4"></i>
+                    <span>Website</span>
+                </a>
+                <% } %>
+                <% if (memberSince) { %>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    <span>Desde <%= memberSince %></span>
+                </div>
+                <% } %>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-white"><%= publicRepos %></div>
+                    <div class="text-xs text-gray-400">Repositórios</div>
+                </div>
+                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-white"><%= followers %></div>
+                    <div class="text-xs text-gray-400">Seguidores</div>
+                </div>
+                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-white"><%= languages.length %></div>
+                    <div class="text-xs text-gray-400">Linguagens</div>
+                </div>
+            </div>
+
+            <!-- Social Links -->
+            <div class="flex flex-wrap gap-3">
+                <a 
+                    href="<%= githubUrl %>" 
+                    target="_blank"
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                    <i data-lucide="github" class="w-4 h-4"></i>
+                    <span>GitHub</span>
+                </a>
+                <% if (twitterUsername) { %>
+                <a 
+                    href="https://twitter.com/<%= twitterUsername %>" 
+                    target="_blank"
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-blue-600 rounded-lg transition-colors"
+                >
+                    <i data-lucide="twitter" class="w-4 h-4"></i>
+                    <span>Twitter</span>
+                </a>
+                <% } %>
+                <% if (blog) { %>
+                <a 
+                    href="<%= blog.startsWith('http') ? blog : 'https://' + blog %>" 
+                    target="_blank"
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-purple-600 rounded-lg transition-colors"
+                >
+                    <i data-lucide="globe" class="w-4 h-4"></i>
+                    <span>Portfolio</span>
+                </a>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Languages/Skills -->
+    <% if (languages.length > 0) { %>
+    <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <i data-lucide="code-2" class="w-5 h-5 text-purple-400"></i>
+            Linguagens Mais Usadas
+        </h3>
+        <div class="flex flex-wrap gap-2">
+            <% languages.forEach(function(lang) { 
+                const colors = {
+                    'TypeScript': 'bg-blue-500/20 text-blue-300 border-blue-500/50',
+                    'JavaScript': 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50',
+                    'Python': 'bg-green-500/20 text-green-300 border-green-500/50',
+                    'Java': 'bg-orange-500/20 text-orange-300 border-orange-500/50',
+                    'Go': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50',
+                    'Rust': 'bg-red-500/20 text-red-300 border-red-500/50',
+                    'C#': 'bg-purple-500/20 text-purple-300 border-purple-500/50',
+                    'PHP': 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50',
+                    'Ruby': 'bg-red-500/20 text-red-300 border-red-500/50',
+                    'Shell': 'bg-gray-500/20 text-gray-300 border-gray-500/50',
+                    'HTML': 'bg-orange-500/20 text-orange-300 border-orange-500/50',
+                    'CSS': 'bg-blue-500/20 text-blue-300 border-blue-500/50',
+                };
+                const colorClass = colors[lang] || 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+            %>
+            <span class="px-3 py-1.5 rounded-lg border text-sm font-medium <%= colorClass %>">
+                <%= lang %>
+            </span>
+            <% }); %>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- About the Project -->
+    <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <i data-lucide="rocket" class="w-5 h-5 text-purple-400"></i>
+            Sobre o RoomStream
+        </h3>
+        <div class="space-y-4 text-gray-300">
+            <p>
+                O <span class="text-purple-400 font-semibold">RoomStream</span> é um projeto de API WebSocket 
+                em tempo real, desenvolvido para demonstrar competências em arquitetura de sistemas distribuídos 
+                e comunicação real-time.
+            </p>
+            <p>
+                Construído com <span class="text-blue-400">NestJS</span>, <span class="text-green-400">Socket.IO</span> 
+                e <span class="text-red-400">Redis</span>, o projeto implementa um sistema completo de gerenciamento 
+                de salas com autenticação, eventos customizados e persistência opcional.
+            </p>
+        </div>
+
+        <!-- Tech Stack Used -->
+        <div class="mt-6">
+            <h4 class="text-sm font-semibold text-gray-400 mb-3">Stack Tecnológico</h4>
+            <div class="flex flex-wrap gap-2">
+                <span class="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-300 border border-red-500/50 text-sm">NestJS</span>
+                <span class="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/50 text-sm">TypeScript</span>
+                <span class="px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 text-sm">Socket.IO</span>
+                <span class="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-300 border border-red-500/50 text-sm">Redis</span>
+                <span class="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-300 border border-green-500/50 text-sm">Supabase</span>
+                <span class="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 text-sm">Docker</span>
+                <span class="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/50 text-sm">Alpine.js</span>
+                <span class="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/50 text-sm">Tailwind CSS</span>
+            </div>
+        </div>
+
+        <!-- Repository Link -->
+        <div class="mt-6 pt-6 border-t border-gray-700/50">
+            <a 
+                href="https://github.com/<%= github?.login || 'Augustos0204' %>/room-stream-api" 
+                target="_blank"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+                <i data-lucide="github" class="w-4 h-4"></i>
+                <span>Ver Repositório</span>
+                <i data-lucide="external-link" class="w-3 h-3 opacity-50"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Repositories -->
+    <% if (repos.length > 0) { %>
+    <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <i data-lucide="folder-git-2" class="w-5 h-5 text-purple-400"></i>
+            Repositórios Recentes
+        </h3>
+        <div class="grid gap-4 md:grid-cols-2">
+            <% repos.slice(0, 6).forEach(function(repo) { %>
+            <a 
+                href="<%= repo.html_url %>" 
+                target="_blank"
+                class="block p-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-purple-500/50 transition-all"
+            >
+                <div class="flex items-start justify-between mb-2">
+                    <h4 class="font-medium text-white truncate flex-1"><%= repo.name %></h4>
+                    <% if (repo.language) { %>
+                    <span class="text-xs px-2 py-0.5 bg-gray-700 rounded text-gray-300 ml-2"><%= repo.language %></span>
+                    <% } %>
+                </div>
+                <% if (repo.description) { %>
+                <p class="text-sm text-gray-400 line-clamp-2 mb-3"><%= repo.description %></p>
+                <% } %>
+                <div class="flex items-center gap-4 text-xs text-gray-500">
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="star" class="w-3 h-3"></i>
+                        <%= repo.stargazers_count %>
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="git-fork" class="w-3 h-3"></i>
+                        <%= repo.forks_count %>
+                    </span>
+                </div>
+            </a>
+            <% }); %>
+        </div>
+    </div>
+    <% } %>
+</div>

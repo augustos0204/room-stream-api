@@ -3,6 +3,10 @@ import type { Response } from 'express';
 import { Public } from '../common/decorators';
 import { RoomService } from '../room/room.service';
 import { PagesService } from './pages.service';
+import { GithubService } from '../github/github.service';
+
+// GitHub username for the about page
+const GITHUB_USERNAME = 'Augustos0204';
 
 @Controller('platform')
 @Public()
@@ -12,6 +16,7 @@ export class PlatformController {
   constructor(
     private readonly roomService: RoomService,
     private readonly pagesService: PagesService,
+    private readonly githubService: GithubService,
   ) {}
 
   private getEnvConfig() {
@@ -56,14 +61,14 @@ export class PlatformController {
     const config = this.getEnvConfig();
     const initialRooms = await this.roomService.getAllRooms();
 
-    return {
+    // Base context
+    const context: Record<string, any> = {
       // Environment config
       supabaseUrl: config.supabaseUrl,
       supabaseAnonKey: config.supabaseAnonKey,
       wsNamespace: config.websocketNamespace,
       apiKey: process.env.API_KEY || null,
       appName: process.env.APP_NAME || 'RoomStream',
-      appVersion: process.env.APP_VERSION || '1.0.0',
 
       // Pre-loaded data
       initialRooms: initialRooms,
@@ -85,6 +90,20 @@ export class PlatformController {
         apiKeyAuth: !!process.env.API_KEY,
       },
     };
+
+    // Add GitHub data for about page and landing page
+    if (currentPage === 'about' || currentPage === 'landing') {
+      const [githubUser, githubRepos, topLanguages] = await Promise.all([
+        this.githubService.getUser(GITHUB_USERNAME),
+        this.githubService.getRepos(GITHUB_USERNAME, 6),
+        this.githubService.getTopLanguages(GITHUB_USERNAME),
+      ]);
+      context.githubUser = githubUser;
+      context.githubRepos = githubRepos;
+      context.topLanguages = topLanguages;
+    }
+
+    return context;
   }
 
   /**
