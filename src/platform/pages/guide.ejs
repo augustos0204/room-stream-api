@@ -1,0 +1,845 @@
+<!-- Guide Page - WebSocket Integration Documentation -->
+<%
+const wsPath = (typeof wsNamespace !== 'undefined' && wsNamespace) ? wsNamespace : '/ws/rooms';
+%>
+<div class="space-y-6 max-w-4xl mx-auto" x-data="{ baseUrl: window.location.origin, wsUrl: window.location.origin.replace('https', 'wss').replace('http', 'ws') + '<%= wsPath %>' }">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <div class="p-3 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20">
+            <i data-lucide="book-open" class="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white"></i>
+        </div>
+        <div>
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-white">Guia de Integração</h1>
+            <p class="text-gray-400 text-sm md:text-base">Conecte sua aplicação ao RoomStream WebSocket</p>
+        </div>
+    </div>
+
+    <!-- Quick Start Alert -->
+    <div class="dark-glass rounded-xl border border-emerald-500/30 p-4 bg-emerald-500/5">
+        <div class="flex items-start gap-3">
+            <div class="p-2 rounded-lg bg-emerald-500/20">
+                <i data-lucide="zap" class="w-5 h-5 text-emerald-400"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-emerald-300">Início Rápido</h3>
+                <p class="text-gray-400 text-sm mt-1">
+                    Antes de começar, crie uma aplicação em 
+                    <button @click="navigateTo('applications')" class="text-emerald-400 hover:text-emerald-300 underline underline-offset-2">
+                        Aplicações
+                    </button>
+                    para obter sua APP Key.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div x-data="{ activeTab: 'connection' }" class="space-y-4">
+        <div class="flex flex-wrap gap-2 border-b border-gray-700/50 pb-2">
+            <button 
+                @click="activeTab = 'connection'"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                :class="activeTab === 'connection' 
+                    ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/50' 
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/30'"
+            >
+                <i data-lucide="plug" class="w-4 h-4 inline mr-1"></i>
+                Conexão
+            </button>
+            <button 
+                @click="activeTab = 'events'"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                :class="activeTab === 'events' 
+                    ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/50' 
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/30'"
+            >
+                <i data-lucide="radio" class="w-4 h-4 inline mr-1"></i>
+                Eventos
+            </button>
+            <button 
+                @click="activeTab = 'examples'"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                :class="activeTab === 'examples' 
+                    ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/50' 
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/30'"
+            >
+                <i data-lucide="code-2" class="w-4 h-4 inline mr-1"></i>
+                Exemplos
+            </button>
+            <button 
+                @click="activeTab = 'troubleshooting'"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                :class="activeTab === 'troubleshooting' 
+                    ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/50' 
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/30'"
+            >
+                <i data-lucide="help-circle" class="w-4 h-4 inline mr-1"></i>
+                Troubleshooting
+            </button>
+        </div>
+
+        <!-- Tab: Conexão -->
+        <div x-show="activeTab === 'connection'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="space-y-6">
+            
+            <!-- Instalação -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="package" class="w-5 h-5 text-emerald-400"></i>
+                    1. Instalação
+                </h2>
+                <p class="text-gray-400 text-sm mb-4">Instale o cliente Socket.IO no seu projeto:</p>
+                
+                <!-- npm -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-500 font-mono">npm</span>
+                        <button 
+                            @click="copyToClipboard('npm install socket.io-client', $event)"
+                            class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-emerald-300">npm install socket.io-client</code></pre>
+                </div>
+
+                <!-- yarn -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-500 font-mono">yarn</span>
+                        <button 
+                            @click="copyToClipboard('yarn add socket.io-client', $event)"
+                            class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-emerald-300">yarn add socket.io-client</code></pre>
+                </div>
+
+                <!-- pnpm -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-500 font-mono">pnpm</span>
+                        <button 
+                            @click="copyToClipboard('pnpm add socket.io-client', $event)"
+                            class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-emerald-300">pnpm add socket.io-client</code></pre>
+                </div>
+            </div>
+
+            <!-- Configuração de Conexão -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5 text-emerald-400"></i>
+                    2. Configuração
+                </h2>
+                
+                <div class="grid gap-4 md:grid-cols-2 mb-6">
+                    <div class="bg-gray-800/50 rounded-lg p-4">
+                        <span class="text-xs text-gray-500 block mb-1">URL do Servidor</span>
+                        <code class="text-emerald-300 text-sm" x-text="wsUrl"></code>
+                    </div>
+                    <div class="bg-gray-800/50 rounded-lg p-4">
+                        <span class="text-xs text-gray-500 block mb-1">Namespace</span>
+                        <code class="text-purple-300 text-sm"><%= wsPath %></code>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-500 font-mono">JavaScript</span>
+                    <button 
+                        @click="copyToClipboard(`import { io } from 'socket.io-client';
+
+const socket = io('${wsUrl}', {
+  auth: {
+    appKey: 'SUA_APP_KEY' // Obtida em Aplicações
+  },
+  transports: ['websocket', 'polling']
+});
+
+socket.on('connect', () => {
+  console.log('✅ Conectado!', socket.id);
+});
+
+socket.on('connect_error', (error) => {
+  console.error('❌ Erro de conexão:', error.message);
+});`, $event)"
+                        class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                    >
+                        <i data-lucide="copy" class="w-3 h-3"></i>
+                        Copiar
+                    </button>
+                </div>
+                <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-gray-300"><span class="text-purple-400">import</span> { io } <span class="text-purple-400">from</span> <span class="text-emerald-300">'socket.io-client'</span>;
+
+<span class="text-purple-400">const</span> socket = <span class="text-yellow-300">io</span>(<span class="text-emerald-300" x-text="'\\'' + wsUrl + '\\''"></span>, {
+  <span class="text-blue-300">auth</span>: {
+    <span class="text-blue-300">appKey</span>: <span class="text-emerald-300">'SUA_APP_KEY'</span> <span class="text-gray-500">// Obtida em Aplicações</span>
+  },
+  <span class="text-blue-300">transports</span>: [<span class="text-emerald-300">'websocket'</span>, <span class="text-emerald-300">'polling'</span>]
+});
+
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'connect'</span>, () => {
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'✅ Conectado!'</span>, socket.id);
+});
+
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'connect_error'</span>, (error) => {
+  console.<span class="text-yellow-300">error</span>(<span class="text-emerald-300">'❌ Erro de conexão:'</span>, error.message);
+});</code></pre>
+
+                <div class="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                    <p class="text-orange-300 text-sm flex items-start gap-2">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+                        <span>Substitua <code class="bg-gray-800 px-1 rounded">SUA_APP_KEY</code> pela APP Key obtida em <button @click="navigateTo('applications')" class="underline hover:text-orange-200">Aplicações</button>.</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Métodos de Autenticação -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="key" class="w-5 h-5 text-emerald-400"></i>
+                    3. Métodos de Autenticação
+                </h2>
+                
+                <div class="space-y-4">
+                    <!-- Método 1: auth.appKey -->
+                    <div class="bg-gray-800/50 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded-full">Recomendado</span>
+                            <span class="text-white font-medium">Via auth.appKey</span>
+                        </div>
+                        <pre class="bg-gray-900/80 rounded-lg p-3 overflow-x-auto text-sm mt-2"><code class="text-gray-300">{ <span class="text-blue-300">auth</span>: { <span class="text-blue-300">appKey</span>: <span class="text-emerald-300">'app_xxx...'</span> } }</code></pre>
+                    </div>
+
+                    <!-- Método 2: header -->
+                    <div class="bg-gray-800/50 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-white font-medium">Via Header</span>
+                        </div>
+                        <pre class="bg-gray-900/80 rounded-lg p-3 overflow-x-auto text-sm mt-2"><code class="text-gray-300">{ <span class="text-blue-300">extraHeaders</span>: { <span class="text-emerald-300">'x-app-key'</span>: <span class="text-emerald-300">'app_xxx...'</span> } }</code></pre>
+                    </div>
+
+                    <!-- Método 3: query -->
+                    <div class="bg-gray-800/50 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-white font-medium">Via Query Parameter</span>
+                        </div>
+                        <pre class="bg-gray-900/80 rounded-lg p-3 overflow-x-auto text-sm mt-2"><code class="text-gray-300"><span class="text-emerald-300">'wss://servidor.com/ws/rooms?appKey=app_xxx...'</span></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Eventos -->
+        <div x-show="activeTab === 'events'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="space-y-6">
+            
+            <!-- Eventos de Sala -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="door-open" class="w-5 h-5 text-purple-400"></i>
+                    Eventos de Sala
+                </h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-700/50">
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Evento</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Direção</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700/30">
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-emerald-300 bg-gray-800/50 px-2 py-0.5 rounded">joinRoom</code></td>
+                                <td class="py-3 px-4"><span class="text-blue-400">Client → Server</span></td>
+                                <td class="py-3 px-4 text-gray-300">Entrar em uma sala</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">joinedRoom</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Client</span></td>
+                                <td class="py-3 px-4 text-gray-300">Confirmação de entrada na sala</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-emerald-300 bg-gray-800/50 px-2 py-0.5 rounded">leaveRoom</code></td>
+                                <td class="py-3 px-4"><span class="text-blue-400">Client → Server</span></td>
+                                <td class="py-3 px-4 text-gray-300">Sair de uma sala</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">leftRoom</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Client</span></td>
+                                <td class="py-3 px-4 text-gray-300">Confirmação de saída da sala</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-emerald-300 bg-gray-800/50 px-2 py-0.5 rounded">getRoomInfo</code></td>
+                                <td class="py-3 px-4"><span class="text-blue-400">Client → Server</span></td>
+                                <td class="py-3 px-4 text-gray-300">Solicitar informações da sala</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">roomInfo</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Client</span></td>
+                                <td class="py-3 px-4 text-gray-300">Dados da sala solicitada</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Eventos de Mensagem -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="message-square" class="w-5 h-5 text-blue-400"></i>
+                    Eventos de Mensagem
+                </h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-700/50">
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Evento</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Direção</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700/30">
+                            <tr>
+                                <td class="py-3 px-4">
+                                    <code class="text-emerald-300 bg-gray-800/50 px-2 py-0.5 rounded">emit</code>
+                                    <span class="ml-2 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded">recomendado</span>
+                                </td>
+                                <td class="py-3 px-4"><span class="text-blue-400">Client → Server</span></td>
+                                <td class="py-3 px-4 text-gray-300">Emitir evento customizado para a sala</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4">
+                                    <code class="text-emerald-300 bg-gray-800/50 px-2 py-0.5 rounded">sendMessage</code>
+                                    <span class="ml-2 px-1.5 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">alias</span>
+                                </td>
+                                <td class="py-3 px-4"><span class="text-blue-400">Client → Server</span></td>
+                                <td class="py-3 px-4 text-gray-300">Alias para <code class="text-xs bg-gray-800 px-1 rounded">emit</code> (evento: <code class="text-xs bg-gray-800 px-1 rounded">message</code>)</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">{event}</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Broadcast</span></td>
+                                <td class="py-3 px-4 text-gray-300">Evento customizado recebido (ex: <code class="text-xs bg-gray-800 px-1 rounded">message</code>, <code class="text-xs bg-gray-800 px-1 rounded">notification</code>)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Explicação do sistema de eventos -->
+                <div class="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <h4 class="text-blue-300 font-medium mb-2 flex items-center gap-2">
+                        <i data-lucide="info" class="w-4 h-4"></i>
+                        Sistema de Eventos Dinâmicos
+                    </h4>
+                    <p class="text-gray-400 text-sm mb-2">
+                        O RoomStream permite emitir eventos com nomes customizados. O campo <code class="bg-gray-800 px-1 rounded text-blue-300">event</code> define qual evento será disparado para os ouvintes.
+                    </p>
+                    <ul class="text-gray-400 text-sm space-y-1 ml-4 list-disc">
+                        <li>Default: <code class="bg-gray-800 px-1 rounded text-emerald-300">message</code></li>
+                        <li>Exemplos: <code class="bg-gray-800 px-1 rounded">notification</code>, <code class="bg-gray-800 px-1 rounded">typing</code>, <code class="bg-gray-800 px-1 rounded">reaction</code></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Eventos de Participantes -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-orange-400"></i>
+                    Eventos de Participantes
+                </h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-700/50">
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Evento</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Direção</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700/30">
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-emerald-300 bg-gray-800/50 px-2 py-0.5 rounded">updateParticipantName</code></td>
+                                <td class="py-3 px-4"><span class="text-blue-400">Client → Server</span></td>
+                                <td class="py-3 px-4 text-gray-300">Atualizar nome do participante</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">participantJoined</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Broadcast</span></td>
+                                <td class="py-3 px-4 text-gray-300">Novo participante entrou na sala</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">participantLeft</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Broadcast</span></td>
+                                <td class="py-3 px-4 text-gray-300">Participante saiu da sala</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">participantNameUpdated</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Broadcast</span></td>
+                                <td class="py-3 px-4 text-gray-300">Nome de participante atualizado</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Payloads -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="braces" class="w-5 h-5 text-yellow-400"></i>
+                    Estrutura dos Payloads
+                </h2>
+
+                <!-- joinRoom payload -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-400">joinRoom</span>
+                        <button 
+                            @click="copyToClipboard(`socket.emit('joinRoom', {
+  roomId: 'room_123456789',
+  participantName: 'Meu Nome' // opcional
+});`, $event)"
+                            class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-gray-300">socket.<span class="text-yellow-300">emit</span>(<span class="text-emerald-300">'joinRoom'</span>, {
+  <span class="text-blue-300">roomId</span>: <span class="text-emerald-300">'room_123456789'</span>,
+  <span class="text-blue-300">participantName</span>: <span class="text-emerald-300">'Meu Nome'</span> <span class="text-gray-500">// opcional</span>
+});</code></pre>
+                </div>
+
+                <!-- emit payload -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-400">emit <span class="text-emerald-400 text-xs">(recomendado)</span></span>
+                        <button 
+                            @click="copyToClipboard(`socket.emit('emit', {
+  roomId: 'room_123456789',
+  message: 'Olá, mundo!',
+  event: 'message' // opcional, default: 'message'
+});`, $event)"
+                            class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-gray-300">socket.<span class="text-yellow-300">emit</span>(<span class="text-emerald-300">'emit'</span>, {
+  <span class="text-blue-300">roomId</span>: <span class="text-emerald-300">'room_123456789'</span>,
+  <span class="text-blue-300">message</span>: <span class="text-emerald-300">'Olá, mundo!'</span>,
+  <span class="text-blue-300">event</span>: <span class="text-emerald-300">'message'</span> <span class="text-gray-500">// opcional, default: 'message'</span>
+});</code></pre>
+                </div>
+
+                <!-- emit com evento customizado -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-400">emit com evento customizado</span>
+                        <button 
+                            @click="copyToClipboard(`socket.emit('emit', {
+  roomId: 'room_123456789',
+  message: 'Usuário está digitando...',
+  event: 'typing'
+});`, $event)"
+                            class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-gray-300">socket.<span class="text-yellow-300">emit</span>(<span class="text-emerald-300">'emit'</span>, {
+  <span class="text-blue-300">roomId</span>: <span class="text-emerald-300">'room_123456789'</span>,
+  <span class="text-blue-300">message</span>: <span class="text-emerald-300">'Usuário está digitando...'</span>,
+  <span class="text-blue-300">event</span>: <span class="text-emerald-300">'typing'</span>
+});</code></pre>
+                </div>
+
+                <!-- Ouvindo eventos -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-400">Ouvindo eventos</span>
+                        <button 
+                            @click="copyToClipboard(`// Ouvir evento 'message' (default)
+socket.on('message', (data) => {
+  console.log(\`[\${data.event}] \${data.message}\`);
+});
+
+// Ouvir evento customizado 'typing'
+socket.on('typing', (data) => {
+  console.log(\`\${data.clientId} está digitando...\`);
+});`, $event)"
+                            class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-gray-300"><span class="text-gray-500">// Ouvir evento 'message' (default)</span>
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'message'</span>, (data) => {
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">`[${data.event}] ${data.message}`</span>);
+});
+
+<span class="text-gray-500">// Ouvir evento customizado 'typing'</span>
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'typing'</span>, (data) => {
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">`${data.clientId} está digitando...`</span>);
+});</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Exemplos -->
+        <div x-show="activeTab === 'examples'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="space-y-6">
+            
+            <!-- Exemplo Completo -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="file-code" class="w-5 h-5 text-emerald-400"></i>
+                    Exemplo Completo (JavaScript)
+                </h2>
+
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-500 font-mono">client.js</span>
+                    <button 
+                        @click="copyToClipboard(`import { io } from 'socket.io-client';
+
+// Configuração
+const APP_KEY = 'SUA_APP_KEY'; // Obtida em Aplicações
+const SERVER_URL = '${wsUrl}';
+
+// Conectar
+const socket = io(SERVER_URL, {
+  auth: { appKey: APP_KEY },
+  transports: ['websocket', 'polling']
+});
+
+// Eventos de conexão
+socket.on('connect', () => {
+  console.log('✅ Conectado:', socket.id);
+  
+  // Entrar em uma sala
+  socket.emit('joinRoom', {
+    roomId: 'room_123456789',
+    participantName: 'Usuário Demo'
+  });
+});
+
+socket.on('connect_error', (error) => {
+  console.error('❌ Erro:', error.message);
+});
+
+// Eventos de sala
+socket.on('joinedRoom', (data) => {
+  console.log('🚪 Entrou na sala:', data.room.name);
+  console.log('👥 Participantes:', data.participants);
+  console.log('💬 Mensagens recentes:', data.recentMessages);
+});
+
+// Eventos de mensagem (ouve o evento definido em 'event', default: 'message')
+socket.on('message', (data) => {
+  console.log(\`[\${data.event}]: \${data.message}\`);
+});
+
+// Eventos de participantes
+socket.on('participantJoined', (data) => {
+  console.log(\`➡️ \${data.participantName} entrou\`);
+});
+
+socket.on('participantLeft', (data) => {
+  console.log(\`⬅️ \${data.participantName} saiu\`);
+});
+
+// Enviar mensagem (evento customizável)
+function sendMessage(roomId, message, event = 'message') {
+  socket.emit('emit', { roomId, message, event });
+}
+
+// Sair da sala
+function leaveRoom(roomId) {
+  socket.emit('leaveRoom', { roomId });
+}`, $event)"
+                        class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                    >
+                        <i data-lucide="copy" class="w-3 h-3"></i>
+                        Copiar
+                    </button>
+                </div>
+                <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm max-h-96"><code class="text-gray-300"><span class="text-purple-400">import</span> { io } <span class="text-purple-400">from</span> <span class="text-emerald-300">'socket.io-client'</span>;
+
+<span class="text-gray-500">// Configuração</span>
+<span class="text-purple-400">const</span> APP_KEY = <span class="text-emerald-300">'SUA_APP_KEY'</span>; <span class="text-gray-500">// Obtida em Aplicações</span>
+<span class="text-purple-400">const</span> SERVER_URL = <span class="text-emerald-300" x-text="'\\'' + wsUrl + '\\''"></span>;
+
+<span class="text-gray-500">// Conectar</span>
+<span class="text-purple-400">const</span> socket = <span class="text-yellow-300">io</span>(SERVER_URL, {
+  <span class="text-blue-300">auth</span>: { <span class="text-blue-300">appKey</span>: APP_KEY },
+  <span class="text-blue-300">transports</span>: [<span class="text-emerald-300">'websocket'</span>, <span class="text-emerald-300">'polling'</span>]
+});
+
+<span class="text-gray-500">// Eventos de conexão</span>
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'connect'</span>, () => {
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'✅ Conectado:'</span>, socket.id);
+  
+  <span class="text-gray-500">// Entrar em uma sala</span>
+  socket.<span class="text-yellow-300">emit</span>(<span class="text-emerald-300">'joinRoom'</span>, {
+    <span class="text-blue-300">roomId</span>: <span class="text-emerald-300">'room_123456789'</span>,
+    <span class="text-blue-300">participantName</span>: <span class="text-emerald-300">'Usuário Demo'</span>
+  });
+});
+
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'connect_error'</span>, (error) => {
+  console.<span class="text-yellow-300">error</span>(<span class="text-emerald-300">'❌ Erro:'</span>, error.message);
+});
+
+<span class="text-gray-500">// Eventos de sala</span>
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'joinedRoom'</span>, (data) => {
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'🚪 Entrou na sala:'</span>, data.room.name);
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'👥 Participantes:'</span>, data.participants);
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'💬 Mensagens recentes:'</span>, data.recentMessages);
+});
+
+<span class="text-gray-500">// Eventos de mensagem (ouve o evento definido, default: 'message')</span>
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'message'</span>, (data) => {
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">`[${data.event}]: ${data.message}`</span>);
+});
+
+<span class="text-gray-500">// Eventos de participantes</span>
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'participantJoined'</span>, (data) => {
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">`➡️ ${data.participantName} entrou`</span>);
+});
+
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'participantLeft'</span>, (data) => {
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">`⬅️ ${data.participantName} saiu`</span>);
+});
+
+<span class="text-gray-500">// Enviar mensagem (evento customizável)</span>
+<span class="text-purple-400">function</span> <span class="text-yellow-300">sendMessage</span>(roomId, message, event = <span class="text-emerald-300">'message'</span>) {
+  socket.<span class="text-yellow-300">emit</span>(<span class="text-emerald-300">'emit'</span>, { roomId, message, event });
+}
+
+<span class="text-gray-500">// Sair da sala</span>
+<span class="text-purple-400">function</span> <span class="text-yellow-300">leaveRoom</span>(roomId) {
+  socket.<span class="text-yellow-300">emit</span>(<span class="text-emerald-300">'leaveRoom'</span>, { roomId });
+}</code></pre>
+            </div>
+
+            <!-- React Hook -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="atom" class="w-5 h-5 text-cyan-400"></i>
+                    React Hook
+                </h2>
+
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-500 font-mono">useRoomStream.ts</span>
+                    <button 
+                        @click="copyToClipboard(`import { useEffect, useState, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
+
+export function useRoomStream(appKey: string, serverUrl: string) {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+
+  useEffect(() => {
+    const newSocket = io(serverUrl, {
+      auth: { appKey },
+      transports: ['websocket', 'polling']
+    });
+
+    newSocket.on('connect', () => setIsConnected(true));
+    newSocket.on('disconnect', () => setIsConnected(false));
+    newSocket.on('message', (data) => {
+      setMessages((prev) => [...prev, data]);
+    });
+
+    setSocket(newSocket);
+
+    return () => { newSocket.close(); };
+  }, [appKey, serverUrl]);
+
+  const joinRoom = useCallback((roomId: string, name?: string) => {
+    socket?.emit('joinRoom', { roomId, participantName: name });
+  }, [socket]);
+
+  const sendMessage = useCallback((roomId: string, message: string, event = 'message') => {
+    socket?.emit('emit', { roomId, message, event });
+  }, [socket]);
+
+  return { socket, isConnected, messages, joinRoom, sendMessage };
+}`, $event)"
+                        class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                    >
+                        <i data-lucide="copy" class="w-3 h-3"></i>
+                        Copiar
+                    </button>
+                </div>
+                <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm max-h-72"><code class="text-gray-300"><span class="text-purple-400">import</span> { useEffect, useState, useCallback } <span class="text-purple-400">from</span> <span class="text-emerald-300">'react'</span>;
+<span class="text-purple-400">import</span> { io, Socket } <span class="text-purple-400">from</span> <span class="text-emerald-300">'socket.io-client'</span>;
+
+<span class="text-purple-400">export function</span> <span class="text-yellow-300">useRoomStream</span>(appKey: <span class="text-cyan-300">string</span>, serverUrl: <span class="text-cyan-300">string</span>) {
+  <span class="text-purple-400">const</span> [socket, setSocket] = <span class="text-yellow-300">useState</span>&lt;Socket | <span class="text-orange-300">null</span>&gt;(<span class="text-orange-300">null</span>);
+  <span class="text-purple-400">const</span> [isConnected, setIsConnected] = <span class="text-yellow-300">useState</span>(<span class="text-orange-300">false</span>);
+  <span class="text-purple-400">const</span> [messages, setMessages] = <span class="text-yellow-300">useState</span>&lt;<span class="text-cyan-300">any</span>[]&gt;([]);
+
+  <span class="text-yellow-300">useEffect</span>(() => {
+    <span class="text-purple-400">const</span> newSocket = <span class="text-yellow-300">io</span>(serverUrl, {
+      <span class="text-blue-300">auth</span>: { appKey },
+      <span class="text-blue-300">transports</span>: [<span class="text-emerald-300">'websocket'</span>, <span class="text-emerald-300">'polling'</span>]
+    });
+
+    newSocket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'connect'</span>, () => <span class="text-yellow-300">setIsConnected</span>(<span class="text-orange-300">true</span>));
+    newSocket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'disconnect'</span>, () => <span class="text-yellow-300">setIsConnected</span>(<span class="text-orange-300">false</span>));
+    newSocket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'message'</span>, (data) => {
+      <span class="text-yellow-300">setMessages</span>((prev) => [...prev, data]);
+    });
+
+    <span class="text-yellow-300">setSocket</span>(newSocket);
+    <span class="text-purple-400">return</span> () => { newSocket.<span class="text-yellow-300">close</span>(); };
+  }, [appKey, serverUrl]);
+
+  <span class="text-purple-400">return</span> { socket, isConnected, messages, joinRoom, sendMessage };
+}</code></pre>
+            </div>
+        </div>
+
+        <!-- Tab: Troubleshooting -->
+        <div x-show="activeTab === 'troubleshooting'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="space-y-6">
+            
+            <!-- Erros Comuns -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>
+                    Erros Comuns
+                </h2>
+                
+                <div class="space-y-4">
+                    <!-- Erro 1 -->
+                    <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                        <h3 class="text-red-300 font-medium mb-2">❌ "Authentication failed" ou "Invalid APP Key"</h3>
+                        <p class="text-gray-400 text-sm mb-2">A APP Key fornecida é inválida ou a aplicação está desativada.</p>
+                        <p class="text-gray-300 text-sm"><strong>Solução:</strong> Verifique se a APP Key está correta em <button @click="navigateTo('applications')" class="text-emerald-400 underline">Aplicações</button> e se a aplicação está ativa.</p>
+                    </div>
+
+                    <!-- Erro 2 -->
+                    <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                        <h3 class="text-red-300 font-medium mb-2">❌ "Connection timeout" ou "CORS error"</h3>
+                        <p class="text-gray-400 text-sm mb-2">O servidor não está acessível ou há bloqueio de CORS.</p>
+                        <p class="text-gray-300 text-sm"><strong>Solução:</strong> Verifique se a URL do servidor está correta e se o CORS está configurado para aceitar sua origem.</p>
+                    </div>
+
+                    <!-- Erro 3 -->
+                    <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                        <h3 class="text-red-300 font-medium mb-2">❌ "Room not found"</h3>
+                        <p class="text-gray-400 text-sm mb-2">A sala especificada não existe.</p>
+                        <p class="text-gray-300 text-sm"><strong>Solução:</strong> Crie a sala primeiro via API REST ou verifique o roomId.</p>
+                    </div>
+
+                    <!-- Erro 4 -->
+                    <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                        <h3 class="text-red-300 font-medium mb-2">❌ Conexão desconecta frequentemente</h3>
+                        <p class="text-gray-400 text-sm mb-2">Problemas de rede ou timeout de inatividade.</p>
+                        <p class="text-gray-300 text-sm"><strong>Solução:</strong> Implemente reconexão automática e adicione handlers de erro.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Debug -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="bug" class="w-5 h-5 text-yellow-400"></i>
+                    Debug
+                </h2>
+
+                <p class="text-gray-400 text-sm mb-4">Ative o debug do Socket.IO para ver logs detalhados:</p>
+
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-500 font-mono">Browser Console</span>
+                    <button 
+                        @click="copyToClipboard(`localStorage.setItem('debug', 'socket.io-client:*');`, $event)"
+                        class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                    >
+                        <i data-lucide="copy" class="w-3 h-3"></i>
+                        Copiar
+                    </button>
+                </div>
+                <pre class="bg-gray-900/80 rounded-lg p-4 overflow-x-auto text-sm"><code class="text-emerald-300">localStorage.setItem('debug', 'socket.io-client:*');</code></pre>
+                
+                <p class="text-gray-500 text-xs mt-2">Recarregue a página após executar este comando.</p>
+            </div>
+
+            <!-- FAQ -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6 hidden">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="help-circle" class="w-5 h-5 text-purple-400"></i>
+                    FAQ
+                </h2>
+                
+                <div class="space-y-4">
+                    <div x-data="{ open: false }">
+                        <button @click="open = !open" class="w-full flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-700/50 transition-colors">
+                            <span class="text-gray-300 text-left">Quantas conexões simultâneas posso ter?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform" :class="open && 'rotate-180'"></i>
+                        </button>
+                        <div x-show="open" x-collapse class="mt-2 p-3 text-gray-400 text-sm">
+                            O limite depende do seu plano. Consulte a página de planos para ver os limites de conexões simultâneas por aplicação.
+                        </div>
+                    </div>
+
+                    <div x-data="{ open: false }">
+                        <button @click="open = !open" class="w-full flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-700/50 transition-colors">
+                            <span class="text-gray-300 text-left">As mensagens são persistidas?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform" :class="open && 'rotate-180'"></i>
+                        </button>
+                        <div x-show="open" x-collapse class="mt-2 p-3 text-gray-400 text-sm">
+                            Sim, todas as mensagens são armazenadas de forma persistente. O histórico fica disponível conforme o período de retenção do seu plano.
+                        </div>
+                    </div>
+
+                    <div x-data="{ open: false }">
+                        <button @click="open = !open" class="w-full flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-700/50 transition-colors">
+                            <span class="text-gray-300 text-left">Posso usar a mesma APP Key em múltiplos projetos?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform" :class="open && 'rotate-180'"></i>
+                        </button>
+                        <div x-show="open" x-collapse class="mt-2 p-3 text-gray-400 text-sm">
+                            Tecnicamente sim, mas recomendamos criar uma aplicação separada para cada projeto. Isso facilita o monitoramento de uso e permite revogar acesso individualmente.
+                        </div>
+                    </div>
+
+                    <div x-data="{ open: false }">
+                        <button @click="open = !open" class="w-full flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-700/50 transition-colors">
+                            <span class="text-gray-300 text-left">O serviço tem SLA de disponibilidade?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform" :class="open && 'rotate-180'"></i>
+                        </button>
+                        <div x-show="open" x-collapse class="mt-2 p-3 text-gray-400 text-sm">
+                            Sim, garantimos 99.9% de uptime para todos os planos pagos. Consulte nossos termos de serviço para mais detalhes.
+                        </div>
+                    </div>
+
+                    <div x-data="{ open: false }">
+                        <button @click="open = !open" class="w-full flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-700/50 transition-colors">
+                            <span class="text-gray-300 text-left">Como posso monitorar o uso da minha aplicação?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform" :class="open && 'rotate-180'"></i>
+                        </button>
+                        <div x-show="open" x-collapse class="mt-2 p-3 text-gray-400 text-sm">
+                            Acesse o Dashboard para visualizar métricas em tempo real: conexões ativas, mensagens enviadas, salas criadas e mais.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

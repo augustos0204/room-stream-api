@@ -13,6 +13,7 @@ export const API_ROUTE_PREFIXES = [
   '/metrics',   // Metrics endpoints
   '/health',    // Health check endpoint
   '/api',       // Generic API prefix (if used in future)
+  '/application'
 ] as const;
 
 /**

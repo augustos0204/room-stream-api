@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <% const isDev = process.env.NODE_ENV !== 'production'; %>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Theme color para barra de sistema no mobile (Android/iOS) -->
+    <meta name="theme-color" content="<%= isDev ? '#ea580c' : '#1e1b4b' %>">
+    <meta name="color-scheme" content="dark">
+    <meta name="msapplication-navbutton-color" content="<%= isDev ? '#ea580c' : '#1e1b4b' %>">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- PWA Manifest (backend decide qual retornar baseado em NODE_ENV) -->
+    <link rel="manifest" href="/platform/assets/manifest.json">
+    
+    <title><%= appName || 'RoomStream' %><%= isDev ? ' (DEV)' : '' %> - Platform</title>
+    <link rel="icon" type="image/svg+xml" href="/platform/assets/media/<%= isDev ? 'favicon-dev.svg' : 'favicon.svg' %>">
+
+    <!-- External Dependencies -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'float': 'float 2.5s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-4px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/platform/assets/styles/main.css">
+
+    <!-- Hide elements until Alpine initializes -->
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        /* Loader animation */
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+        .loader-pulse { animation: pulse-glow 1.5s ease-in-out infinite; }
+    </style>
+
+    <!-- Centralized Configuration -->
+    <%
+    const config = {
+        supabaseUrl: supabaseUrl || null,
+        supabaseAnonKey: supabaseAnonKey || null,
+        wsNamespace: wsNamespace || '/ws/rooms',
+        appName: appName || 'RoomStream',
+        appVersion: appVersion || '1.0.0',
+        environment: process.env.NODE_ENV || 'development'
+    };
+
+    const features = {
+        supabaseAuth: !!(supabaseUrl && supabaseAnonKey),
+        apiKeyAuth: !!apiKey
+    };
+    
+    // Páginas disponíveis (descobertas pelo PagesService)
+    const validPages = availablePages || ['index', 'dashboard', 'rooms', 'applications'];
+    %>
+
+    <script>
+        // Centralized configuration
+        window.ENV = <%- JSON.stringify(config) %>;
+        
+        // Available authentication methods
+        window.AUTH_FEATURES = <%- JSON.stringify(features) %>;
+
+        // Pre-loaded initial data
+        window.INITIAL_DATA = {
+            rooms: <%- JSON.stringify(initialRooms || []) %>,
+            serverTime: '<%= serverTime || new Date().toISOString() %>',
+            timestamp: Date.now()
+        };
+        
+        // SPA Routing - página inicial definida pelo servidor
+        window.INITIAL_PAGE = '<%= currentPage || "dashboard" %>';
+        window.VALID_PAGES = <%- JSON.stringify(availablePages || []) %>;
+        window.SPA_PAGES = <%- JSON.stringify(spaPages || []) %>;
+    </script>
+
+    <% if (features.supabaseAuth) { %>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <% } %>
+</head>
+
+<body class="bg-slate-950 bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-mono overflow-hidden min-h-[100dvh] h-[100dvh]"
+      style="color-scheme: dark;"
+      x-data="platformApp()"
+      x-init="init()">
+
+    <!-- Skip to main content -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-purple-600 px-4 py-2 rounded z-50">
+        Pular para conteúdo principal
+    </a>
+
+    <!-- Loading Screen (enquanto Alpine inicializa) -->
+    <div 
+        x-show="isInitializing"
+        x-transition:leave="transition ease-in duration-300"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950 bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950"
+    >
+        <div class="text-center">
+            <!-- Logo animado -->
+            <div class="loader-pulse mb-6">
+                <%- include('../components/ui/logo', { size: 'lg', withBackground: false, withShadow: true }) %>
+            </div>
+            <!-- Texto de loading -->
+            <p class="text-gray-400 text-sm animate-pulse">Carregando...</p>
+        </div>
+    </div>
+
+    <!-- Full Screen Login Page (quando não autenticado) -->
+    <div 
+        x-cloak
+        x-show="!isInitializing && !apiKey && !supabaseUser"
+        x-transition:enter="transition ease-out duration-500"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+    >
+        <%- include('./login', { features: features }) %>
+    </div>
+
+    <!-- Platform Interface (quando autenticado) -->
+    <div x-cloak x-show="!isInitializing && (apiKey || supabaseUser)" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+
+    <!-- Platform Topbar (Fixed at Top) -->
+    <%- include('../components/layout/topbar', { features: features }) %>
+
+    <!-- Platform Sidebar (Below Topbar) -->
+    <%- include('../components/layout/sidebar') %>
+
+    <!-- Main Content Area -->
+    <main
+        id="main-content"
+        class="transition-all duration-300 pt-[73px] ml-0 lg:ml-16"
+        :class="sidebarPinned && sidebarExpanded ? 'lg:ml-64' : 'lg:ml-16'"
+    >
+        <div class="p-6 h-[calc(100vh-5rem)] overflow-y-auto custom-scrollbar">
+
+            <%# Loop dinâmico de páginas SPA - carrega automaticamente todas as páginas em pages/ %>
+            <% (spaPages || []).forEach(function(pageName) { %>
+                <%# Páginas especiais com condições extras %>
+                <% if (pageName === 'applications') { %>
+                    <!-- Applications Page (Supabase users only) -->
+                    <div x-show="currentPage === '<%= pageName %>' && supabaseUser" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
+                        <%- include('./' + pageName) %>
+                    </div>
+                <% } else { %>
+                    <!-- <%= pageName.charAt(0).toUpperCase() + pageName.slice(1) %> Page -->
+                    <div x-show="currentPage === '<%= pageName %>'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
+                        <%- include('./' + pageName) %>
+                    </div>
+                <% } %>
+            <% }); %>
+
+        </div>
+    </main>
+
+    <!-- FAB Actions (Mobile Only) -->
+    <div class="fixed bottom-6 right-6 flex sm:hidden flex-col-reverse items-center gap-3 z-40">
+        
+        <!-- Dashboard FAB -->
+        <template x-if="currentPage === 'dashboard'">
+            <button
+                @click="fetchMetrics()"
+                :disabled="isLoadingMetrics"
+                class="fab-bubble w-14 h-14 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-full shadow-xl shadow-blue-500/30 flex items-center justify-center transition-all duration-200 active:scale-95"
+                title="Atualizar métricas"
+            >
+                <span class="flex items-center justify-center" :class="isLoadingMetrics ? 'animate-spin' : ''"><i data-lucide="refresh-cw" class="w-6 h-6 text-white"></i></span>
+            </button>
+        </template>
+        
+        <!-- Rooms FAB -->
+        <template x-if="currentPage === 'rooms'">
+            <div class="flex flex-col-reverse items-center gap-3">
+                <button
+                    @click="listRooms()"
+                    :disabled="isLoadingRooms"
+                    class="fab-bubble-delay w-12 h-12 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 active:scale-95"
+                    title="Atualizar lista"
+                >
+                    <span class="flex items-center justify-center" :class="isLoadingRooms ? 'animate-spin' : ''"><i data-lucide="refresh-cw" class="w-5 h-5 text-gray-300"></i></span>
+                </button>
+                <button
+                    @click="showCreateRoomModal = true"
+                    class="fab-bubble w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-full shadow-xl shadow-purple-500/30 flex items-center justify-center transition-all duration-200 active:scale-95"
+                    title="Criar nova sala"
+                >
+                    <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+                </button>
+            </div>
+        </template>
+        
+        <!-- Applications FAB -->
+        <template x-if="currentPage === 'applications' && supabaseUser">
+            <div class="flex flex-col-reverse items-center gap-3">
+                <button
+                    @click="loadApplications()"
+                    :disabled="isLoadingApplications"
+                    class="fab-bubble-delay w-12 h-12 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 active:scale-95"
+                    title="Atualizar lista"
+                >
+                    <span class="flex items-center justify-center" :class="isLoadingApplications ? 'animate-spin' : ''"><i data-lucide="refresh-cw" class="w-5 h-5 text-gray-300"></i></span>
+                </button>
+                <button
+                    @click="showCreateApplicationModal = true"
+                    class="fab-bubble w-14 h-14 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 rounded-full shadow-xl shadow-orange-500/30 flex items-center justify-center transition-all duration-200 active:scale-95"
+                    title="Criar nova aplicação"
+                >
+                    <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+                </button>
+            </div>
+        </template>
+        
+    </div>
+
+    <!-- Modals -->
+    <%- include('../components/modals/create-room') %>
+    <%- include('../components/modals/chat') %>
+    <%- include('../components/modals/shortcuts') %>
+
+    </div>
+    <!-- End Platform Interface -->
+
+    <!-- Profile Modal -->
+    <%- include('../components/modals/profile', { features: features }) %>
+
+    <!-- Load utilities and app -->
+    <script src="/platform/assets/scripts/sanitizer.js"></script>
+    <script src="/platform/assets/scripts/toast.js"></script>
+    <script src="/platform/assets/scripts/platform.js"></script>
+
+    <!-- Initialize Lucide icons after Alpine loads -->
+    <script>
+        document.addEventListener('alpine:init', () => {
+            setTimeout(() => {
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }, 100);
+        });
+
+        // Re-initialize icons on DOM changes (for modals and transitions)
+        setInterval(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

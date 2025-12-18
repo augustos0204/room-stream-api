@@ -1,0 +1,148 @@
+<!-- Rooms Page -->
+<div class="space-y-6 animate-fade-in">
+
+    <!-- Page Header -->
+    <div class="dark-glass rounded-xl border border-gray-700/50 p-4 sm:p-6 md:p-8">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <div class="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0 animate-float">
+                <i data-lucide="layout-grid" class="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-white">Salas</h1>
+                <p class="text-sm sm:text-base text-gray-400">Gerencie e entre nas salas de chat</p>
+            </div>
+        </div>
+        
+        <!-- Stats + Actions (Desktop) -->
+        <div class="hidden sm:flex items-center justify-between mt-4 pt-4 border-t border-gray-700/50">
+            <div class="flex items-center gap-2 text-sm text-gray-500">
+                <i data-lucide="hash" class="w-4 h-4"></i>
+                <span>Total de salas:</span>
+                <span class="font-medium text-purple-400" x-text="rooms.length"></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button
+                    @click="listRooms()"
+                    :disabled="isLoadingRooms"
+                    class="w-9 h-9 flex items-center justify-center hover:bg-gray-700/50 rounded-lg transition-colors border border-gray-700/50"
+                    title="Atualizar lista"
+                >
+                    <span class="flex items-center justify-center" :class="isLoadingRooms ? 'animate-spin' : ''"><i data-lucide="refresh-cw" class="w-5 h-5 text-gray-400"></i></span>
+                </button>
+                <button
+                    @click="showCreateRoomModal = true"
+                    class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-medium text-sm text-white transition-all duration-200 flex items-center gap-2"
+                    title="Criar nova sala"
+                >
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Nova Sala</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Stats Only (Mobile) -->
+        <div class="flex sm:hidden items-center gap-2 text-xs text-gray-500 mt-4">
+            <i data-lucide="hash" class="w-4 h-4"></i>
+            <span>Total de salas:</span>
+            <span class="font-medium text-purple-400" x-text="rooms.length"></span>
+        </div>
+    </div>
+
+
+    <!-- Loading State -->
+    <template x-if="isLoadingRooms">
+        <div class="dark-glass rounded-xl border border-gray-700/50 p-12 text-center">
+            <i data-lucide="loader-2" class="w-12 h-12 text-purple-500 mx-auto mb-4 animate-spin"></i>
+            <p class="text-gray-400">Carregando salas...</p>
+        </div>
+    </template>
+
+    <!-- Empty State -->
+    <template x-if="!isLoadingRooms && rooms.length === 0">
+        <div class="dark-glass rounded-xl border border-gray-700/50 p-12 text-center">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
+                <i data-lucide="inbox" class="w-10 h-10 text-gray-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white mb-2">Nenhuma sala disponível</h3>
+            <p class="text-gray-400 mb-6">Crie a primeira sala para começar!</p>
+            <button
+                @click="showCreateRoomModal = true"
+                class="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-medium transition-all duration-200 inline-flex items-center gap-2"
+            >
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                <span>Criar Sala</span>
+            </button>
+        </div>
+    </template>
+
+    <!-- Rooms Grid -->
+    <template x-if="!isLoadingRooms && rooms.length > 0">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <template x-for="room in rooms" :key="room.id">
+                <div 
+                    @click="!isConnected && (Toast.info('Conectando ao WebSocket...'), toggleConnection()); openRoom(room.id, room.name)"
+                    class="group dark-glass rounded-xl p-5 border border-gray-700/50 hover:border-purple-500/50 transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                    :class="currentRoomId === room.id && 'ring-2 ring-purple-500/50 border-purple-500/50 bg-purple-900/20'"
+                >
+                    <!-- Room Header -->
+                    <div class="flex items-start justify-between gap-3 mb-4">
+                        <div class="flex items-center gap-3 flex-1 min-w-0">
+                            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/25">
+                                <i data-lucide="hash" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-base font-bold text-white truncate group-hover:text-purple-300 transition-colors"
+                                    x-text="room.name"></h3>
+                                <p class="text-xs text-gray-500 font-mono truncate mt-0.5" x-text="room.id"></p>
+                            </div>
+                        </div>
+
+                        <!-- Current Room Badge -->
+                        <template x-if="currentRoomId === room.id">
+                            <div class="flex-shrink-0 px-2 py-1 bg-purple-500/20 border border-purple-500/30 rounded-lg flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                                <span class="text-xs font-medium text-purple-300">Atual</span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Badges Row (Fixed Height) -->
+                    <div class="flex items-center gap-2 mb-4">
+                        <!-- Participants Badge -->
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                            <i data-lucide="users" class="w-3.5 h-3.5 text-blue-400"></i>
+                            <span class="text-xs font-medium text-blue-300" x-text="room.participants.length"></span>
+                        </div>
+
+                        <!-- Active Badge (only if has participants) -->
+                        <template x-if="room.participants.length > 0">
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/20 rounded-lg">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                                <span class="text-xs font-medium text-green-300">Ativa</span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-2">
+                        <button
+                            @click.stop="!isConnected && (Toast.info('Conectando ao WebSocket...'), toggleConnection()); openRoom(room.id, room.name)"
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-medium text-white text-sm transition-all duration-200 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
+                        >
+                            <i data-lucide="log-in" class="w-4 h-4"></i>
+                            <span x-text="currentRoomId === room.id ? 'Abrir Chat' : 'Entrar'"></span>
+                        </button>
+
+                        <button
+                            @click.stop="confirm(`Tem certeza que deseja excluir a sala '${room.name}'?`) && deleteRoom(room.id)"
+                            class="p-2.5 bg-red-600/20 hover:bg-red-600/30 border border-red-700/50 hover:border-red-600/60 rounded-lg transition-all duration-200"
+                            title="Excluir sala"
+                        >
+                            <i data-lucide="trash-2" class="w-4 h-4 text-red-400"></i>
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </template>
+</div>

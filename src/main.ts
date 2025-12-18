@@ -14,10 +14,16 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Configurar EJS como template engine
-  // Configurar múltiplos diretórios de views para suportar partials
+  // Configurar múltiplos diretórios de views para suportar a nova estrutura:
+  // - pages/: Páginas (file-based routing)
+  // - components/: Componentes reutilizáveis
+  // - public/: Arquivos estáticos e páginas de erro
+  // - partials/: Legacy partials (para compatibilidade)
   app.setBaseViewsDir([
-    path.join(__dirname, 'views', 'public'),
-    path.join(__dirname, 'views'),
+    path.join(__dirname, 'platform'),
+    path.join(__dirname, 'platform', 'pages'),
+    path.join(__dirname, 'platform', 'components'),
+    path.join(__dirname, 'platform', 'public'),
   ]);
   app.setViewEngine('ejs');
 
@@ -120,7 +126,7 @@ async function bootstrap() {
 
   const customCssPath = path.join(
     __dirname,
-    'views',
+    'platform',
     'public',
     'styles',
     'swagger.css',
@@ -132,7 +138,7 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, document, {
     customSiteTitle: 'RoomStream API Documentation',
     customCss,
-    customfavIcon: '/view/assets/media/favicon.svg',
+    customfavIcon: '/platform/assets/media/favicon.svg',
     swaggerOptions: {
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',
@@ -148,7 +154,7 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`🚀 Aplicação rodando na porta ${port}`);
-  console.log(`📱 Interface de teste: http://localhost:${port}/view`);
+  console.log(`📱 Interface de teste: http://localhost:${port}/platform`);
   console.log(`📚 Documentação API: http://localhost:${port}/api-docs`);
   console.log(
     `🔌 WebSocket namespace: ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'}`,

@@ -1,0 +1,279 @@
+<!-- Full Screen Login Page -->
+<div class="fixed inset-0 z-[100] bg-slate-950 bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950">
+    <!-- Geometric Flow Background Effect (Dynamic Lifecycle) -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none" x-data="geometricFlow()" x-init="startLifecycle()">
+        <!-- Dynamic Shapes with Lifecycle -->
+        <template x-for="shape in shapes" :key="shape.id">
+            <div
+                class="absolute will-change-transform"
+                :class="{ 'opacity-0': !shape.visible }"
+                :style="`
+                    left: ${shape.x}%;
+                    top: ${shape.y}%;
+                    transition: opacity 1.5s ease-in-out;
+                `"
+            >
+                <!-- Triangle -->
+                <template x-if="shape.type === 'triangle'">
+                    <div 
+                        :style="`
+                            width: 0;
+                            height: 0;
+                            border-left: 6px solid transparent;
+                            border-right: 6px solid transparent;
+                            border-bottom: 10px solid currentColor;
+                            opacity: ${shape.baseOpacity};
+                            animation: geoFloat ${shape.floatDuration}s ease-in-out infinite, geoSpin ${shape.spinDuration}s linear infinite ${shape.spinReverse ? 'reverse' : ''};
+                        `"
+                        :class="loginMethod === 'supabase' ? 'text-green-400' : 'text-purple-400'"
+                    ></div>
+                </template>
+                
+                <!-- Square -->
+                <template x-if="shape.type === 'square'">
+                    <div 
+                        class="w-3 h-3"
+                        :class="loginMethod === 'supabase' ? 'border border-green-400' : 'border border-purple-400'"
+                        :style="`
+                            opacity: ${shape.baseOpacity};
+                            animation: geoFloat ${shape.floatDuration}s ease-in-out infinite, geoSpin ${shape.spinDuration}s linear infinite ${shape.spinReverse ? 'reverse' : ''};
+                        `"
+                    ></div>
+                </template>
+                
+                <!-- Circle -->
+                <template x-if="shape.type === 'circle'">
+                    <div 
+                        class="w-2.5 h-2.5 rounded-full"
+                        :class="loginMethod === 'supabase' ? 'border border-emerald-400' : 'border border-violet-400'"
+                        :style="`
+                            opacity: ${shape.baseOpacity};
+                            animation: geoFloat ${shape.floatDuration}s ease-in-out infinite;
+                        `"
+                    ></div>
+                </template>
+                
+                <!-- Diamond -->
+                <template x-if="shape.type === 'diamond'">
+                    <div 
+                        class="w-2.5 h-2.5"
+                        :class="loginMethod === 'supabase' ? 'border border-teal-400' : 'border border-pink-400'"
+                        :style="`
+                            opacity: ${shape.baseOpacity};
+                            animation: geoFloat ${shape.floatDuration}s ease-in-out infinite, geoDiamondSpin ${shape.spinDuration}s linear infinite ${shape.spinReverse ? 'reverse' : ''};
+                        `"
+                    ></div>
+                </template>
+                
+                <!-- Plus -->
+                <template x-if="shape.type === 'plus'">
+                    <div 
+                        class="text-xs font-light"
+                        :class="loginMethod === 'supabase' ? 'text-green-400' : 'text-purple-400'"
+                        :style="`
+                            opacity: ${shape.baseOpacity};
+                            animation: geoFloat ${shape.floatDuration}s ease-in-out infinite, geoSpin ${shape.spinDuration}s linear infinite ${shape.spinReverse ? 'reverse' : ''};
+                        `"
+                    >+</div>
+                </template>
+                
+                <!-- Dot -->
+                <template x-if="shape.type === 'dot'">
+                    <div 
+                        class="w-1.5 h-1.5 rounded-full"
+                        :class="loginMethod === 'supabase' ? 'bg-emerald-400' : 'bg-violet-400'"
+                        :style="`
+                            opacity: ${shape.baseOpacity};
+                            animation: geoFloat ${shape.floatDuration}s ease-in-out infinite;
+                        `"
+                    ></div>
+                </template>
+                
+                <!-- Hexagon -->
+                <template x-if="shape.type === 'hexagon'">
+                    <div 
+                        class="w-3 h-3"
+                        :class="loginMethod === 'supabase' ? 'bg-green-400/40' : 'bg-purple-400/40'"
+                        :style="`
+                            opacity: ${shape.baseOpacity};
+                            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+                            animation: geoFloat ${shape.floatDuration}s ease-in-out infinite, geoSpin ${shape.spinDuration}s linear infinite ${shape.spinReverse ? 'reverse' : ''};
+                        `"
+                    ></div>
+                </template>
+            </div>
+        </template>
+    </div>
+
+    <!-- Geometric Flow Animations (GPU-accelerated) -->
+    <style>
+        @keyframes geoFloat {
+            0%, 100% { 
+                transform: translate(0, 0); 
+            }
+            25% { 
+                transform: translate(var(--float-x1, 15px), var(--float-y1, -20px)); 
+            }
+            50% { 
+                transform: translate(var(--float-x2, -10px), var(--float-y2, -35px)); 
+            }
+            75% { 
+                transform: translate(var(--float-x3, 20px), var(--float-y3, -15px)); 
+            }
+        }
+        
+        @keyframes geoSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes geoDiamondSpin {
+            from { transform: rotate(45deg); }
+            to { transform: rotate(405deg); }
+        }
+    </style>
+    
+    <!-- Geometric Flow Alpine Component -->
+    <script>
+        function geometricFlow() {
+            const shapeTypes = ['triangle', 'square', 'circle', 'diamond', 'plus', 'dot', 'hexagon'];
+            
+            // Ajusta quantidade baseado no tamanho da tela
+            const isMobile = window.innerWidth < 768;
+            const isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
+            
+            let shapesPerType;
+            let updateInterval;
+            let shapesPerUpdate;
+            
+            if (isMobile) {
+                shapesPerType = 8;      // 56 formas total no mobile
+                updateInterval = 1200;   // Atualiza mais devagar
+                shapesPerUpdate = [2, 4]; // 2-4 formas por ciclo
+            } else if (isTablet) {
+                shapesPerType = 15;     // 105 formas total no tablet
+                updateInterval = 1000;
+                shapesPerUpdate = [2, 6]; // 2-6 formas por ciclo
+            } else {
+                shapesPerType = 30;     // 210 formas total no desktop
+                updateInterval = 800;
+                shapesPerUpdate = [3, 10]; // 3-10 formas por ciclo
+            }
+            
+            function createShape(id, type) {
+                return {
+                    id,
+                    type,
+                    x: Math.random() * 90 + 5,
+                    y: Math.random() * 90 + 5,
+                    baseOpacity: (Math.random() * 0.3 + 0.15).toFixed(2),
+                    floatDuration: Math.random() * 8 + 6, // 6-14s
+                    spinDuration: Math.random() * 40 + 30, // 30-70s (bem devagar)
+                    spinReverse: Math.random() > 0.5,
+                    visible: true,
+                };
+            }
+            
+            // Criar formas iniciais
+            const shapes = [];
+            let idCounter = 0;
+            shapeTypes.forEach(type => {
+                for (let i = 0; i < shapesPerType; i++) {
+                    const shape = createShape(idCounter++, type);
+                    // Delay inicial aleatório para não aparecerem todas juntas
+                    shape.visible = Math.random() > 0.3;
+                    shapes.push(shape);
+                }
+            });
+            
+            return {
+                shapes,
+                idCounter,
+                
+                startLifecycle() {
+                    setInterval(() => {
+                        const numToUpdate = Math.floor(Math.random() * (shapesPerUpdate[1] - shapesPerUpdate[0] + 1)) + shapesPerUpdate[0];
+                        
+                        for (let i = 0; i < numToUpdate; i++) {
+                            const randomIndex = Math.floor(Math.random() * this.shapes.length);
+                            const shape = this.shapes[randomIndex];
+                            
+                            if (shape.visible) {
+                                // Começar fade out
+                                shape.visible = false;
+                                
+                                // Após fade out, reposicionar e fade in
+                                setTimeout(() => {
+                                    shape.x = Math.random() * 90 + 5;
+                                    shape.y = Math.random() * 90 + 5;
+                                    shape.floatDuration = Math.random() * 8 + 6;
+                                    shape.spinDuration = Math.random() * 40 + 30;
+                                    shape.spinReverse = Math.random() > 0.5;
+                                    shape.baseOpacity = (Math.random() * 0.3 + 0.15).toFixed(2);
+                                    
+                                    // Pequeno delay antes de reaparecer
+                                    setTimeout(() => {
+                                        shape.visible = true;
+                                    }, Math.random() * 1000 + 500);
+                                }, 1500); // Tempo do fade out
+                            }
+                        }
+                    }, updateInterval);
+                }
+            };
+        }
+    </script>
+
+    <!-- Desktop: Side-by-Side Layout -->
+    <div class="hidden md:grid md:grid-cols-2 md:gap-12 lg:gap-16 md:px-8 lg:px-16 xl:px-24 h-[100dvh]">
+        <!-- Left Side: Logo & Welcome -->
+        <div class="flex flex-col items-center justify-center text-center animate-slide-up py-8">
+            <div class="mb-8 animate-float">
+                <%- include('../components/ui/logo', { size: 'xl', className: '!w-32 !h-32 lg:!w-32 lg:!h-32' }) %>
+            </div>
+            <h1 class="text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                Bem-vindo ao<br/>RoomStream
+            </h1>
+            <p class="text-base lg:text-lg text-gray-400 mb-8 max-w-md">Faça login para acessar a plataforma de chat em tempo real</p>
+        </div>
+
+        <!-- Right Side: Login Form -->
+        <div class="flex items-center justify-center py-8">
+            <div class="w-full max-w-md">
+                <!-- Login Card -->
+                <div class="dark-glass rounded-2xl border border-gray-700/50 p-8 shadow-2xl animate-slide-up" style="animation-delay: 0.1s;">
+                    <%- include('../components/forms/login-form') %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile: Fixed Bottom Sheet Layout -->
+    <div class="md:hidden flex flex-col h-[100dvh]">
+        <!-- Top: Logo & Welcome (Scrollable) -->
+        <div class="flex-1 overflow-y-auto flex items-center justify-center p-6">
+            <div class="w-full max-w-md text-center">
+                <div class="inline-flex items-center justify-center mb-6 animate-float">
+                    <%- include('../components/ui/logo', { size: 'lg' }) %>
+                </div>
+                <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                    Bem-vindo ao RoomStream
+                </h1>
+                <p class="text-gray-400">Faça login para acessar a plataforma</p>
+            </div>
+        </div>
+
+        <!-- Bottom: Login Form (Dynamic Height Bottom Sheet) -->
+        <div class="flex-shrink-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700/50 rounded-t-3xl shadow-2xl max-h-[80vh] pb-6">
+            <!-- Decorative Handle -->
+            <div class="flex justify-center py-3">
+                <div class="w-12 h-1.5 rounded-full bg-gray-600"></div>
+            </div>
+
+            <!-- Form Content (altura dinâmica com limite) -->
+            <div class="px-6 pb-6 pb-safe overflow-y-auto custom-scrollbar">
+                <%- include('../components/forms/login-form') %>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoomStream - WS Tester</title>
+    <link rel="icon" type="image/svg+xml" href="/platform/assets/media/favicon.svg">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'spin-slow': 'spin 3s linear infinite',
+                        'float': 'float 2.5s ease-in-out infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-4px)' }
+                        },
+                        glow: {
+                            '0%': { boxShadow: '0 0 5px rgba(139, 92, 246, 0.5)' },
+                            '100%': { boxShadow: '0 0 20px rgba(139, 92, 246, 0.8), 0 0 30px rgba(139, 92, 246, 0.4)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/platform/assets/styles/main.css">
+</head>
+<body class="bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-mono min-h-screen" x-data="socketTester()" x-init="init()">
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-purple-600 px-4 py-2 rounded">
+        Pular para conteúdo principal
+    </a>
+    <!-- Fixed Header -->
+    <header class="fixed top-0 w-full dark-glass z-50 shadow-2xl" role="banner">
+        <!-- Main Header Bar -->
+        <div class="flex justify-between items-center px-6 py-3">
+            <!-- Logo RoomStream -->
+            <div class="flex items-center gap-3 animate-float">
+                <div class="logo-icon relative w-10 h-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-full h-full">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+
+                        <!-- Background rounded square -->
+                        <rect width="100" height="100" rx="20" fill="url(#grad1)"/>
+
+                        <!-- Rotated square (diamond) in center -->
+                        <rect x="35" y="35" width="30" height="30"
+                              transform="rotate(45 50 50)"
+                              fill="none"
+                              stroke="#ffffff"
+                              stroke-width="3"
+                              opacity="0.9"/>
+
+                        <!-- Central pulsing dot -->
+                        <circle cx="50" cy="50" r="5" fill="#ffffff">
+                            <animate attributeName="opacity"
+                                     values="1;0.3;1"
+                                     dur="2s"
+                                     repeatCount="indefinite"/>
+                        </circle>
+
+                        <!-- Connection lines (stream concept) -->
+                        <path d="M 20 30 Q 35 30 50 50"
+                              stroke="url(#grad2)"
+                              stroke-width="2"
+                              fill="none"
+                              opacity="0.6"/>
+                        <path d="M 80 30 Q 65 30 50 50"
+                              stroke="url(#grad2)"
+                              stroke-width="2"
+                              fill="none"
+                              opacity="0.6"/>
+                        <path d="M 50 50 Q 50 65 30 80"
+                              stroke="url(#grad2)"
+                              stroke-width="2"
+                              fill="none"
+                              opacity="0.6"/>
+                        <path d="M 50 50 Q 50 65 70 80"
+                              stroke="url(#grad2)"
+                              stroke-width="2"
+                              fill="none"
+                              opacity="0.6"/>
+                    </svg>
+                </div>
+                <div class="flex flex-col">
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                        RoomStream
+                    </h1>
+                    <span class="text-xs text-gray-400 -mt-1">WebSocket Tester</span>
+                </div>
+            </div>
+
+            <!-- Desktop Controls - Right Aligned -->
+            <div class="hidden lg:flex items-center gap-2 flex-1 justify-end">
+                <!-- Expandable Inputs Container (appears to the left of buttons) -->
+                <div class="flex items-center gap-2 mr-2">
+                    <!-- API Key Input -->
+                    <div x-show="configExpanded.apiKey"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 transform scale-x-0"
+                         x-transition:enter-end="opacity-100 transform scale-x-100"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 transform scale-x-100"
+                         x-transition:leave-end="opacity-0 transform scale-x-0"
+                         class="origin-right">
+                        <input x-model="apiKey"
+                               type="password"
+                               placeholder="API Key (opcional)"
+                               class="w-64 bg-purple-900/30 text-white px-3 py-2 rounded-lg border border-purple-500/50 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20 transition-all text-sm backdrop-blur-sm">
+                    </div>
+
+                    <!-- Base URL Input -->
+                    <div x-show="configExpanded.baseUrl"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 transform scale-x-0"
+                         x-transition:enter-end="opacity-100 transform scale-x-100"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 transform scale-x-100"
+                         x-transition:leave-end="opacity-0 transform scale-x-0"
+                         class="origin-right">
+                        <input x-model="baseUrl"
+                               type="text"
+                               placeholder="http://localhost:3000"
+                               class="w-64 bg-blue-900/30 text-white px-3 py-2 rounded-lg border border-blue-500/50 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all text-sm backdrop-blur-sm">
+                    </div>
+
+                    <!-- Namespace Input -->
+                    <div x-show="configExpanded.namespace"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 transform scale-x-0"
+                         x-transition:enter-end="opacity-100 transform scale-x-100"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 transform scale-x-100"
+                         x-transition:leave-end="opacity-0 transform scale-x-0"
+                         class="origin-right">
+                        <input x-model="wsNamespace"
+                               type="text"
+                               placeholder="/ws/rooms"
+                               class="w-48 bg-cyan-900/30 text-white px-3 py-2 rounded-lg border border-cyan-500/50 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-all text-sm backdrop-blur-sm">
+                    </div>
+                </div>
+
+                <!-- Config Buttons -->
+                <div class="flex items-center gap-2">
+<% if (supabaseUrl && supabaseAnonKey) { %>
+                    <!-- Supabase Login Button -->
+                    <button @click="showSupabaseModal = true"
+                            class="p-2 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95"
+                            :class="supabaseToken ? 'bg-green-600 text-white shadow-lg shadow-green-500/50' : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white'"
+                            title="Login Supabase">
+                        <i data-lucide="user-check" class="w-4 h-4"></i>
+                    </button>
+<% } %>
+                    <!-- API Key Button -->
+                    <button @click="configExpanded.apiKey = !configExpanded.apiKey"
+                            class="p-2 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95"
+                            :class="configExpanded.apiKey ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50' : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white'"
+                            title="API Key">
+                        <i data-lucide="key" class="w-4 h-4"></i>
+                    </button>
+
+                    <!-- Base URL Button -->
+                    <button @click="configExpanded.baseUrl = !configExpanded.baseUrl"
+                            class="p-2 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95"
+                            :class="configExpanded.baseUrl ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white'"
+                            title="Base URL">
+                        <i data-lucide="server" class="w-4 h-4"></i>
+                    </button>
+
+                    <!-- Namespace Button -->
+                    <button @click="configExpanded.namespace = !configExpanded.namespace"
+                            class="p-2 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95"
+                            :class="configExpanded.namespace ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/50' : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white'"
+                            title="WebSocket Namespace">
+                        <i data-lucide="radio" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Connect Button -->
+                <button @click="toggleConnection()"
+                        class="relative px-4 py-2 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 text-sm flex-shrink-0"
+                        :class="isConnected ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-500/25' : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg shadow-emerald-500/25'">
+                    <span class="flex items-center gap-2">
+                        <i :data-lucide="isConnected ? 'wifi-off' : 'wifi'" class="w-4 h-4"></i>
+                        <span x-text="isConnected ? 'Disconnect' : 'Connect'"></span>
+                    </span>
+                    <div x-show="connecting" class="absolute inset-0 flex items-center justify-center bg-gray-600/90 rounded-lg backdrop-blur-sm">
+                        <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Mobile Controls -->
+            <div class="lg:hidden flex items-center gap-2">
+                <!-- URL Config Button for Mobile -->
+                <button @click="urlInputExpanded = !urlInputExpanded"
+                        class="p-2 rounded-lg transition-all transform hover:scale-105 active:scale-95"
+                        :class="urlInputExpanded ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50' : 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 hover:text-white'"
+                        title="Configurar URL do WebSocket">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                </button>
+
+<% if (supabaseUrl && supabaseAnonKey) { %>
+                <!-- Supabase Login Button Mobile -->
+                <button @click="showSupabaseModal = true"
+                        class="p-2 rounded-lg transition-all transform hover:scale-105 active:scale-95"
+                        :class="supabaseToken ? 'bg-green-600 text-white shadow-lg shadow-green-500/50' : 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 hover:text-white'"
+                        title="Login Supabase">
+                    <i data-lucide="user-check" class="w-4 h-4"></i>
+                </button>
+<% } %>
+
+                <!-- Connect Button Mobile -->
+                <button @click="toggleConnection()"
+                        class="relative p-2 rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95"
+                        :class="isConnected ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-500/25' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25'">
+                    <i :data-lucide="isConnected ? 'wifi-off' : 'wifi'" class="w-4 h-4"></i>
+                    <div x-show="connecting" class="absolute inset-0 flex items-center justify-center bg-gray-600/90 rounded-lg backdrop-blur-sm">
+                        <div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Expanded URL Input -->
+        <div x-show="urlInputExpanded"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 transform scale-95"
+             x-transition:enter-end="opacity-100 transform scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 transform scale-100"
+             x-transition:leave-end="opacity-0 transform scale-95"
+             class="lg:hidden px-6 py-3 space-y-3 border-b border-gray-700/50">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-300">Configurar Conexão</span>
+            </div>
+
+            <!-- API Key Input -->
+            <div class="flex items-center gap-2">
+                <i data-lucide="key" class="w-4 h-4 text-purple-400 flex-shrink-0"></i>
+                <input x-model="apiKey"
+                       type="password"
+                       placeholder="API Key (opcional)"
+                       @keydown.escape="urlInputExpanded = false"
+                       class="flex-1 bg-gray-800/50 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20 transition-all text-sm">
+            </div>
+
+            <!-- Base URL Input -->
+            <div class="flex items-center gap-2">
+                <i data-lucide="server" class="w-4 h-4 text-blue-400 flex-shrink-0"></i>
+                <input x-model="baseUrl"
+                       type="text"
+                       placeholder="Base URL (ex: http://localhost:3000)"
+                       @keydown.escape="urlInputExpanded = false"
+                       class="flex-1 bg-gray-800/50 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all text-sm">
+            </div>
+
+            <!-- WebSocket Path Input -->
+            <div class="flex items-center gap-2">
+                <i data-lucide="radio" class="w-4 h-4 text-cyan-400 flex-shrink-0"></i>
+                <input x-model="wsNamespace"
+                       x-ref="urlInput"
+                       type="text"
+                       placeholder="/ws/rooms"
+                       @keydown.escape="urlInputExpanded = false"
+                       @keydown.enter="urlInputExpanded = false"
+                       class="flex-1 bg-gray-800/50 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-all text-sm">
+            </div>
+
+            <!-- Connect Button -->
+            <button @click="toggleConnection(); urlInputExpanded = false"
+                    class="w-full relative px-4 py-2 rounded-lg font-semibold transition-all duration-300 text-sm"
+                    :class="isConnected ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-500/25' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25'">
+                <span class="flex items-center justify-center gap-2">
+                    <i :data-lucide="isConnected ? 'wifi-off' : 'wifi'" class="w-4 h-4"></i>
+                    <span x-text="isConnected ? 'Desconectar' : 'Conectar'"></span>
+                </span>
+            </button>
+        </div>
+    </header>
+    
+    <!-- Mobile Navigation Tabs -->
+    <nav class="lg:hidden fixed top-16 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-md border-b border-gray-700/50" role="navigation" aria-label="Navegação principal">
+        <div class="flex">
+            <button @click="setMobileSection('rooms')" 
+                    class="flex-1 py-3 px-4 text-sm font-medium transition-all"
+                    :class="mobileSection === 'rooms' ? 'text-purple-400 bg-purple-900/30 border-b-2 border-purple-400' : 'text-gray-400 hover:text-gray-200'">
+                <div class="flex items-center justify-center gap-2">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span>Salas</span>
+                    <span x-show="rooms.length > 0" class="px-1.5 py-0.5 bg-purple-600/20 text-purple-300 rounded-full text-xs" x-text="rooms.length"></span>
+                </div>
+            </button>
+            
+            <button @click="setMobileSection('chat')" 
+                    :disabled="!currentRoomId"
+                    class="flex-1 py-3 px-4 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    :class="mobileSection === 'chat' ? 'text-yellow-400 bg-yellow-900/30 border-b-2 border-yellow-400' : 'text-gray-400 hover:text-gray-200'">
+                <div class="flex items-center justify-center gap-2">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i>
+                    <span>Chat</span>
+                    <span x-show="currentRoomId" class="px-1.5 py-0.5 bg-yellow-600/20 text-yellow-300 rounded-full text-xs">●</span>
+                </div>
+            </button>
+            
+            <button @click="setMobileSection('participants')" 
+                    :disabled="!currentRoomId"
+                    class="flex-1 py-3 px-4 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    :class="mobileSection === 'participants' ? 'text-blue-400 bg-blue-900/30 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'">
+                <div class="flex items-center justify-center gap-2">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span>Participantes</span>
+                    <span x-show="roomParticipants.length > 0" class="px-1.5 py-0.5 bg-blue-600/20 text-blue-300 rounded-full text-xs" x-text="roomParticipants.length"></span>
+                </div>
+            </button>
+        </div>
+    </nav>
+
+    <main id="main-content" class="w-full px-4 pt-32 lg:pt-20" role="main">
+
+        <!-- Mobile Layout - One section at a time -->
+        <div class="lg:hidden h-[calc(100vh-8rem)]">
+            <!-- Mobile sections will be implemented next -->
+            <!-- Rooms Section Mobile -->
+            <div x-show="mobileSection === 'rooms'" class="h-full">
+                <div class="dark-glass rounded-xl shadow-2xl animate-slide-up h-full flex flex-col overflow-hidden">
+                    <!-- Header with refresh -->
+                    <div class="flex-shrink-0 p-4 pb-3 border-b border-purple-500/30">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="users" class="w-5 h-5 text-purple-400"></i>
+                                <h2 class="text-lg font-semibold text-purple-400">Salas</h2>
+                            </div>
+                            <button @click="listRooms()" 
+                                    class="p-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm transition-all duration-200 transform hover:scale-105 active:scale-95"
+                                    title="Atualizar lista de salas">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- User Profile -->
+                    <div class="flex-shrink-0 p-4 border-b border-purple-500/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-300">Meu Nome</label>
+                            <span x-show="supabaseUser" class="flex items-center gap-1 text-xs text-green-400">
+                                <i data-lucide="shield-check" class="w-3 h-3"></i>
+                                Supabase
+                            </span>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="flex-1 relative">
+                                <i data-lucide="user" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                                <input x-model="participantName"
+                                       type="text"
+                                       placeholder="Seu nome"
+                                       :disabled="!!supabaseUser"
+                                       @keydown.enter="updateMyName()"
+                                       class="w-full pl-10 pr-3 py-2 text-white rounded-lg border border-gray-600 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                       :class="supabaseUser ? 'bg-gray-800' : 'bg-gray-700'">
+                            </div>
+                            <button @click="updateMyName()"
+                                    :disabled="!isConnected || !currentRoomId || !!supabaseUser"
+                                    class="px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/25 disabled:shadow-none disabled:cursor-not-allowed"
+                                    title="Atualizar nome na sala atual">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1" x-show="!participantName?.trim() && !supabaseUser">Você aparecerá como "Anônimo"</p>
+                        <p class="text-xs text-green-400 mt-1" x-show="supabaseUser">Nome gerenciado pelo Supabase</p>
+                    </div>
+                    
+                    <!-- Create Room -->
+                    <div class="flex-shrink-0 p-4 border-b border-purple-500/30">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Nova Sala</label>
+                        <div class="flex gap-2">
+                            <div class="flex-1 relative">
+                                <i data-lucide="plus-circle" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                                <input x-model="newRoomName" type="text" placeholder="Nome da sala" 
+                                       @keydown.enter="createRoom()"
+                                       class="w-full pl-10 pr-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20 transition-all">
+                            </div>
+                            <button @click="createRoom()" :disabled="!newRoomName.trim()" 
+                                    class="px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/25 disabled:shadow-none disabled:cursor-not-allowed">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Rooms List -->
+                    <div class="flex-1 overflow-hidden flex flex-col">
+                        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-sm font-medium text-gray-300">Salas Disponíveis</span>
+                                <span x-show="rooms.length > 0" 
+                                      class="px-2 py-1 bg-purple-600/20 text-purple-300 rounded-full text-xs"
+                                      x-text="rooms.length"></span>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <template x-if="rooms.length === 0">
+                                    <div class="text-center text-gray-500 py-8">
+                                        <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                                        <p class="text-sm">Nenhuma sala encontrada</p>
+                                    </div>
+                                </template>
+                                
+                                <template x-for="room in rooms" :key="room.id">
+                                    <div class="group relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-xl p-4 border transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-0.5"
+                                         :class="currentRoomId === room.id ? 'border-purple-500/60 bg-purple-900/30 shadow-lg shadow-purple-500/20' : 'border-gray-700/50 hover:border-gray-600/80'">
+                                        <!-- Gradient overlay on hover -->
+                                        <div class="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-blue-500/0 group-hover:from-purple-500/5 group-hover:to-blue-500/5 rounded-xl transition-all duration-300"></div>
+
+                                        <div class="relative flex flex-col gap-3">
+                                            <!-- Header -->
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center gap-2 mb-1.5">
+                                                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
+                                                            <i data-lucide="hash" class="w-4 h-4 text-purple-400"></i>
+                                                        </div>
+                                                        <h3 class="font-semibold text-white text-base truncate" x-text="room.name"></h3>
+                                                    </div>
+                                                    <p class="text-xs text-gray-500 font-mono truncate" x-text="room.id"></p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Info and Actions -->
+                                            <div class="flex items-center justify-between gap-3 pt-2 border-t border-gray-700/50">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="flex items-center gap-1.5 px-2.5 py-1 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                                                        <i data-lucide="users" class="w-3.5 h-3.5 text-blue-400"></i>
+                                                        <span class="text-xs font-medium text-gray-300" x-text="room.participants.length"></span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex items-center gap-2">
+                                                    <button @click="openRoom(room.id, room.name); setMobileSection('chat')"
+                                                            :disabled="!isConnected"
+                                                            class="px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg text-xs font-medium transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-green-500/25 disabled:shadow-none disabled:cursor-not-allowed flex items-center gap-1.5">
+                                                        <span>Abrir</span>
+                                                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                                                    </button>
+                                                    <button @click="if(confirm(`Tem certeza que deseja excluir a sala '${room.name}'?`)) { deleteRoom(room.id) }"
+                                                            class="p-1.5 bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-600 hover:to-red-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg text-xs transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-red-500/20 disabled:shadow-none disabled:cursor-not-allowed flex items-center"
+                                                            title="Excluir sala">
+                                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Chat Section Mobile -->
+            <div x-show="mobileSection === 'chat'" class="h-full flex flex-col">
+                <!-- Room Header -->
+                <div x-show="currentRoomId" class="flex-shrink-0 dark-glass rounded-xl p-4 mb-4 shadow-xl animate-slide-up">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="hash" class="w-5 h-5 text-yellow-400"></i>
+                            <h2 class="text-lg font-semibold text-yellow-400 truncate" x-text="currentRoomName || 'Sala'"></h2>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button @click="getRoomInfo()" :disabled="!isConnected" 
+                                    class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 text-white rounded text-xs transition-all">
+                                <i data-lucide="info" class="w-3 h-3"></i>
+                            </button>
+                            <button @click="leaveCurrentRoom(); setMobileSection('rooms')" 
+                                    class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-all">
+                                <i data-lucide="log-out" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Event Logs -->
+                <div x-show="currentRoomId" class="flex-1 dark-glass rounded-xl shadow-xl animate-slide-up mb-4 flex flex-col overflow-hidden">
+                    <!-- Log Header -->
+                    <div class="flex-shrink-0 p-4 pb-3 border-b border-purple-500/30">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="terminal" class="w-5 h-5 text-gray-300"></i>
+                                <h2 class="text-lg font-semibold text-gray-300">Chat</h2>
+                                <span x-show="roomLogs.length > 0" 
+                                      class="px-2 py-1 bg-gray-600/20 text-gray-300 rounded-full text-xs"
+                                      x-text="roomLogs.length"></span>
+                            </div>
+                            <button @click="clearRoomLogs()" 
+                                    class="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm transition-all">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Log Content -->
+                    <div class="flex-1 overflow-y-auto bg-gray-900 m-4 rounded-lg p-4 border border-gray-700 custom-scrollbar" x-ref="roomLogContainer">
+                        <template x-if="roomLogs.length === 0">
+                            <div class="flex flex-col items-center justify-center h-full text-gray-500">
+                                <i data-lucide="message-square" class="w-12 h-12 mb-4 opacity-50"></i>
+                                <p class="text-center">Aguardando mensagens...</p>
+                            </div>
+                        </template>
+                        
+                        <div class="space-y-3">
+                            <template x-for="(log, index) in roomLogs" :key="index">
+                                <div class="animate-fade-in">
+                                    <!-- System Messages -->
+                                    <template x-if="log.type === 'info' || log.type === 'success'">
+                                        <div class="rounded-lg p-3 border-l-4" 
+                                             :class="log.type === 'info' ? 'bg-blue-900/30 border-l-blue-400' : 'bg-green-900/30 border-l-green-400'">
+                                            <div class="text-sm" :class="log.type === 'info' ? 'text-blue-100' : 'text-green-100'" x-html="log.message"></div>
+                                            <div class="text-xs text-gray-400 mt-1" x-text="log.fullTimestamp"></div>
+                                        </div>
+                                    </template>
+                                    
+                                    <!-- User Messages -->
+                                    <template x-if="log.type === 'user_message'">
+                                        <div class="bg-gray-800/40 rounded-lg p-3 border border-gray-700/50">
+                                            <div class="flex items-start gap-3">
+                                                <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                                    <i data-lucide="user" class="w-4 h-4 text-white"></i>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center gap-2 mb-1">
+                                                        <span class="font-semibold text-white text-sm" x-text="log.displayName || log.sender || 'Usuário Anônimo'"></span>
+                                                        <span x-show="log.isMe" class="px-2 py-0.5 bg-purple-600/20 text-purple-300 rounded text-xs">Você</span>
+                                                    </div>
+                                                    <div class="text-sm text-gray-100 break-words" x-text="log.message"></div>
+                                                    <div class="text-xs text-gray-400 mt-1" x-text="log.fullTimestamp"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Message Input -->
+                <div x-show="currentRoomId" class="flex-shrink-0 dark-glass rounded-xl p-4 shadow-xl animate-slide-up">
+                    <div class="flex items-stretch gap-3">
+                        <div class="flex-1 relative">
+                            <textarea x-model="message" placeholder="Digite sua mensagem..." rows="2"
+                                      @keydown.ctrl.enter="sendMessage()"
+                                      @keydown.cmd.enter="sendMessage()"
+                                      class="w-full h-full bg-gray-700 text-white px-3 py-2 pr-16 rounded-lg border border-gray-600 focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400/20 transition-all resize-none"></textarea>
+                            <div class="absolute bottom-2 right-2 text-xs text-gray-400">
+                                <span class="hidden sm:inline">Ctrl+</span>Enter
+                            </div>
+                        </div>
+                        <button @click="sendMessage()" :disabled="!isConnected || !currentRoomId || !message.trim()"
+                                class="px-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all shadow-lg disabled:shadow-none disabled:cursor-not-allowed flex items-center gap-2">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span class="hidden sm:inline">Enviar</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- No room selected placeholder -->
+                <div x-show="!currentRoomId" class="flex-1 flex items-center justify-center">
+                    <div class="text-center text-gray-500 p-8">
+                        <i data-lucide="message-square-plus" class="w-16 h-16 mx-auto mb-4 opacity-50"></i>
+                        <h3 class="text-lg font-semibold mb-2">Selecione uma Sala</h3>
+                        <p class="text-sm mb-4">Vá para "Salas" para escolher uma sala e começar a conversar</p>
+                        <button @click="setMobileSection('rooms')" 
+                                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all">
+                            Ver Salas
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Participants Section Mobile -->
+            <div x-show="mobileSection === 'participants'" class="h-full">
+                <div x-show="currentRoomId" class="dark-glass rounded-xl shadow-2xl animate-slide-up h-full flex flex-col overflow-hidden">
+                    <!-- Header with refresh -->
+                    <div class="flex-shrink-0 p-4 pb-3 border-b border-purple-500/30">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="users" class="w-5 h-5 text-blue-400"></i>
+                                <h2 class="text-lg font-semibold text-blue-400">Participantes</h2>
+                                <span x-show="roomParticipants.length > 0" 
+                                      class="px-2 py-1 bg-blue-600/20 text-blue-300 rounded-full text-xs"
+                                      x-text="roomParticipants.length"></span>
+                            </div>
+                            <button @click="getRoomInfo()" :disabled="!isConnected"
+                                    class="p-2 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 text-white rounded-lg text-sm transition-all duration-200 transform hover:scale-105 active:scale-95"
+                                    title="Atualizar lista de participantes">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Participants List -->
+                    <div class="flex-1 overflow-hidden flex flex-col">
+                        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            <template x-if="roomParticipants.length === 0">
+                                <div class="text-center text-gray-500 py-8">
+                                    <i data-lucide="user-x" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                                    <p class="text-sm">Nenhum participante</p>
+                                </div>
+                            </template>
+                            
+                            <div class="space-y-3">
+                                <template x-for="participant in roomParticipants" :key="participant.clientId">
+                                    <div class="bg-gray-900/50 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors"
+                                         :class="participant.clientId === socket?.id ? 'border-blue-500 bg-blue-900/20' : ''">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                                <i data-lucide="user" class="w-5 h-5 text-white"></i>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <p class="font-medium text-white text-base" 
+                                                       x-text="participant.name || 'Usuário Anônimo'"></p>
+                                                    <span x-show="participant.clientId === socket?.id" 
+                                                          class="px-2 py-1 bg-blue-600/20 text-blue-300 rounded text-xs font-semibold">Você</span>
+                                                </div>
+                                                <p class="text-sm text-gray-400 font-mono" x-text="'ID: ' + participant.clientId"></p>
+                                            </div>
+                                            <div class="flex flex-col items-end gap-1">
+                                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Online"></div>
+                                                <span class="text-xs text-gray-500">Online</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- No room selected placeholder -->
+                <div x-show="!currentRoomId" class="flex-1 flex items-center justify-center">
+                    <div class="text-center text-gray-500 p-8">
+                        <i data-lucide="users-x" class="w-16 h-16 mx-auto mb-4 opacity-50"></i>
+                        <h3 class="text-lg font-semibold mb-2">Nenhuma Sala Selecionada</h3>
+                        <p class="text-sm mb-4">Entre em uma sala para ver os participantes</p>
+                        <button @click="setMobileSection('rooms')" 
+                                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all">
+                            Ver Salas
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Desktop Layout - Three Column Layout -->
+        <div class="hidden lg:flex gap-4 h-[calc(100vh-6rem)] overflow-hidden max-w-none">
+            <!-- Left Sidebar - User Profile & Room Management -->
+            <div class="w-80 flex-shrink-0">
+                <div class="dark-glass rounded-xl shadow-2xl animate-slide-up h-full flex flex-col overflow-hidden">
+                    <!-- Header with refresh -->
+                    <div class="flex-shrink-0 p-4 pb-3 border-b border-purple-500/30">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="users" class="w-5 h-5 text-purple-400"></i>
+                                <h2 class="text-lg font-semibold text-purple-400">Salas</h2>
+                            </div>
+                            <button @click="listRooms()" 
+                                    class="p-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm transition-all duration-200 transform hover:scale-105 active:scale-95"
+                                    title="Atualizar lista de salas">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- User Profile -->
+                    <div class="flex-shrink-0 p-4 border-b border-purple-500/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-300">Meu Nome</label>
+                            <span x-show="supabaseUser" class="flex items-center gap-1 text-xs text-green-400">
+                                <i data-lucide="shield-check" class="w-3 h-3"></i>
+                                Supabase
+                            </span>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="flex-1 relative">
+                                <i data-lucide="user" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                                <input x-model="participantName"
+                                       type="text"
+                                       placeholder="Seu nome"
+                                       :disabled="!!supabaseUser"
+                                       @keydown.enter="updateMyName()"
+                                       class="w-full pl-10 pr-3 py-2 text-white rounded-lg border border-gray-600 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                       :class="supabaseUser ? 'bg-gray-800' : 'bg-gray-700'">
+                            </div>
+                            <button @click="updateMyName()"
+                                    :disabled="!isConnected || !currentRoomId || !!supabaseUser"
+                                    class="px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/25 disabled:shadow-none disabled:cursor-not-allowed"
+                                    title="Atualizar nome na sala atual">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1" x-show="!participantName?.trim() && !supabaseUser">Você aparecerá como "Anônimo"</p>
+                        <p class="text-xs text-green-400 mt-1" x-show="supabaseUser">Nome gerenciado pelo Supabase</p>
+                    </div>
+                    
+                    <!-- Create Room -->
+                    <div class="flex-shrink-0 p-4 border-b border-purple-500/30">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Nova Sala</label>
+                        <div class="flex gap-2">
+                            <div class="flex-1 relative">
+                                <i data-lucide="plus-circle" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                                <input x-model="newRoomName" type="text" placeholder="Nome da sala" 
+                                       @keydown.enter="createRoom()"
+                                       class="w-full pl-10 pr-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20 transition-all">
+                            </div>
+                            <button @click="createRoom()" :disabled="!newRoomName.trim()" 
+                                    class="px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/25 disabled:shadow-none disabled:cursor-not-allowed">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Rooms List -->
+                    <div class="flex-1 overflow-hidden flex flex-col">
+                        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-sm font-medium text-gray-300">Salas Disponíveis</span>
+                                <span x-show="rooms.length > 0" 
+                                      class="px-2 py-1 bg-purple-600/20 text-purple-300 rounded-full text-xs"
+                                      x-text="rooms.length"></span>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <template x-if="rooms.length === 0">
+                                    <div class="text-center text-gray-500 py-8">
+                                        <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                                        <p class="text-sm">Nenhuma sala encontrada</p>
+                                    </div>
+                                </template>
+                                
+                                <template x-for="room in rooms" :key="room.id">
+                                    <div class="group relative bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm rounded-xl p-4 border transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-0.5"
+                                         :class="currentRoomId === room.id ? 'border-purple-500/60 bg-purple-900/30 shadow-lg shadow-purple-500/20' : 'border-gray-700/50 hover:border-gray-600/80'">
+                                        <!-- Gradient overlay on hover -->
+                                        <div class="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-blue-500/0 group-hover:from-purple-500/5 group-hover:to-blue-500/5 rounded-xl transition-all duration-300"></div>
+
+                                        <div class="relative flex flex-col gap-3">
+                                            <!-- Header -->
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center gap-2 mb-1.5">
+                                                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
+                                                            <i data-lucide="hash" class="w-4 h-4 text-purple-400"></i>
+                                                        </div>
+                                                        <h3 class="font-semibold text-white text-base truncate" x-text="room.name"></h3>
+                                                    </div>
+                                                    <p class="text-xs text-gray-500 font-mono truncate" x-text="room.id"></p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Info and Actions -->
+                                            <div class="flex items-center justify-between gap-3 pt-2 border-t border-gray-700/50">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="flex items-center gap-1.5 px-2.5 py-1 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                                                        <i data-lucide="users" class="w-3.5 h-3.5 text-blue-400"></i>
+                                                        <span class="text-xs font-medium text-gray-300" x-text="room.participants.length"></span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex items-center gap-2">
+                                                    <button @click="openRoom(room.id, room.name)"
+                                                            :disabled="!isConnected"
+                                                            class="px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg text-xs font-medium transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-green-500/25 disabled:shadow-none disabled:cursor-not-allowed flex items-center gap-1.5">
+                                                        <span>Abrir</span>
+                                                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                                                    </button>
+                                                    <button @click="if(confirm(`Tem certeza que deseja excluir a sala '${room.name}'?`)) { deleteRoom(room.id) }"
+                                                            class="p-1.5 bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-600 hover:to-red-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg text-xs transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-red-500/20 disabled:shadow-none disabled:cursor-not-allowed flex items-center"
+                                                            title="Excluir sala">
+                                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Panel - Chat Interface -->
+            <div class="flex-1 flex flex-col overflow-hidden" x-show="currentRoomId">
+                <!-- Room Header -->
+                <div class="flex-shrink-0 dark-glass rounded-xl p-4 mb-4 shadow-xl animate-slide-up">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="hash" class="w-5 h-5 text-yellow-400"></i>
+                            <h2 class="text-lg font-semibold text-yellow-400" x-text="currentRoomName || 'Sala'"></h2>
+                            <span class="text-xs text-gray-400" x-text="'ID: ' + currentRoomId"></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button @click="getRoomInfo()" :disabled="!isConnected" 
+                                    class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 text-white rounded text-xs transition-all">
+                                <i data-lucide="info" class="w-3 h-3"></i>
+                            </button>
+                            <button @click="leaveCurrentRoom()" 
+                                    class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-all">
+                                <i data-lucide="log-out" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Event Logs -->
+                <div class="flex-1 dark-glass rounded-xl shadow-xl animate-slide-up mb-4 flex flex-col overflow-hidden">
+                    <!-- Log Header -->
+                    <div class="flex-shrink-0 p-4 pb-3 border-b border-purple-500/30">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="terminal" class="w-5 h-5 text-gray-300"></i>
+                                <h2 class="text-lg font-semibold text-gray-300">Eventos da Sala</h2>
+                                <span x-show="roomLogs.length > 0" 
+                                      class="px-2 py-1 bg-gray-600/20 text-gray-300 rounded-full text-xs"
+                                      x-text="roomLogs.length"></span>
+                            </div>
+                            <button @click="clearRoomLogs()" 
+                                    class="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center gap-2">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                <span>Limpar</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Log Content -->
+                    <div class="flex-1 overflow-y-auto bg-gray-900 m-4 rounded-lg p-4 border border-gray-700 custom-scrollbar" x-ref="roomLogContainer">
+                        <template x-if="roomLogs.length === 0">
+                            <div class="flex flex-col items-center justify-center h-full text-gray-500">
+                                <i data-lucide="message-square" class="w-12 h-12 mb-4 opacity-50"></i>
+                                <p class="text-center">Aguardando eventos da sala...</p>
+                                <p class="text-xs text-center mt-2">Entre em uma sala para ver as atividades</p>
+                            </div>
+                        </template>
+                        
+                        <div class="space-y-3">
+                            <template x-for="(log, index) in roomLogs" :key="index">
+                                <div class="animate-fade-in">
+                                    <!-- System Messages (info, success, etc) -->
+                                    <template x-if="log.type === 'info' || log.type === 'success'">
+                                        <div class="rounded-lg p-4 border-l-4" 
+                                             :class="log.type === 'info' ? 'bg-blue-900/30 border-l-blue-400 border border-blue-700/30' : 'bg-green-900/30 border-l-green-400 border border-green-700/30'">
+                                            <div class="flex items-start gap-3">
+                                                <div class="flex-shrink-0 mt-0.5">
+                                                    <i :data-lucide="getLogIcon(log.type)" 
+                                                       class="w-5 h-5" 
+                                                       :class="log.type === 'info' ? 'text-blue-400' : 'text-green-400'"></i>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center gap-2 mb-2">
+                                                        <span class="text-xs px-2 py-1 rounded-full font-semibold uppercase tracking-wide" 
+                                                              :class="log.type === 'info' ? 'bg-blue-700/40 text-blue-300' : 'bg-green-700/40 text-green-300'" 
+                                                              x-text="log.type === 'info' ? 'SISTEMA' : 'SUCESSO'"></span>
+                                                    </div>
+                                                    <div class="text-sm break-words" 
+                                                         :class="log.type === 'info' ? 'text-blue-100' : 'text-green-100'" 
+                                                         x-html="log.message"></div>
+                                                    <div class="text-xs text-gray-400 mt-2 font-mono" x-text="log.fullTimestamp"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    
+                                    <!-- User Messages -->
+                                    <template x-if="log.type === 'user_message'">
+                                        <div class="bg-gray-800/40 rounded-lg p-3 hover:bg-gray-800/60 transition-all border border-gray-700/50">
+                                            <div class="flex items-start gap-3">
+                                                <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                                    <i data-lucide="user" class="w-4 h-4 text-white"></i>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-center gap-2 mb-2">
+                                                        <span class="font-semibold text-white text-sm" x-text="log.displayName || log.sender || 'Usuário Anônimo'"></span>
+                                                        <span x-show="log.isMe && log.sender !== 'Usuário Anônimo' && !log.displayName?.includes('•')" class="px-2 py-0.5 bg-purple-600/20 text-purple-300 rounded text-xs">Você</span>
+                                                    </div>
+                                                    <pre class="text-sm text-gray-100 break-words whitespace-pre-wrap" x-html="log.message"></pre>
+                                                    <div class="text-xs text-gray-400 mt-2 font-mono" x-text="log.fullTimestamp"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    
+                                    <!-- Other Events (error, connected, etc) -->
+                                    <template x-if="log.type !== 'info' && log.type !== 'success' && log.type !== 'user_message'">
+                                        <div class="flex items-start gap-2 py-2 px-3 rounded-lg transition-all hover:bg-gray-800/50" :class="getLogClass(log.type)">
+                                            <div class="flex-shrink-0 mt-0.5">
+                                                <i :data-lucide="getLogIcon(log.type)" class="w-4 h-4"></i>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-300 uppercase tracking-wide font-semibold" x-text="log.type"></span>
+                                                </div>
+                                                <div class="text-sm break-words" x-html="log.message"></div>
+                                                <div class="text-xs text-gray-500 mt-1 font-mono" x-text="log.fullTimestamp"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Message Input -->
+                <div class="flex-shrink-0 dark-glass rounded-xl p-4 shadow-xl animate-slide-up">
+                    <div class="flex items-center gap-3 mb-3">
+                        <i data-lucide="message-circle" class="w-5 h-5 text-green-400"></i>
+                        <h2 class="text-lg font-semibold text-green-400">Enviar Mensagem</h2>
+                    </div>
+                    
+                    <div class="flex items-stretch gap-3">
+                        <div class="flex-1 relative">
+                            <textarea x-model="message" placeholder="Digite sua mensagem..." rows="2"
+                                      @keydown.ctrl.enter="sendMessage()"
+                                      @keydown.cmd.enter="sendMessage()"
+                                      class="w-full h-full bg-gray-700 text-white px-3 py-2 pr-24 rounded-lg border border-gray-600 focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400/20 transition-all resize-none"></textarea>
+                            <div class="absolute bottom-2 right-2 text-xs text-gray-400">
+                                <span>Ctrl+Enter</span>
+                            </div>
+                        </div>
+                        <button @click="sendMessage()" :disabled="!isConnected || !currentRoomId || !message.trim()"
+                                class="px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-green-500/25 disabled:shadow-none disabled:cursor-not-allowed flex items-center gap-2">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span>Enviar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Placeholder when no room is selected -->
+            <div class="flex-1 flex items-center justify-center" x-show="!currentRoomId">
+                <div class="text-center text-gray-500">
+                    <i data-lucide="message-square-plus" class="w-16 h-16 mx-auto mb-4 opacity-50"></i>
+                    <h3 class="text-lg font-semibold mb-2">Selecione uma Sala</h3>
+                    <p class="text-sm">Escolha uma sala na sidebar esquerda para começar a conversar</p>
+                </div>
+            </div>
+
+            <!-- Right Sidebar - Room Participants -->
+            <div class="w-72 flex-shrink-0" x-show="currentRoomId">
+                <div class="dark-glass rounded-xl shadow-2xl animate-slide-up h-full flex flex-col overflow-hidden">
+                    <!-- Header with refresh -->
+                    <div class="flex-shrink-0 p-4 pb-3 border-b border-purple-500/30">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="users" class="w-5 h-5 text-blue-400"></i>
+                                <h2 class="text-lg font-semibold text-blue-400">Participantes</h2>
+                                <span x-show="roomParticipants.length > 0" 
+                                      class="px-2 py-1 bg-blue-600/20 text-blue-300 rounded-full text-xs"
+                                      x-text="roomParticipants.length"></span>
+                            </div>
+                            <button @click="getRoomInfo()" :disabled="!isConnected"
+                                    class="p-2 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 text-white rounded-lg text-sm transition-all duration-200 transform hover:scale-105 active:scale-95"
+                                    title="Atualizar lista de participantes">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Participants List -->
+                    <div class="flex-1 overflow-hidden flex flex-col">
+                        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            <template x-if="roomParticipants.length === 0">
+                                <div class="text-center text-gray-500 py-8">
+                                    <i data-lucide="user-x" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                                    <p class="text-sm">Nenhum participante</p>
+                                </div>
+                            </template>
+                            
+                            <div class="space-y-2">
+                                <template x-for="participant in roomParticipants" :key="participant.clientId">
+                                    <div class="bg-gray-900/50 rounded-lg p-3 border border-gray-700 hover:border-gray-600 transition-colors"
+                                         :class="participant.clientId === socket?.id ? 'border-blue-500 bg-blue-900/20' : ''">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                                <i data-lucide="user" class="w-4 h-4 text-white"></i>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2">
+                                                    <p class="font-medium text-white text-sm truncate" 
+                                                       x-text="participant.name || 'Usuário Anônimo'"></p>
+                                                    <span x-show="participant.clientId === socket?.id" 
+                                                          class="px-2 py-0.5 bg-blue-600/20 text-blue-300 rounded text-xs">Você</span>
+                                                </div>
+                                                <p class="text-xs text-gray-400 truncate" x-text="'ID: ' + participant.clientId"></p>
+                                            </div>
+                                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Online"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+<% if (supabaseUrl && supabaseAnonKey) { %>
+    <!-- Supabase Login Modal -->
+    <div x-show="showSupabaseModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/70 backdrop-blur-sm" @click="showSupabaseModal = false"></div>
+
+        <!-- Modal -->
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div @click.stop
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 transform scale-95"
+                 x-transition:enter-end="opacity-100 transform scale-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 transform scale-100"
+                 x-transition:leave-end="opacity-0 transform scale-95"
+                 class="relative dark-glass rounded-2xl shadow-2xl w-full max-w-md p-6 animate-slide-up">
+
+                <!-- Close Button -->
+                <button @click="showSupabaseModal = false"
+                        class="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-700/50 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5 text-gray-400"></i>
+                </button>
+
+                <!-- Layout: Usuário Autenticado -->
+                <div x-show="supabaseUser" x-transition>
+                    <!-- Header -->
+                    <div class="mb-6">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                                <i data-lucide="user-check" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-white">Perfil</h2>
+                        </div>
+                        <p class="text-sm text-gray-400">Você está autenticado via Supabase</p>
+                    </div>
+
+                    <!-- User Profile Card -->
+                    <div class="bg-gradient-to-br from-green-900/30 to-emerald-900/30 border border-green-500/50 rounded-lg p-4 mb-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="user" class="w-8 h-8 text-white"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-lg font-semibold text-white mb-1" x-text="supabaseUser?.user_metadata?.name || 'Usuário'"></h3>
+                                <p class="text-sm text-green-300 mb-2 break-words" x-text="supabaseUser?.email"></p>
+                                <div class="flex items-center gap-2 text-xs text-gray-400">
+                                    <i data-lucide="shield-check" class="w-3 h-3 text-green-400"></i>
+                                    <span>ID: <span class="font-mono" x-text="supabaseUser?.id?.substring(0, 8) + '...'"></span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Metadata (if exists) -->
+                    <div x-show="supabaseUser?.user_metadata && Object.keys(supabaseUser?.user_metadata || {}).length > 0"
+                         class="bg-gray-800/50 rounded-lg p-4 mb-6">
+                        <h4 class="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4"></i>
+                            Informações Adicionais
+                        </h4>
+                        <div class="space-y-2 text-sm">
+                            <div x-show="supabaseUser?.user_metadata?.full_name" class="flex justify-between">
+                                <span class="text-gray-400">Nome Completo:</span>
+                                <span class="text-white" x-text="supabaseUser?.user_metadata?.full_name"></span>
+                            </div>
+                            <div x-show="supabaseUser?.created_at" class="flex justify-between">
+                                <span class="text-gray-400">Criado em:</span>
+                                <span class="text-white" x-text="new Date(supabaseUser?.created_at).toLocaleDateString('pt-BR')"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="space-y-3">
+                        <button @click="handleSupabaseLogout"
+                                class="w-full px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-red-500/25 flex items-center justify-center gap-2">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                            <span>Sair da Conta</span>
+                        </button>
+                        <button @click="showSupabaseModal = false"
+                                class="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all">
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Layout: Login Form -->
+                <div x-show="!supabaseUser" x-transition>
+                    <!-- Header -->
+                    <div class="mb-6">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                                <i data-lucide="user-check" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-white">Login Supabase</h2>
+                        </div>
+                        <p class="text-sm text-gray-400">Faça login para autenticar com JWT</p>
+                    </div>
+
+                    <!-- Login Form -->
+                    <form @submit.prevent="handleSupabaseLogin" class="space-y-4">
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                            <div class="relative">
+                                <i data-lucide="mail" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                                <input x-model="supabaseEmail"
+                                       type="email"
+                                       required
+                                       placeholder="seu-email@exemplo.com"
+                                       class="w-full pl-10 pr-3 py-2 bg-gray-700/50 text-white rounded-lg border border-gray-600 focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400/20 transition-all">
+                            </div>
+                        </div>
+
+                        <!-- Password -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Senha</label>
+                            <div class="relative">
+                                <i data-lucide="lock" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                                <input x-model="supabasePassword"
+                                       type="password"
+                                       required
+                                       placeholder="Sua senha"
+                                       class="w-full pl-10 pr-3 py-2 bg-gray-700/50 text-white rounded-lg border border-gray-600 focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400/20 transition-all">
+                            </div>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div x-show="supabaseError"
+                             x-transition
+                             class="bg-red-900/30 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm">
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                                <span x-text="supabaseError"></span>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="flex gap-3 pt-2">
+                            <button type="button"
+                                    @click="showSupabaseModal = false"
+                                    class="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all">
+                                Cancelar
+                            </button>
+                            <button type="submit"
+                                    :disabled="supabaseLoading"
+                                    class="flex-1 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg shadow-green-500/25 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                <span x-show="!supabaseLoading">Entrar</span>
+                                <span x-show="supabaseLoading" class="flex items-center gap-2">
+                                    <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Entrando...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Inject Supabase config into ENV
+        window.ENV = window.ENV || {};
+        window.ENV.supabaseUrl = '<%= supabaseUrl %>';
+        window.ENV.supabaseAnonKey = '<%= supabaseAnonKey %>';
+    </script>
+<% } %>
+
+    <!-- Load utilities first -->
+    <script src="/platform/assets/scripts/sanitizer.js"></script>
+    <script src="/platform/assets/scripts/toast.js"></script>
+    <!-- Then load main app -->
+    <script src="/platform/assets/scripts/app.js"></script>
+</body>
+</html>
