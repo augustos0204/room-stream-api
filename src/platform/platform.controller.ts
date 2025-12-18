@@ -93,14 +93,16 @@ export class PlatformController {
 
     // Add GitHub data for about page and landing page
     if (currentPage === 'about' || currentPage === 'landing') {
-      const [githubUser, githubRepos, topLanguages] = await Promise.all([
+      const [githubUser, githubRepos, topLanguages, socialAccounts] = await Promise.all([
         this.githubService.getUser(GITHUB_USERNAME),
         this.githubService.getRepos(GITHUB_USERNAME, 6),
         this.githubService.getTopLanguages(GITHUB_USERNAME),
+        this.githubService.getSocialAccounts(GITHUB_USERNAME),
       ]);
       context.githubUser = githubUser;
       context.githubRepos = githubRepos;
       context.topLanguages = topLanguages;
+      context.socialAccounts = socialAccounts;
     }
 
     return context;

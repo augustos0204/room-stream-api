@@ -26,6 +26,11 @@ export interface GitHubRepo {
   topics: string[];
 }
 
+export interface GitHubSocialAccount {
+  provider: string;
+  url: string;
+}
+
 @Injectable()
 export class GithubService {
   private readonly logger = new Logger(GithubService.name);
@@ -104,6 +109,39 @@ export class GithubService {
       return data;
     } catch (error) {
       this.logger.error(`Failed to fetch GitHub repos: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Busca links sociais do usuário
+   */
+  async getSocialAccounts(username: string): Promise<GitHubSocialAccount[]> {
+    const cacheKey = `social:${username}`;
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await fetch(
+        `${this.GITHUB_API}/users/${username}/social_accounts`,
+        {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'RoomStream-API',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        this.logger.error(`GitHub API error: ${response.status}`);
+        return [];
+      }
+
+      const data = await response.json();
+      this.setCache(cacheKey, data);
+      return data;
+    } catch (error) {
+      this.logger.error(`Failed to fetch GitHub social accounts: ${error.message}`);
       return [];
     }
   }

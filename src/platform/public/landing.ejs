@@ -313,6 +313,7 @@
     const github = typeof githubUser !== 'undefined' ? githubUser : null;
     const repos = typeof githubRepos !== 'undefined' ? githubRepos : [];
     const languages = typeof topLanguages !== 'undefined' ? topLanguages : [];
+    const socials = typeof socialAccounts !== 'undefined' ? socialAccounts : [];
     
     const devName = github?.name || 'Desenvolvedor';
     const devBio = github?.bio || 'Desenvolvedor apaixonado por tecnologia';
@@ -323,6 +324,19 @@
     const devPublicRepos = github?.public_repos || 0;
     const devFollowers = github?.followers || 0;
     const devGithubUrl = github?.html_url || 'https://github.com';
+    
+    // Mapeamento de providers para ícones e cores
+    const socialConfig = {
+        'linkedin': { icon: 'linkedin', label: 'LinkedIn', hoverColor: 'hover:bg-blue-600' },
+        'twitter': { icon: 'twitter', label: 'Twitter', hoverColor: 'hover:bg-sky-500' },
+        'youtube': { icon: 'youtube', label: 'YouTube', hoverColor: 'hover:bg-red-600' },
+        'instagram': { icon: 'instagram', label: 'Instagram', hoverColor: 'hover:bg-pink-600' },
+        'facebook': { icon: 'facebook', label: 'Facebook', hoverColor: 'hover:bg-blue-700' },
+        'mastodon': { icon: 'message-circle', label: 'Mastodon', hoverColor: 'hover:bg-purple-600' },
+        'twitch': { icon: 'twitch', label: 'Twitch', hoverColor: 'hover:bg-violet-600' },
+        'discord': { icon: 'message-square', label: 'Discord', hoverColor: 'hover:bg-indigo-600' },
+        'generic': { icon: 'link', label: 'Link', hoverColor: 'hover:bg-gray-600' },
+    };
     %>
     <section class="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
@@ -428,6 +442,18 @@
                                 <span>Portfolio</span>
                             </a>
                             <% } %>
+                            <% socials.forEach(function(social) { 
+                                const config = socialConfig[social.provider] || socialConfig['generic'];
+                            %>
+                            <a 
+                                href="<%= social.url %>" 
+                                target="_blank"
+                                class="flex items-center gap-2 px-4 py-2 bg-gray-800 <%= config.hoverColor %> rounded-lg transition-colors text-sm"
+                            >
+                                <i data-lucide="<%= config.icon %>" class="w-4 h-4"></i>
+                                <span><%= config.label %></span>
+                            </a>
+                            <% }); %>
                         </div>
                     </div>
                 </div>
