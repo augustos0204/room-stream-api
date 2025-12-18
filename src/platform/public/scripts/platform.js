@@ -405,10 +405,6 @@ function platformApp() {
                             e.preventDefault();
                             this.navigateTo('rooms');
                             break;
-                        case '3':
-                            e.preventDefault();
-                            this.navigateTo('settings');
-                            break;
                         case 'b':
                         case 'B':
                             e.preventDefault();
@@ -419,8 +415,8 @@ function platformApp() {
                             e.preventDefault();
                             this.showShortcutsModal = !this.showShortcutsModal;
                             break;
-                        case 'w':
-                        case 'W':
+                        case 'q':
+                        case 'Q':
                             e.preventDefault();
                             this.toggleConnection();
                             break;
