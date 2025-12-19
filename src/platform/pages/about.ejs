@@ -1,38 +1,9 @@
-<!-- About Page - Developer Profile -->
-<%
-const github = typeof githubUser !== 'undefined' ? githubUser : null;
-const repos = typeof githubRepos !== 'undefined' ? githubRepos : [];
-const languages = typeof topLanguages !== 'undefined' ? topLanguages : [];
-const socials = typeof socialAccounts !== 'undefined' ? socialAccounts : [];
-
-// Fallbacks
-const name = github?.name || 'Desenvolvedor';
-const bio = github?.bio || 'Desenvolvedor apaixonado por tecnologia';
-const avatar = github?.avatar_url || 'https://github.com/identicons/default.png';
-const location = github?.location || null;
-const company = github?.company || null;
-const blog = github?.blog || null;
-const twitterUsername = github?.twitter_username || null;
-const publicRepos = github?.public_repos || 0;
-const followers = github?.followers || 0;
-const githubUrl = github?.html_url || 'https://github.com';
-const memberSince = github?.created_at ? new Date(github.created_at).getFullYear() : null;
-
-// Mapeamento de providers para ícones e cores
-const socialConfig = {
-    'linkedin': { icon: 'linkedin', label: 'LinkedIn', hoverColor: 'hover:bg-blue-600' },
-    'twitter': { icon: 'twitter', label: 'Twitter', hoverColor: 'hover:bg-sky-500' },
-    'youtube': { icon: 'youtube', label: 'YouTube', hoverColor: 'hover:bg-red-600' },
-    'instagram': { icon: 'instagram', label: 'Instagram', hoverColor: 'hover:bg-pink-600' },
-    'facebook': { icon: 'facebook', label: 'Facebook', hoverColor: 'hover:bg-blue-700' },
-    'mastodon': { icon: 'message-circle', label: 'Mastodon', hoverColor: 'hover:bg-purple-600' },
-    'twitch': { icon: 'twitch', label: 'Twitch', hoverColor: 'hover:bg-violet-600' },
-    'discord': { icon: 'message-square', label: 'Discord', hoverColor: 'hover:bg-indigo-600' },
-    'generic': { icon: 'link', label: 'Link', hoverColor: 'hover:bg-gray-600' },
-};
-%>
-
-<div class="space-y-6 max-w-4xl mx-auto">
+<!-- About Page - Developer Profile (Lazy Loading via API) -->
+<div 
+    x-data="aboutPage()"
+    x-init="loadProfile()"
+    class="space-y-6 max-w-4xl mx-auto"
+>
     <!-- Header -->
     <div class="flex items-center gap-4">
         <div class="p-3 rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 shadow-lg shadow-violet-500/20">
@@ -44,160 +15,206 @@ const socialConfig = {
         </div>
     </div>
 
-    <!-- Profile Card -->
-    <div class="dark-glass rounded-xl border border-gray-700/50 overflow-hidden">
-        <!-- Cover/Banner -->
-        <div class="h-32 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 relative">
-            <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNC0yIDQtMiA0LTItMi0yLTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
-        </div>
-
-        <!-- Profile Info -->
-        <div class="px-6 pb-6">
-            <!-- Avatar -->
-            <div class="relative -mt-16 mb-4">
-                <img 
-                    src="<%= avatar %>" 
-                    alt="<%= name %>"
-                    class="w-32 h-32 rounded-full border-4 border-gray-900 shadow-xl"
-                />
-                <div class="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-gray-900"></div>
-            </div>
-
-            <!-- Name & Title -->
-            <div class="mb-4">
-                <h2 class="text-2xl font-bold text-white"><%= name %></h2>
-                <p class="text-purple-400">Full Stack Developer</p>
-            </div>
-
-            <!-- Bio -->
-            <% if (bio) { %>
-            <p class="text-gray-300 mb-6"><%= bio %></p>
-            <% } %>
-
-            <!-- Meta Info -->
-            <div class="flex flex-wrap gap-4 text-sm text-gray-400 mb-6">
-                <% if (location) { %>
-                <div class="flex items-center gap-2">
-                    <i data-lucide="map-pin" class="w-4 h-4"></i>
-                    <span><%= location %></span>
-                </div>
-                <% } %>
-                <% if (company) { %>
-                <div class="flex items-center gap-2">
-                    <i data-lucide="building-2" class="w-4 h-4"></i>
-                    <span><%= company %></span>
-                </div>
-                <% } %>
-                <% if (blog) { %>
-                <a href="<%= blog.startsWith('http') ? blog : 'https://' + blog %>" target="_blank" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
-                    <i data-lucide="link" class="w-4 h-4"></i>
-                    <span>Website</span>
-                </a>
-                <% } %>
-                <% if (memberSince) { %>
-                <div class="flex items-center gap-2">
-                    <i data-lucide="calendar" class="w-4 h-4"></i>
-                    <span>Desde <%= memberSince %></span>
-                </div>
-                <% } %>
-            </div>
-
-            <!-- Stats -->
-            <div class="grid grid-cols-3 gap-4 mb-6">
-                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-white"><%= publicRepos %></div>
-                    <div class="text-xs text-gray-400">Repositórios</div>
-                </div>
-                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-white"><%= followers %></div>
-                    <div class="text-xs text-gray-400">Seguidores</div>
-                </div>
-                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-white"><%= languages.length %></div>
-                    <div class="text-xs text-gray-400">Linguagens</div>
+    <!-- ==================== GITHUB PROFILE SECTION (Conditional) ==================== -->
+    
+    <!-- Loading State (GitHub Profile Skeleton) -->
+    <template x-if="isLoading">
+        <div class="space-y-6">
+            <!-- Profile Card Skeleton -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 overflow-hidden animate-pulse">
+                <div class="h-32 bg-gradient-to-r from-violet-600/50 via-purple-600/50 to-indigo-600/50"></div>
+                <div class="px-6 pb-6">
+                    <div class="relative -mt-16 mb-4">
+                        <div class="w-32 h-32 rounded-full bg-gray-700 border-4 border-gray-900"></div>
+                    </div>
+                    <div class="h-8 bg-gray-700 rounded w-48 mb-2"></div>
+                    <div class="h-4 bg-gray-700 rounded w-32 mb-4"></div>
+                    <div class="h-4 bg-gray-700 rounded w-full mb-6"></div>
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-gray-800/50 rounded-lg p-4 h-20"></div>
+                        <div class="bg-gray-800/50 rounded-lg p-4 h-20"></div>
+                        <div class="bg-gray-800/50 rounded-lg p-4 h-20"></div>
+                    </div>
                 </div>
             </div>
-
-            <!-- Social Links -->
-            <div class="flex flex-wrap gap-3">
-                <a 
-                    href="<%= githubUrl %>" 
-                    target="_blank"
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                    <i data-lucide="github" class="w-4 h-4"></i>
-                    <span>GitHub</span>
-                </a>
-                <% if (twitterUsername) { %>
-                <a 
-                    href="https://twitter.com/<%= twitterUsername %>" 
-                    target="_blank"
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-sky-500 rounded-lg transition-colors"
-                >
-                    <i data-lucide="twitter" class="w-4 h-4"></i>
-                    <span>Twitter</span>
-                </a>
-                <% } %>
-                <% if (blog) { %>
-                <a 
-                    href="<%= blog.startsWith('http') ? blog : 'https://' + blog %>" 
-                    target="_blank"
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-purple-600 rounded-lg transition-colors"
-                >
-                    <i data-lucide="globe" class="w-4 h-4"></i>
-                    <span>Portfolio</span>
-                </a>
-                <% } %>
-                <% socials.forEach(function(social) { 
-                    const config = socialConfig[social.provider] || socialConfig['generic'];
-                    // Evita duplicar Twitter se já foi exibido via twitter_username
-                    if (social.provider === 'twitter' && twitterUsername) return;
-                %>
-                <a 
-                    href="<%= social.url %>" 
-                    target="_blank"
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 <%= config.hoverColor %> rounded-lg transition-colors"
-                >
-                    <i data-lucide="<%= config.icon %>" class="w-4 h-4"></i>
-                    <span><%= config.label %></span>
-                </a>
-                <% }); %>
+            <!-- Languages Skeleton -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6 animate-pulse">
+                <div class="h-6 bg-gray-700 rounded w-48 mb-4"></div>
+                <div class="flex flex-wrap gap-2">
+                    <div class="h-8 bg-gray-700 rounded w-24"></div>
+                    <div class="h-8 bg-gray-700 rounded w-20"></div>
+                    <div class="h-8 bg-gray-700 rounded w-16"></div>
+                    <div class="h-8 bg-gray-700 rounded w-28"></div>
+                </div>
             </div>
         </div>
-    </div>
+    </template>
 
-    <!-- Languages/Skills -->
-    <% if (languages.length > 0) { %>
-    <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
-        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <i data-lucide="code-2" class="w-5 h-5 text-purple-400"></i>
-            Linguagens Mais Usadas
-        </h3>
-        <div class="flex flex-wrap gap-2">
-            <% languages.forEach(function(lang) { 
-                const colors = {
-                    'TypeScript': 'bg-blue-500/20 text-blue-300 border-blue-500/50',
-                    'JavaScript': 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50',
-                    'Python': 'bg-green-500/20 text-green-300 border-green-500/50',
-                    'Java': 'bg-orange-500/20 text-orange-300 border-orange-500/50',
-                    'Go': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50',
-                    'Rust': 'bg-red-500/20 text-red-300 border-red-500/50',
-                    'C#': 'bg-purple-500/20 text-purple-300 border-purple-500/50',
-                    'PHP': 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50',
-                    'Ruby': 'bg-red-500/20 text-red-300 border-red-500/50',
-                    'Shell': 'bg-gray-500/20 text-gray-300 border-gray-500/50',
-                    'HTML': 'bg-orange-500/20 text-orange-300 border-orange-500/50',
-                    'CSS': 'bg-blue-500/20 text-blue-300 border-blue-500/50',
-                };
-                const colorClass = colors[lang] || 'bg-gray-500/20 text-gray-300 border-gray-500/50';
-            %>
-            <span class="px-3 py-1.5 rounded-lg border text-sm font-medium <%= colorClass %>">
-                <%= lang %>
-            </span>
-            <% }); %>
+    <!-- GitHub Profile Content (only shown when loaded successfully, hidden on error) -->
+    <template x-if="!isLoading && !error && profile">
+        <div class="space-y-6">
+            <!-- Profile Card -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 overflow-hidden">
+                <!-- Cover/Banner -->
+                <div class="h-32 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 relative">
+                    <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNC0yIDQtMiA0LTItMi0yLTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
+                </div>
+
+                <!-- Profile Info -->
+                <div class="px-6 pb-6">
+                    <!-- Avatar -->
+                    <div class="relative -mt-16 mb-4">
+                        <img 
+                            :src="profile.user?.avatar_url || 'https://github.com/identicons/default.png'" 
+                            :alt="profile.user?.name || 'Desenvolvedor'"
+                            class="w-32 h-32 rounded-full border-4 border-gray-900 shadow-xl"
+                        />
+                        <div class="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-gray-900"></div>
+                    </div>
+
+                    <!-- Name & Title -->
+                    <div class="mb-4">
+                        <h2 class="text-2xl font-bold text-white" x-text="profile.user?.name || 'Desenvolvedor'"></h2>
+                        <p class="text-purple-400">Full Stack Developer</p>
+                    </div>
+
+                    <!-- Bio -->
+                    <p x-show="profile.user?.bio" class="text-gray-300 mb-6" x-text="profile.user?.bio"></p>
+
+                    <!-- Meta Info -->
+                    <div class="flex flex-wrap gap-4 text-sm text-gray-400 mb-6">
+                        <div x-show="profile.user?.location" class="flex items-center gap-2">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                            <span x-text="profile.user?.location"></span>
+                        </div>
+                        <div x-show="profile.user?.company" class="flex items-center gap-2">
+                            <i data-lucide="building-2" class="w-4 h-4"></i>
+                            <span x-text="profile.user?.company"></span>
+                        </div>
+                        <a x-show="profile.user?.blog" :href="formatUrl(profile.user?.blog)" target="_blank" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                            <i data-lucide="link" class="w-4 h-4"></i>
+                            <span>Website</span>
+                        </a>
+                        <div x-show="getMemberSince()" class="flex items-center gap-2">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                            <span x-text="'Desde ' + getMemberSince()"></span>
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+                        <div class="bg-gray-800/50 rounded-lg p-2 sm:p-4 text-center min-w-0">
+                            <div class="text-xl sm:text-2xl font-bold text-white" x-text="profile.user?.public_repos || 0"></div>
+                            <div class="text-[10px] sm:text-xs text-gray-400 truncate">Repositórios</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-2 sm:p-4 text-center min-w-0">
+                            <div class="text-xl sm:text-2xl font-bold text-white" x-text="profile.user?.followers || 0"></div>
+                            <div class="text-[10px] sm:text-xs text-gray-400 truncate">Seguidores</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-2 sm:p-4 text-center min-w-0">
+                            <div class="text-xl sm:text-2xl font-bold text-white" x-text="profile.languages?.length || 0"></div>
+                            <div class="text-[10px] sm:text-xs text-gray-400 truncate">Linguagens</div>
+                        </div>
+                    </div>
+
+                    <!-- Social Links -->
+                    <div class="flex flex-wrap gap-3">
+                        <!-- GitHub (always shown) -->
+                        <a 
+                            :href="profile.user?.html_url || 'https://github.com'" 
+                            target="_blank"
+                            class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                        >
+                            <i data-lucide="github" class="w-4 h-4"></i>
+                            <span>GitHub</span>
+                        </a>
+                        <!-- Twitter (from user profile) -->
+                        <a 
+                            x-show="profile.user?.twitter_username"
+                            :href="'https://twitter.com/' + profile.user?.twitter_username" 
+                            target="_blank"
+                            class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-sky-500 rounded-lg transition-colors"
+                        >
+                            <i data-lucide="twitter" class="w-4 h-4"></i>
+                            <span>Twitter</span>
+                        </a>
+                        <!-- Blog/Portfolio -->
+                        <a 
+                            x-show="profile.user?.blog"
+                            :href="formatUrl(profile.user?.blog)" 
+                            target="_blank"
+                            class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-purple-600 rounded-lg transition-colors"
+                        >
+                            <i data-lucide="globe" class="w-4 h-4"></i>
+                            <span>Portfolio</span>
+                        </a>
+                        <!-- Social Accounts from API -->
+                        <template x-for="social in getFilteredSocials()" :key="social.url">
+                            <a 
+                                :href="social.url" 
+                                target="_blank"
+                                :class="'flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg transition-colors ' + getSocialConfig(social.provider).hoverColor"
+                            >
+                                <i :data-lucide="getSocialConfig(social.provider).icon" class="w-4 h-4"></i>
+                                <span x-text="getSocialConfig(social.provider).label"></span>
+                            </a>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Languages/Skills -->
+            <div x-show="profile.languages?.length > 0" class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="code-2" class="w-5 h-5 text-purple-400"></i>
+                    Linguagens Mais Usadas
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="lang in profile.languages" :key="lang">
+                        <span 
+                            :class="'px-3 py-1.5 rounded-lg border text-sm font-medium ' + getLanguageColor(lang)"
+                            x-text="lang"
+                        ></span>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Recent Repositories -->
+            <div x-show="profile.repos?.length > 0" class="dark-glass rounded-xl border border-gray-700/50 p-4 sm:p-6 overflow-hidden">
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="folder-git-2" class="w-5 h-5 text-purple-400"></i>
+                    Repositórios Recentes
+                </h3>
+                <div class="grid gap-3 sm:gap-4 md:grid-cols-2">
+                    <template x-for="repo in profile.repos?.slice(0, 6)" :key="repo.name">
+                        <a 
+                            :href="repo.html_url" 
+                            target="_blank"
+                            class="block p-3 sm:p-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-purple-500/50 transition-all overflow-hidden min-w-0"
+                        >
+                            <div class="flex items-start justify-between gap-2 mb-2 min-w-0">
+                                <h4 class="font-medium text-white truncate flex-1 min-w-0 text-sm sm:text-base" x-text="repo.name"></h4>
+                                <span x-show="repo.language" class="text-xs px-2 py-0.5 bg-gray-700 rounded text-gray-300 flex-shrink-0" x-text="repo.language"></span>
+                            </div>
+                            <p x-show="repo.description" class="text-xs sm:text-sm text-gray-400 line-clamp-2 mb-3" x-text="repo.description"></p>
+                            <div class="flex items-center gap-4 text-xs text-gray-500">
+                                <span class="flex items-center gap-1">
+                                    <i data-lucide="star" class="w-3 h-3"></i>
+                                    <span x-text="repo.stargazers_count"></span>
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <i data-lucide="git-fork" class="w-3 h-3"></i>
+                                    <span x-text="repo.forks_count"></span>
+                                </span>
+                            </div>
+                        </a>
+                    </template>
+                </div>
+            </div>
         </div>
-    </div>
-    <% } %>
+    </template>
+
+    <!-- ==================== STATIC CONTENT (Always Shown) ==================== -->
 
     <!-- About the Project -->
     <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
@@ -236,7 +253,7 @@ const socialConfig = {
         <!-- Repository Link -->
         <div class="mt-6 pt-6 border-t border-gray-700/50">
             <a 
-                href="https://github.com/<%= github?.login || 'Augustos0204' %>/room-stream-api" 
+                href="https://github.com/Augustos0204/room-stream-api" 
                 target="_blank"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
             >
@@ -246,43 +263,106 @@ const socialConfig = {
             </a>
         </div>
     </div>
-
-    <!-- Recent Repositories -->
-    <% if (repos.length > 0) { %>
-    <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
-        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <i data-lucide="folder-git-2" class="w-5 h-5 text-purple-400"></i>
-            Repositórios Recentes
-        </h3>
-        <div class="grid gap-4 md:grid-cols-2">
-            <% repos.slice(0, 6).forEach(function(repo) { %>
-            <a 
-                href="<%= repo.html_url %>" 
-                target="_blank"
-                class="block p-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-purple-500/50 transition-all"
-            >
-                <div class="flex items-start justify-between mb-2">
-                    <h4 class="font-medium text-white truncate flex-1"><%= repo.name %></h4>
-                    <% if (repo.language) { %>
-                    <span class="text-xs px-2 py-0.5 bg-gray-700 rounded text-gray-300 ml-2"><%= repo.language %></span>
-                    <% } %>
-                </div>
-                <% if (repo.description) { %>
-                <p class="text-sm text-gray-400 line-clamp-2 mb-3"><%= repo.description %></p>
-                <% } %>
-                <div class="flex items-center gap-4 text-xs text-gray-500">
-                    <span class="flex items-center gap-1">
-                        <i data-lucide="star" class="w-3 h-3"></i>
-                        <%= repo.stargazers_count %>
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <i data-lucide="git-fork" class="w-3 h-3"></i>
-                        <%= repo.forks_count %>
-                    </span>
-                </div>
-            </a>
-            <% }); %>
-        </div>
-    </div>
-    <% } %>
 </div>
+
+<script>
+    function aboutPage() {
+        return {
+            isLoading: false,
+            error: null,
+            profile: null,
+            hasLoaded: false,
+            
+            // Social config mapping
+            socialConfig: {
+                'linkedin': { icon: 'linkedin', label: 'LinkedIn', hoverColor: 'hover:bg-blue-600' },
+                'twitter': { icon: 'twitter', label: 'Twitter', hoverColor: 'hover:bg-sky-500' },
+                'youtube': { icon: 'youtube', label: 'YouTube', hoverColor: 'hover:bg-red-600' },
+                'instagram': { icon: 'instagram', label: 'Instagram', hoverColor: 'hover:bg-pink-600' },
+                'facebook': { icon: 'facebook', label: 'Facebook', hoverColor: 'hover:bg-blue-700' },
+                'mastodon': { icon: 'message-circle', label: 'Mastodon', hoverColor: 'hover:bg-purple-600' },
+                'twitch': { icon: 'twitch', label: 'Twitch', hoverColor: 'hover:bg-violet-600' },
+                'discord': { icon: 'message-square', label: 'Discord', hoverColor: 'hover:bg-indigo-600' },
+                'generic': { icon: 'link', label: 'Link', hoverColor: 'hover:bg-gray-600' },
+            },
+            
+            // Language colors mapping
+            languageColors: {
+                'TypeScript': 'bg-blue-500/20 text-blue-300 border-blue-500/50',
+                'JavaScript': 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50',
+                'Python': 'bg-green-500/20 text-green-300 border-green-500/50',
+                'Java': 'bg-orange-500/20 text-orange-300 border-orange-500/50',
+                'Go': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50',
+                'Rust': 'bg-red-500/20 text-red-300 border-red-500/50',
+                'C#': 'bg-purple-500/20 text-purple-300 border-purple-500/50',
+                'PHP': 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50',
+                'Ruby': 'bg-red-500/20 text-red-300 border-red-500/50',
+                'Shell': 'bg-gray-500/20 text-gray-300 border-gray-500/50',
+                'HTML': 'bg-orange-500/20 text-orange-300 border-orange-500/50',
+                'CSS': 'bg-blue-500/20 text-blue-300 border-blue-500/50',
+            },
+            
+            async loadProfile() {
+                // Evita recarregar se já carregou com sucesso
+                if (this.hasLoaded && this.profile) return;
+                
+                this.isLoading = true;
+                this.error = null;
+                
+                try {
+                    const response = await fetch('/api/github/profile');
+                    
+                    if (!response.ok) {
+                        throw new Error('Falha ao carregar dados do GitHub');
+                    }
+                    
+                    this.profile = await response.json();
+                    this.hasLoaded = true;
+                    
+                    // Re-initialize Lucide icons after content loads
+                    this.$nextTick(() => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    });
+                } catch (err) {
+                    // Em caso de erro, apenas loga no console
+                    // A seção do perfil GitHub simplesmente não será exibida
+                    this.error = err.message || 'Erro desconhecido';
+                    console.error('Error loading GitHub profile:', err);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+            
+            formatUrl(url) {
+                if (!url) return '#';
+                return url.startsWith('http') ? url : 'https://' + url;
+            },
+            
+            getMemberSince() {
+                if (!this.profile?.user?.created_at) return null;
+                return new Date(this.profile.user.created_at).getFullYear();
+            },
+            
+            getSocialConfig(provider) {
+                return this.socialConfig[provider] || this.socialConfig['generic'];
+            },
+            
+            getLanguageColor(lang) {
+                return this.languageColors[lang] || 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+            },
+            
+            getFilteredSocials() {
+                if (!this.profile?.socialAccounts) return [];
+                // Evita duplicar Twitter se já foi exibido via twitter_username
+                return this.profile.socialAccounts.filter(social => {
+                    if (social.provider === 'twitter' && this.profile.user?.twitter_username) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+        };
+    }
+</script>

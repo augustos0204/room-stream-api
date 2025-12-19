@@ -308,22 +308,12 @@
         </div>
     </section>
 
-    <!-- Developer Section -->
+    <!-- Developer Section (only shown when GitHub data is available) -->
     <%
     const github = typeof githubUser !== 'undefined' ? githubUser : null;
     const repos = typeof githubRepos !== 'undefined' ? githubRepos : [];
     const languages = typeof topLanguages !== 'undefined' ? topLanguages : [];
     const socials = typeof socialAccounts !== 'undefined' ? socialAccounts : [];
-    
-    const devName = github?.name || 'Desenvolvedor';
-    const devBio = github?.bio || 'Desenvolvedor apaixonado por tecnologia';
-    const devAvatar = github?.avatar_url || 'https://github.com/identicons/default.png';
-    const devLocation = github?.location || null;
-    const devCompany = github?.company || null;
-    const devBlog = github?.blog || null;
-    const devPublicRepos = github?.public_repos || 0;
-    const devFollowers = github?.followers || 0;
-    const devGithubUrl = github?.html_url || 'https://github.com';
     
     // Mapeamento de providers para ícones e cores
     const socialConfig = {
@@ -337,6 +327,17 @@
         'discord': { icon: 'message-square', label: 'Discord', hoverColor: 'hover:bg-indigo-600' },
         'generic': { icon: 'link', label: 'Link', hoverColor: 'hover:bg-gray-600' },
     };
+    %>
+    <% if (github) { 
+        const devName = github.name || 'Desenvolvedor';
+        const devBio = github.bio || null;
+        const devAvatar = github.avatar_url || 'https://github.com/identicons/default.png';
+        const devLocation = github.location || null;
+        const devCompany = github.company || null;
+        const devBlog = github.blog || null;
+        const devPublicRepos = github.public_repos || 0;
+        const devFollowers = github.followers || 0;
+        const devGithubUrl = github.html_url || 'https://github.com';
     %>
     <section class="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
@@ -460,6 +461,7 @@
             </div>
         </div>
     </section>
+    <% } %>
 
     <!-- CTA Section -->
     <section class="relative z-10 py-20 px-4 sm:px-6 lg:px-8">

@@ -91,19 +91,9 @@ export class PlatformController {
       },
     };
 
-    // Add GitHub data for about page and landing page
-    if (currentPage === 'about' || currentPage === 'landing') {
-      const [githubUser, githubRepos, topLanguages, socialAccounts] = await Promise.all([
-        this.githubService.getUser(GITHUB_USERNAME),
-        this.githubService.getRepos(GITHUB_USERNAME, 6),
-        this.githubService.getTopLanguages(GITHUB_USERNAME),
-        this.githubService.getSocialAccounts(GITHUB_USERNAME),
-      ]);
-      context.githubUser = githubUser;
-      context.githubRepos = githubRepos;
-      context.topLanguages = topLanguages;
-      context.socialAccounts = socialAccounts;
-    }
+    // GitHub data is now loaded via API endpoint /api/github/profile
+    // This provides lazy loading for the about page in SPA mode
+    // For standalone pages (like landing), data is fetched in app.controller.ts
 
     return context;
   }
