@@ -418,8 +418,13 @@ export class RoomGateway
       );
     }
 
-    const userId = client.data?.user?.id || null;
     const supabaseUserData = this.extractSupabaseUserData(client);
+    
+    // Determine the persistent identifier for this connection
+    // For applications: app_xxx, for Supabase users: userId, for anonymous: null
+    const persistentId = application 
+      ? `app_${application.id}` 
+      : client.data?.user?.id || null;
 
     // Remove o cliente de todas as salas ao desconectar
     const rooms = await this.roomService.getAllRooms();
@@ -430,7 +435,7 @@ export class RoomGateway
         const participantName = await this.roomService.getParticipantName(
           room.id,
           client.id,
-          userId,
+          persistentId,
         );
         
         const displayName = participantName 
@@ -438,7 +443,7 @@ export class RoomGateway
           || supabaseUserData?.email 
           || null;
           
-        await this.roomService.leaveRoom(room.id, client.id, userId);
+        await this.roomService.leaveRoom(room.id, client.id, persistentId);
         client.to(room.id).emit('userLeft', {
           clientId: client.id,
           participantName: displayName,
@@ -475,8 +480,16 @@ export class RoomGateway
     // Join no Socket.IO room
     client.join(roomId) as void;
 
+    // For applications, create a synthetic SupabaseUserData with app_ prefix
+    // This ensures the participant is stored with a persistent key (app_xxx) instead of socket ID
+    const userDataForStorage = supabaseUserData 
+      ? supabaseUserData 
+      : applicationData 
+        ? { id: `app_${applicationData.id}`, email: applicationData.name, name: applicationData.name }
+        : null;
+
     // Adicionar ao serviço
-    await this.roomService.joinRoom(roomId, client.id, displayName, supabaseUserData);
+    await this.roomService.joinRoom(roomId, client.id, displayName, userDataForStorage);
 
     // Notificar outros usuários na sala
     client.to(roomId).emit('userJoined', {
@@ -514,18 +527,21 @@ export class RoomGateway
   ): Promise<void> {
     const { roomId } = data;
 
-    // Extract userId from authenticated socket
-    const userId = client.data?.user?.id || null;
-    
     // Extract data for display name
     const supabaseUserData = this.extractSupabaseUserData(client);
     const applicationData = this.extractApplicationData(client);
+    
+    // Determine the persistent identifier for this connection
+    // For applications: app_xxx, for Supabase users: userId, for anonymous: null
+    const persistentId = applicationData 
+      ? `app_${applicationData.id}` 
+      : client.data?.user?.id || null;
 
     // Get participant name BEFORE removing from room
     const participantName = await this.roomService.getParticipantName(
       roomId,
       client.id,
-      userId,
+      persistentId,
     );
     
     // Use appropriate fallback for display name
@@ -538,7 +554,7 @@ export class RoomGateway
     client.leave(roomId) as void;
 
     // Remover do serviço
-    const success = await this.roomService.leaveRoom(roomId, client.id, userId);
+    const success = await this.roomService.leaveRoom(roomId, client.id, persistentId);
 
     if (success) {
       const room = await this.roomService.getRoom(roomId);
