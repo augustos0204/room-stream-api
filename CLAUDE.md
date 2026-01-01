@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RoomStream is a real-time WebSocket API built with NestJS and Socket.IO for creating and managing chat rooms. The focus is on backend implementation - the `/view` web interface is a basic development testing tool, not a production UI.
+RoomStream is a real-time WebSocket API built with NestJS and Socket.IO for creating and managing chat rooms. The project includes both a **robust backend API** and a **complete web platform** at `/platform` with dashboard, chat interface, application management, and more.
 
 ## Essential Commands
 
@@ -51,6 +51,17 @@ The application follows NestJS modular architecture with clear separation of con
     - `GET /room/:id/messages` - Get all room messages
     - `GET /room/:id/participants` - Get all room participants
 
+- **ApplicationModule** - Application/API Key management
+  - `ApplicationService`: CRUD operations for applications (stored in Supabase)
+  - `ApplicationController`: REST API endpoints (requires Supabase auth)
+    - `POST /application` - Create new application
+    - `GET /application` - List user's applications
+    - `GET /application/:id` - Get specific application
+    - `PATCH /application/:id` - Update application
+    - `DELETE /application/:id` - Delete application
+    - `POST /application/:id/regenerate-key` - Regenerate API key
+  - API Key format: `app_{64 random hex characters}`
+
 - **MemoryModule** - Storage abstraction layer (Global module)
   - `MemoryService`: Automatic storage adapter selection (Redis or in-memory)
   - `InMemoryStorageAdapter`: Volatile in-memory storage using Maps
@@ -70,14 +81,39 @@ The application follows NestJS modular architecture with clear separation of con
 - **HealthModule** - Service health monitoring
   - Provides `/health` endpoint
 
-- **ViewsModule** - Serves basic development UI
-  - Serves static HTML/CSS/JS from `src/views/public/`
-  - `/view` route for development testing interface
+- **PlatformModule** - Web platform (SPA)
+  - `PlatformController`: Routes for web interface
+  - `PagesService`: File-based routing for SPA pages
+  - Serves from `src/platform/`
+  - **Pages** (SPA, rendered inside `index.ejs`):
+    - `dashboard` - Main dashboard
+    - `rooms` - Room listing and management
+    - `chat` - Chat interface
+    - `applications` - Application/API Key management
+    - `profile` - User profile
+    - `login` - Authentication
+    - `about` - About page (GitHub integration)
+    - `guide` - Documentation/guide
+  - **Standalone pages** (rendered directly):
+    - `landing` - Landing page
+  - **Error pages**: `403.ejs`, `404.ejs`, `500.ejs`
+  - **Assets**: `/platform/assets/styles/`, `/platform/assets/scripts/`, `/platform/assets/media/`
+
+- **GithubModule** - GitHub API integration
+  - `GithubService`: Fetches GitHub user data, repos, social accounts
+  - `GithubController`: REST endpoint `/api/github/profile`
+  - In-memory cache with 5-minute TTL
+  - Configuration: `GITHUB_CACHE_ENABLED` env var
+
+- **SupabaseModule** - Supabase integration
+  - `SupabaseService`: JWT token validation and user authentication
+  - Used for both REST and WebSocket authentication
+  - Also used by ApplicationModule for database operations
 
 ### Data Flow
 
 1. **WebSocket Events** → RoomGateway handles Socket.IO events
-2. **Business Logic** → RoomService manages room state (in-memory Maps)
+2. **Business Logic** → RoomService manages room state (via MemoryService)
 3. **Event Emission** → Service operations emit `metrics:*` events via EventsService
 4. **Metrics Collection** → MetricsService listens to events and updates counters
 5. **REST API** → RoomController provides HTTP endpoints for room management
@@ -99,7 +135,7 @@ The application follows NestJS modular architecture with clear separation of con
 
 **Data Storage Structure**:
 - Each `Room` contains:
-  - `participants`: `string[]` - **hybrid keys** (userId for Supabase users, clientId for anonymous users)
+  - `participants`: `string[]` - **hybrid keys** (userId for Supabase users, applicationId for apps, clientId for anonymous)
   - `participantNames`: `Map<string, string | null>` - hybrid key to name mapping
   - `participantSupabaseUsers`: `Map<string, SupabaseUserData | null>` - Supabase user data by hybrid key
   - `messages`: `RoomMessage[]` - message history (includes optional `userId` field)
@@ -108,6 +144,8 @@ The application follows NestJS modular architecture with clear separation of con
 - **Supabase authenticated users**: Use `userId` (Supabase User ID) as primary key
   - Persistent across sessions and reconnections
   - Key format: UUID from Supabase (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+- **Applications**: Use `applicationId` from validated API key
+  - Key format: UUID from applications table
 - **Anonymous users**: Use `clientId` (Socket.IO connection ID) as key
   - Volatile, regenerated on each reconnection
   - Key format: Socket.IO ID (e.g., `"xW3kJ9pL2mN8qR5t"`)
@@ -126,13 +164,34 @@ The application follows NestJS modular architecture with clear separation of con
 - **Namespace**: `/ws/rooms` (configurable via `WEBSOCKET_NAMESPACE` env var)
 - **Transports**: websocket, polling
 - **CORS**: Configured via `CORS_ORIGIN` env var (default: `*` for development)
-- **Events**: joinRoom, leaveRoom, sendMessage, getRoomInfo, updateParticipantName
+- **Events**: `joinRoom`, `leaveRoom`, `emit`, `sendMessage`, `getRoomInfo`, `updateParticipantName`
+- **Server Events**: `joinedRoom`, `userJoined`, `userLeft`, `newMessage`, `roomInfo`, `participantNameUpdated`, `roomDeleted`, `error`
 
 ### Client Lifecycle
 
-1. Client connects to `/ws/rooms` namespace → triggers `metrics:client-connected`
-2. Client emits `joinRoom` → joins Socket.IO room + added to RoomService participants
-3. Disconnection → automatically removed from all rooms (see `handleDisconnect` in RoomGateway)
+The WebSocket gateway supports **three types of connections**:
+
+1. **Application Connection** (via `auth.applicationKey`):
+   - Validates API key via `ApplicationService.validateApiKey()`
+   - Stores application data in `client.data.application`
+   - Uses `applicationId` as participant key
+
+2. **Supabase User Connection** (via `auth.token` or `Authorization` header):
+   - Validates JWT via `SupabaseService`
+   - Starts periodic token validation timer (`TOKEN_VALIDATION_INTERVAL`)
+   - Stores user data in `client.data.user`
+   - Uses `userId` as participant key
+
+3. **Anonymous Connection**:
+   - Allowed if no authentication is configured
+   - Uses Socket.IO `clientId` as participant key
+
+**Connection Flow**:
+1. Client connects to `/ws/rooms` namespace
+2. Gateway validates authentication (application key, Supabase token, or API key)
+3. On success: triggers `metrics:client-connected`
+4. Client emits `joinRoom` → joins Socket.IO room + added to RoomService participants
+5. Disconnection → automatically removed from all rooms (see `handleDisconnect`)
 
 ## API Documentation (Swagger/OpenAPI)
 
@@ -150,11 +209,12 @@ The application includes comprehensive API documentation using Swagger/OpenAPI:
   - `@ApiResponse()` - Document response schemas
   - `@ApiParam()` - Document URL parameters
   - `@ApiBody()` - Document request body
-- Configuration in `main.ts:16-40`
+- Configuration in `main.ts`
 - Packages: `@nestjs/swagger`, `swagger-ui-express`
 
 ### Tags
 - `rooms` - Chat room management endpoints
+- `applications` - Application/API Key management endpoints
 - `health` - Service health check
 - `metrics` - System monitoring and observability
 
@@ -164,29 +224,33 @@ The application includes comprehensive API documentation using Swagger/OpenAPI:
 
 - Room IDs: `room_{timestamp}_{random9chars}` (see `RoomService.generateRoomId`)
 - Message IDs: `msg_{timestamp}_{random9chars}` (see `RoomService.generateMessageId`)
+- Application API Keys: `app_{64 random hex characters}` (see `ApplicationService.generateApiKey`)
 
 ### Participant Name System
 
 - Participants can optionally provide a name when joining
-- Names can be updated via `updateParticipantName` event
+- Names can be updated via `updateParticipantName` event (anonymous users only)
 - Names are stored in `participantNames` Map and broadcast to room on updates
+- Supabase authenticated users: Name derived from user data (cannot be manually updated)
+- Applications: Name derived from application name
 
 ### Message History
 
-- All messages are kept in memory in `Room.messages` array
-- When joining, clients receive last 10 messages (see `joinedRoom` event in RoomGateway:113)
-- No message persistence or pagination
+- All messages are kept in storage (in-memory or Redis)
+- When joining, clients receive last 10 messages (see `joinedRoom` event)
 - Full message history available via `GET /room/:id/messages` REST endpoint
+- Messages include `event` field to differentiate between `message` and `emit` events
 
 ### Room Deletion
 
 - Rooms can be deleted via REST API (`DELETE /room/:id`) or by service method
-- `RoomService.deleteRoom(roomId)` removes room from Map and emits `metrics:room-deleted` event
-- Deletion does not automatically disconnect active participants (handle via WebSocket events if needed)
+- `RoomService.deleteRoom(roomId)` removes room and emits `metrics:room-deleted` event
+- **Broadcasts `roomDeleted` event** to all clients in the room via WebSocket
+- Active participants receive notification before being disconnected from room
 
 ### Participant Information Retrieval
 
-- `RoomService.getParticipantsWithNames(roomId)` returns array of `{clientId, name}` objects
+- `RoomService.getParticipantsWithNames(roomId)` returns array of `{clientId, name, supabaseUser}` objects
 - Used by REST endpoints and WebSocket events to provide participant details
 - Available via `GET /room/:id/participants` endpoint
 
@@ -205,6 +269,60 @@ Event types tracked:
 - `metrics:user-joined-room` - User joins a room
 - `metrics:user-left-room` - User leaves a room
 - `metrics:message-sent` - Message sent in room
+
+## Application Module
+
+The ApplicationModule allows users to create and manage applications that can connect to the WebSocket API using API keys.
+
+### Features
+
+- CRUD operations for applications
+- Secure API key generation (`app_{64 hex chars}`)
+- API key regeneration
+- Applications stored in Supabase (`applications` table)
+- Per-user isolation (users can only see their own applications)
+
+### Database Schema (Supabase)
+
+```sql
+-- applications table
+id: uuid (primary key)
+name: string
+description: string | null
+key: string (unique, the API key)
+created_by: uuid (references auth.users)
+created_at: timestamp
+updated_at: timestamp
+is_active: boolean
+```
+
+### WebSocket Connection with Application Key
+
+```javascript
+const socket = io('/ws/rooms', {
+  auth: { applicationKey: 'app_your64charshexkey...' }
+});
+```
+
+## GitHub Integration
+
+The GithubModule provides GitHub API integration for the about page.
+
+### Endpoints
+
+- `GET /api/github/profile` - Returns GitHub user data, repos, and social accounts
+
+### Features
+
+- Fetches user profile, repositories, and social accounts
+- Calculates top programming languages from repos
+- In-memory cache with 5-minute TTL (configurable via `GITHUB_CACHE_ENABLED`)
+- Graceful error handling (returns null on API errors)
+
+### Configuration
+
+- `GITHUB_CACHE_ENABLED` - Enable/disable cache (default: `true`)
+- GitHub username hardcoded in `PlatformController` (`GITHUB_USERNAME` constant)
 
 ## Redis Storage (Optional)
 
@@ -231,14 +349,10 @@ When Redis is enabled, data is stored using the following key patterns with **hy
 
 - `rooms` - Set of all room IDs
 - `room:{roomId}` - Room metadata (JSON)
-- `room:{roomId}:participants` - Set of participant **hybrid keys** (userId or clientId)
-- `room:{roomId}:participant:{key}:name` - Participant name (string), where `{key}` = userId or clientId
-- `room:{roomId}:participant:{key}:supabase` - Participant Supabase user data (JSON), where `{key}` = userId or clientId
-- `room:{roomId}:messages` - List of messages (JSON array, each includes optional `userId` field)
-
-**Key Examples**:
-- Supabase user: `room:room_123:participant:550e8400-e29b-41d4-a716-446655440000:name`
-- Anonymous user: `room:room_123:participant:xW3kJ9pL2mN8qR5t:name`
+- `room:{roomId}:participants` - Set of participant **hybrid keys** (userId, applicationId, or clientId)
+- `room:{roomId}:participant:{key}:name` - Participant name (string)
+- `room:{roomId}:participant:{key}:supabase` - Participant Supabase user data (JSON)
+- `room:{roomId}:messages` - List of messages (JSON array)
 
 ### Implementation Details
 
@@ -257,11 +371,6 @@ When Redis is enabled, data is stored using the following key patterns with **hy
 - **Without Redis**: Data is volatile, lost on restart (development/testing)
 - **With Redis**: Data persists across restarts (production/staging)
 - No migration needed between storage types (data is isolated)
-
-**Performance Considerations**:
-- In-memory adapter: Fast, no network overhead, limited by RAM
-- Redis adapter: Network latency, scalable, persistent
-- All operations are async to prevent blocking
 
 ### Debugging Redis Storage
 
@@ -285,16 +394,37 @@ Environment variables (see `.env.example`):
 - `PORT` - Server port (default: 3000)
 - `CORS_ORIGIN` - CORS allowed origin (default: `*`)
 - `WEBSOCKET_NAMESPACE` - Socket.IO namespace (default: `/ws/rooms`)
-- `API_KEY` - API key for authentication (optional, if not set auth is disabled)
-- `SUPABASE_URL` - Supabase project URL (optional, for Supabase authentication)
-- `SUPABASE_ANON_KEY` - Supabase anonymous key (optional, for Supabase authentication)
-- `REDIS_URL` - Redis connection URL (optional, if not set uses in-memory storage)
+- `API_KEY` - Global API key for authentication (optional)
+- `SUPABASE_URL` - Supabase project URL (optional)
+- `SUPABASE_ANON_KEY` - Supabase anonymous key (optional)
+- `REDIS_URL` - Redis connection URL (optional)
+- `TOKEN_VALIDATION_INTERVAL` - Supabase token validation interval in ms (default: 300000)
+- `GITHUB_CACHE_ENABLED` - Enable GitHub API cache (default: `true`)
 - `APP_NAME` - Application name (used in Docker deployments)
 - `APP_VERSION` - Application version (used in Docker deployments)
 
-**Note**: `APP_NAME` and `APP_VERSION` are primarily used in Docker Compose configurations (`docker-compose.yml`, `docker-compose.coolify.yml`, `docker-compose.dev.yml`) as environment variables passed to containers for deployment tracking and identification.
-
 ## Security & Authentication
+
+### Authentication Hierarchy
+
+The system supports **multiple authentication methods** with the following priority:
+
+1. **Application Key** (`auth.applicationKey` for WebSocket):
+   - Format: `app_{64 hex characters}`
+   - Validates against Supabase `applications` table
+   - Used for server-to-server or app connections
+
+2. **Supabase JWT Token** (`auth.token` or `Authorization: Bearer`):
+   - Validates via `SupabaseService.validateToken()`
+   - Starts periodic validation timer
+   - Full user data available
+
+3. **Global API Key** (`auth.apiKey` or `x-api-key` header):
+   - Simple string comparison with `process.env.API_KEY`
+   - Used for simple API access control
+
+4. **Anonymous** (no authentication):
+   - Allowed only if no authentication is configured
 
 ### API Key Authentication
 
@@ -319,227 +449,67 @@ curl -H "x-api-key: your-api-key" http://localhost:3000/room
 
 # Using query parameter
 curl http://localhost:3000/room?apiKey=your-api-key
-
-# With both API Key AND Supabase token
-curl -H "x-api-key: your-api-key" \
-     -H "Authorization: Bearer supabase-jwt-token" \
-     http://localhost:3000/room
 ```
 
 **WebSocket Authentication:**
-For WebSocket connections, provide the API key in one of these ways:
-1. `auth.apiKey` in connection options (recommended)
-2. `x-api-key` in headers
-3. `apiKey` query parameter
-
-Example (client-side):
 ```javascript
-// Socket.IO client
+// Global API Key
 const socket = io('/ws/rooms', {
   auth: { apiKey: 'your-api-key' }
 });
 
-// Alternative: via query
-const socket = io('/ws/rooms?apiKey=your-api-key');
+// Application Key
+const socket = io('/ws/rooms', {
+  auth: { applicationKey: 'app_your64hexchars...' }
+});
+
+// Supabase Token
+const socket = io('/ws/rooms', {
+  auth: { token: 'supabase-jwt-token' }
+});
 ```
-
-**Swagger/OpenAPI:**
-When API_KEY is configured, Swagger UI will show a lock icon on endpoints. Click "Authorize" to enter your API key for testing.
-
-**Implementation Details:**
-- Guard: `src/common/guards/api-key.guard.ts` - Applied globally to all REST endpoints
-- WebSocket: Validated in `RoomGateway.handleConnection()` before accepting connections
-- Failed auth returns `401 Unauthorized` for REST, disconnects WebSocket clients
-- All auth failures are logged with client IP/address for security monitoring
 
 ### Supabase Authentication
 
-The API supports optional Supabase authentication for both REST API and WebSocket connections:
-
 **Configuration:**
-- Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` environment variables to enable authentication
-- If not set, Supabase authentication is disabled
-- Get credentials from your Supabase project: https://app.supabase.com/project/_/settings/api
+- Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` environment variables to enable
+- Get credentials from: https://app.supabase.com/project/_/settings/api
 
-**Module Structure:**
-- **SupabaseModule** - Supabase integration module
-  - `SupabaseService`: JWT token validation and user authentication
-  - Validates tokens using `supabase.auth.getUser(token)`
-
-**REST API Authentication:**
-Provide JWT token via `Authorization` header:
-
-```bash
-curl -H "Authorization: Bearer <supabase-jwt-token>" http://localhost:3000/room
-```
-
-**WebSocket Authentication:**
-For WebSocket connections, provide the JWT token in one of these ways:
-1. `auth.token` in connection options (recommended)
-2. `Authorization` header as Bearer token
-
-Example (client-side):
-```javascript
-// Socket.IO client - recommended
-const socket = io('/ws/rooms', {
-  auth: { token: 'supabase-jwt-token' }
-});
-
-// Alternative: via Authorization header
-const socket = io('/ws/rooms', {
-  extraHeaders: {
-    'Authorization': 'Bearer supabase-jwt-token'
-  }
-});
-```
+**Token Validation:**
+- Initial validation on connection
+- Periodic validation every `TOKEN_VALIDATION_INTERVAL` ms (default: 5 minutes)
+- Expired tokens trigger automatic disconnection
 
 **User Data Flow:**
-When a user is authenticated via Supabase:
-1. Token is validated during WebSocket connection (`handleConnection`)
-2. User data is stored in `client.data.user` (from `@supabase/supabase-js` User type)
-3. User's display name is automatically set from Supabase:
-   - Priority: `user.email` → `user.user_metadata.name` → `'User'`
-4. Users authenticated via Supabase **cannot** update their participant name
-   - `updateParticipantName` event is blocked for authenticated users
-   - Name always comes from Supabase user data
+1. Token is validated during WebSocket connection
+2. User data is stored in `client.data.user`
+3. Display name is set from: `user.email` → `user.user_metadata.name` → `'User'`
+4. Supabase users **cannot** manually update their participant name
 
-**Implementation Details:**
-- Guard: `src/common/guards/supabase-auth.guard.ts` - Applied globally to all REST endpoints
-- Service: `src/supabase/supabase.service.ts` - Token validation and user retrieval
-- WebSocket: Validated in `RoomGateway.handleConnection()` before accepting connections
-- Bypass global guard with `@Public()` decorator (same as API Key)
-- User object includes: `id`, `email`, `user_metadata`, and other Supabase user fields
-- Failed auth returns `401 Unauthorized` for REST, disconnects WebSocket clients
-- All auth failures are logged with client IP/address for security monitoring
+### Implementation Details
 
-**Swagger/OpenAPI:**
-When Supabase is configured, Swagger UI will show a lock icon on endpoints. Click "Authorize" to enter your Supabase JWT token for testing.
-
-**Authentication Hierarchy (Either/Or):**
-The system supports flexible authentication - you can use **either** API Key **or** Supabase token:
-
-1. **If only `API_KEY` is configured:**
-   - API Key is required (via `x-api-key` header or `apiKey` query parameter)
-
-2. **If only `SUPABASE_URL` and `SUPABASE_ANON_KEY` are configured:**
-   - Supabase JWT token is required (via `Authorization: Bearer <token>` header)
-
-3. **If both are configured:**
-   - You can provide **either** API Key **or** Supabase token (not both required)
-   - API Key is checked first - if valid, Supabase validation is skipped
-   - If no API Key, Supabase token is required
-
-4. **If neither is configured:**
-   - No authentication required (useful for development)
-
-**Important**: Each authentication method uses different headers to avoid conflicts:
-- **API Key**: `x-api-key` header (recommended) or `apiKey` query parameter
-- **Supabase**: `Authorization: Bearer <jwt-token>` header (exclusive)
-
-**Usage Examples:**
-
-```bash
-# Option 1: Only API Key
-curl -H "x-api-key: your-api-key" \
-     http://localhost:3000/room
-
-# Option 2: Only Supabase token
-curl -H "Authorization: Bearer supabase-jwt-token" \
-     http://localhost:3000/room
-
-# Option 3: Both (optional - either one is enough)
-curl -H "x-api-key: your-api-key" \
-     -H "Authorization: Bearer supabase-jwt-token" \
-     http://localhost:3000/room
-```
-
-```javascript
-// WebSocket examples
-
-// Option 1: Only API Key
-const socket = io('/ws/rooms', {
-  auth: { apiKey: 'your-api-key' }
-});
-
-// Option 2: Only Supabase token
-const socket = io('/ws/rooms', {
-  auth: { token: 'supabase-jwt-token' }
-});
-
-// Option 3: Both (optional - either one is enough)
-const socket = io('/ws/rooms', {
-  auth: {
-    apiKey: 'your-api-key',
-    token: 'supabase-jwt-token'
-  }
-});
-```
-
-**Participant Name Behavior:**
-- **Anonymous users**: Can set and update participant names via `participantName` in `joinRoom` and `updateParticipantName` events
-- **Supabase authenticated users**: Name is automatically derived from Supabase user data and cannot be manually updated
+- Guards: `src/common/guards/api-key.guard.ts`, `src/common/guards/supabase-auth.guard.ts`
+- Bypass guards with `@Public()` decorator
+- WebSocket validation in `RoomGateway.handleConnection()`
 
 ## Configuração Opcional do Supabase - Garantias de Segurança
 
 ### Proteções Implementadas
 
-O código foi projetado para **nunca causar erros** quando Supabase não estiver configurado. As seguintes proteções estão implementadas:
+O código foi projetado para **nunca causar erros** quando Supabase não estiver configurado:
 
-#### 1. **SupabaseService - Early Return Pattern**
-Todos os métodos retornam `null` quando Supabase não está configurado:
-
-```typescript
-async validateToken(token: string): Promise<User | null> {
-  if (!this.supabase) {
-    return null; // ✅ Retorna imediatamente sem erro
-  }
-  // ... lógica de validação
-}
-```
-
-#### 2. **RoomGateway - Validação Condicional**
-O timer de validação periódica de token **só é iniciado** quando:
-- Supabase está habilitado (`isEnabled() === true`)
-- Cliente tem usuário autenticado
-- Verifica estado durante cada iteração do timer
-
-#### 3. **Guards - Bypass Automático**
-Guards permitem acesso quando Supabase não está configurado:
-
-```typescript
-// ApiKeyGuard
-if (!this.API_KEY) {
-  return true; // Bypass se nenhuma autenticação configurada
-}
-
-// SupabaseAuthGuard
-if (!this.supabaseService.isEnabled()) {
-  return true; // Bypass se Supabase não configurado
-}
-```
-
-#### 4. **Método Seguro: getUserSafely()**
-Versão mais segura de `validateToken` com log adicional:
-
-```typescript
-const user = await this.supabaseService.getUserSafely(token);
-// Sempre retorna null se Supabase não estiver configurado
-```
+1. **SupabaseService - Early Return Pattern**: Retorna `null` quando não configurado
+2. **RoomGateway - Validação Condicional**: Timer só inicia se Supabase habilitado
+3. **Guards - Bypass Automático**: Permite acesso quando não configurado
+4. **Método Seguro: `getUserSafely()`**: Versão segura de `validateToken`
 
 ### Checklist de Desenvolvimento
 
 Ao adicionar código que usa Supabase:
-
-- [ ] **Sempre** use `isEnabled()` antes de chamar métodos do SupabaseService
+- [ ] Use `isEnabled()` antes de chamar métodos do SupabaseService
 - [ ] Adicione verificações defensivas em métodos que usam `client.data.user`
 - [ ] Teste o código **com e sem** Supabase configurado
-- [ ] Adicione logs apropriados para debugging
-- [ ] Documente o comportamento quando Supabase não está configurado
 - [ ] Use `getUserSafely()` em vez de `validateToken()` quando possível
-
-### Documentação Detalhada
-
-Para guia completo sobre configuração opcional do Supabase, incluindo estratégias de segurança, testes e troubleshooting, consulte:
 
 📖 **[docs/SUPABASE_OPTIONAL_CONFIGURATION.md](docs/SUPABASE_OPTIONAL_CONFIGURATION.md)**
 
@@ -547,10 +517,25 @@ Para guia completo sobre configuração opcional do Supabase, incluindo estraté
 
 - **REST API**: `http://localhost:${PORT}` (default: 3000)
 - **WebSocket**: `/ws/rooms` namespace
-- **Dev UI**: `/view` - Basic development testing interface
+- **Platform**: `/platform` - Full web platform with dashboard, chat, applications, etc.
 - **API Docs**: `/api-docs` - Interactive Swagger/OpenAPI documentation
 - **Health**: `/health` - Service health check
 - **Metrics**: `/metrics` - System metrics and observability
+- **GitHub API**: `/api/github/profile` - GitHub profile data
+
+### Platform Pages
+
+| Route | Description |
+|-------|-------------|
+| `/platform` | Dashboard (default) |
+| `/platform/rooms` | Room management |
+| `/platform/chat` | Chat interface |
+| `/platform/applications` | Application/API Key management |
+| `/platform/profile` | User profile |
+| `/platform/login` | Authentication |
+| `/platform/about` | About page (GitHub integration) |
+| `/platform/guide` | Documentation/guide |
+| `/platform/landing` | Landing page (standalone) |
 
 ## Error Handling
 
@@ -560,34 +545,28 @@ The application has a comprehensive error handling system with custom error page
 
 **Global Exception Filter**: `AllExceptionsFilter` (applied globally in `main.ts`)
 - Catches **ALL** exceptions (both HTTP and non-HTTP errors)
-- Automatically renders custom error pages for browser requests to `/view` routes
+- Automatically renders custom error pages for browser requests to `/platform` routes
 - Returns JSON responses for API routes
 - Handles EJS parsing errors, database errors, and other unexpected exceptions
 
-**Error Pages** (located in `src/views/public/`):
+**Error Pages** (located in `src/platform/public/`):
 - `404.ejs` - Not Found (404)
 - `403.ejs` - Forbidden (403)
 - `500.ejs` - Internal Server Error (500)
 
 **Behavior**:
-- Browser requests to `/view/*` routes → Renders custom EJS error page
+- Browser requests to `/platform/*` routes → Renders custom EJS error page
 - API routes (e.g., `/room`, `/health`) → Returns JSON error response
 - Error pages include: status code, error message, timestamp, and path
 
 **Development vs Production Mode**:
-- **Development** (`NODE_ENV !== 'production'`): Shows full error details (status, path, timestamp, message) with `[DEV]` badge
-- **Production**: Hides all technical details - only shows generic error message already in the page text
-- In production mode, the entire "Details" section is hidden for security reasons
+- **Development** (`NODE_ENV !== 'production'`): Shows full error details with `[DEV]` badge
+- **Production**: Hides technical details for security
 
 **Implementation**:
 - Filter: `src/common/filters/all-exceptions.filter.ts`
 - API route detection: `src/common/config/api-routes.config.ts`
-- Applied in: `src/main.ts:59` with `app.useGlobalFilters(new AllExceptionsFilter())`
-
-**Logging**:
-- All exceptions are logged with full stack traces
-- HTTP errors show request method, URL, and error details
-- Non-HTTP errors (e.g., EJS errors) include full stack trace for debugging
+- Applied in: `src/main.ts` with `app.useGlobalFilters(new AllExceptionsFilter())`
 
 ## Common Patterns
 
@@ -601,7 +580,7 @@ The application has a comprehensive error handling system with custom error page
 
 ### Adding New REST Endpoints
 
-1. Add endpoint in `RoomController` with NestJS HTTP decorators (`@Get`, `@Post`, `@Delete`, etc.)
+1. Add endpoint in Controller with NestJS HTTP decorators (`@Get`, `@Post`, `@Delete`, etc.)
 2. Add Swagger decorators for API documentation:
    - `@ApiOperation({ summary: 'Description' })`
    - `@ApiResponse({ status: 200, description: 'Success case' })`
@@ -609,7 +588,15 @@ The application has a comprehensive error handling system with custom error page
 3. Implement validation using DTOs if needed
 4. Add proper error handling with `HttpException` and status codes
 5. Test endpoint via `/api-docs` Swagger interface
-6. Update CLAUDE.md documentation if it's a significant addition
+6. Update CLAUDE.md documentation if significant
+
+### Adding New Platform Pages
+
+1. Create EJS file in `src/platform/pages/{pageName}.ejs`
+2. Page will be automatically available at `/platform/{pageName}`
+3. For SPA pages, content renders inside `pages/index.ejs` layout
+4. For standalone pages, add to `PagesService.hasStandalonePage()` check
+5. Update `PagesService.getValidPageNames()` if needed
 
 ### Adding New Metrics
 
