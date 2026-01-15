@@ -68,8 +68,10 @@ export class RoomGateway
 
   // Intervalo de validação do token (em milissegundos)
   // Padrão: 5 minutos
-  private readonly TOKEN_VALIDATION_INTERVAL =
-    parseInt(process.env.TOKEN_VALIDATION_INTERVAL || '300000', 10);
+  private readonly TOKEN_VALIDATION_INTERVAL = parseInt(
+    process.env.TOKEN_VALIDATION_INTERVAL || '300000',
+    10,
+  );
 
   constructor(
     @Inject(forwardRef(() => RoomService))
@@ -100,7 +102,7 @@ export class RoomGateway
 
     if (appKey) {
       const application = await this.applicationService.validateApiKey(appKey);
-      
+
       if (application) {
         // Store application data in socket
         client.data.application = {
@@ -124,7 +126,8 @@ export class RoomGateway
           `WebSocket connection rejected: invalid x-app-key from ${client.handshake.address}`,
         );
         client.emit('error', {
-          message: 'Authentication failed: Invalid or inactive application key.',
+          message:
+            'Authentication failed: Invalid or inactive application key.',
         });
         client.disconnect();
         return;
@@ -356,14 +359,19 @@ export class RoomGateway
    * @param client - Authenticated socket client
    * @returns ApplicationData if application is connected, null otherwise
    */
-  private extractApplicationData(client: AuthenticatedSocket): ApplicationData | null {
+  private extractApplicationData(
+    client: AuthenticatedSocket,
+  ): ApplicationData | null {
     return client.data?.application || null;
   }
 
   /**
    * Gets display name for a client (user, application, or anonymous)
    */
-  private getClientDisplayName(client: AuthenticatedSocket, participantName?: string): string | null {
+  private getClientDisplayName(
+    client: AuthenticatedSocket,
+    participantName?: string,
+  ): string | null {
     // If connected as application
     const app = client.data?.application;
     if (app) {
@@ -419,11 +427,11 @@ export class RoomGateway
     }
 
     const supabaseUserData = this.extractSupabaseUserData(client);
-    
+
     // Determine the persistent identifier for this connection
     // For applications: app_xxx, for Supabase users: userId, for anonymous: null
-    const persistentId = application 
-      ? `app_${application.id}` 
+    const persistentId = application
+      ? `app_${application.id}`
       : client.data?.user?.id || null;
 
     // Remove o cliente de todas as salas ao desconectar
@@ -437,12 +445,13 @@ export class RoomGateway
           client.id,
           persistentId,
         );
-        
-        const displayName = participantName 
-          || application?.name
-          || supabaseUserData?.email 
-          || null;
-          
+
+        const displayName =
+          participantName ||
+          application?.name ||
+          supabaseUserData?.email ||
+          null;
+
         await this.roomService.leaveRoom(room.id, client.id, persistentId);
         client.to(room.id).emit('userLeft', {
           clientId: client.id,
@@ -482,14 +491,23 @@ export class RoomGateway
 
     // For applications, create a synthetic SupabaseUserData with app_ prefix
     // This ensures the participant is stored with a persistent key (app_xxx) instead of socket ID
-    const userDataForStorage = supabaseUserData 
-      ? supabaseUserData 
-      : applicationData 
-        ? { id: `app_${applicationData.id}`, email: applicationData.name, name: applicationData.name }
+    const userDataForStorage = supabaseUserData
+      ? supabaseUserData
+      : applicationData
+        ? {
+            id: `app_${applicationData.id}`,
+            email: applicationData.name,
+            name: applicationData.name,
+          }
         : null;
 
     // Adicionar ao serviço
-    await this.roomService.joinRoom(roomId, client.id, displayName, userDataForStorage);
+    await this.roomService.joinRoom(
+      roomId,
+      client.id,
+      displayName,
+      userDataForStorage,
+    );
 
     // Notificar outros usuários na sala
     client.to(roomId).emit('userJoined', {
@@ -504,7 +522,8 @@ export class RoomGateway
     });
 
     // Confirmar entrada para o cliente
-    const participants = await this.roomService.getParticipantsWithNames(roomId);
+    const participants =
+      await this.roomService.getParticipantsWithNames(roomId);
     client.emit('joinedRoom', {
       roomId: room.id,
       roomName: room.name,
@@ -530,11 +549,11 @@ export class RoomGateway
     // Extract data for display name
     const supabaseUserData = this.extractSupabaseUserData(client);
     const applicationData = this.extractApplicationData(client);
-    
+
     // Determine the persistent identifier for this connection
     // For applications: app_xxx, for Supabase users: userId, for anonymous: null
-    const persistentId = applicationData 
-      ? `app_${applicationData.id}` 
+    const persistentId = applicationData
+      ? `app_${applicationData.id}`
       : client.data?.user?.id || null;
 
     // Get participant name BEFORE removing from room
@@ -543,18 +562,23 @@ export class RoomGateway
       client.id,
       persistentId,
     );
-    
+
     // Use appropriate fallback for display name
-    const displayName = participantName 
-      || applicationData?.name
-      || supabaseUserData?.email 
-      || null;
+    const displayName =
+      participantName ||
+      applicationData?.name ||
+      supabaseUserData?.email ||
+      null;
 
     // Leave no Socket.IO room
     client.leave(roomId) as void;
 
     // Remover do serviço
-    const success = await this.roomService.leaveRoom(roomId, client.id, persistentId);
+    const success = await this.roomService.leaveRoom(
+      roomId,
+      client.id,
+      persistentId,
+    );
 
     if (success) {
       const room = await this.roomService.getRoom(roomId);
@@ -649,7 +673,8 @@ export class RoomGateway
       return;
     }
 
-    const participants = await this.roomService.getParticipantsWithNames(roomId);
+    const participants =
+      await this.roomService.getParticipantsWithNames(roomId);
 
     client.emit('roomInfo', {
       id: room.id,
@@ -682,8 +707,7 @@ export class RoomGateway
     const user = client.data?.user;
     if (user) {
       client.emit('error', {
-        message:
-          'Não é possível atualizar o nome de usuários autenticados.',
+        message: 'Não é possível atualizar o nome de usuários autenticados.',
       });
       this.logger.warn(
         `Tentativa de atualizar nome bloqueada para usuário autenticado: ${user.id}`,
