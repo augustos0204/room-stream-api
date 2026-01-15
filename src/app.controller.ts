@@ -3,8 +3,6 @@ import type { Response } from 'express';
 import { Public } from './common/decorators';
 import { GithubService } from './github/github.service';
 
-const GITHUB_USERNAME = 'Augustos0204';
-
 @Controller()
 export class AppController {
   constructor(private readonly githubService: GithubService) {}
@@ -12,12 +10,13 @@ export class AppController {
   @Get()
   @Public()
   async getLanding(@Res() res: Response) {
-    const [githubUser, githubRepos, topLanguages, socialAccounts] = await Promise.all([
-      this.githubService.getUser(GITHUB_USERNAME),
-      this.githubService.getRepos(GITHUB_USERNAME, 6),
-      this.githubService.getTopLanguages(GITHUB_USERNAME),
-      this.githubService.getSocialAccounts(GITHUB_USERNAME),
-    ]);
+    const [githubUser, githubRepos, topLanguages, socialAccounts] =
+      await Promise.all([
+        this.githubService.getUser(),
+        this.githubService.getRepos(6),
+        this.githubService.getTopLanguages(),
+        this.githubService.getSocialAccounts(),
+      ]);
 
     return res.render('landing', {
       githubUser,

@@ -5,9 +5,6 @@ import { RoomService } from '../room/room.service';
 import { PagesService } from './pages.service';
 import { GithubService } from '../github/github.service';
 
-// GitHub username for the about page
-const GITHUB_USERNAME = 'Augustos0204';
-
 @Controller('platform')
 @Public()
 export class PlatformController {
@@ -77,7 +74,7 @@ export class PlatformController {
       // SPA Routing
       currentPage: currentPage,
       availablePages: this.pagesService.getValidPageNames(),
-      
+
       // SPA Pages para loop dinâmico de includes
       spaPages: this.pagesService.getSpaPageNames(),
 
@@ -127,20 +124,28 @@ export class PlatformController {
 
   @Get('assets/styles/:filename')
   getStyleFile(@Param('filename') filename: string, @Res() res: Response) {
-    return res.sendFile(filename, { root: './src/platform/public/styles' }, (err) => {
-      if (err) {
-        this.render404(res, `/platform/assets/styles/${filename}`);
-      }
-    });
+    return res.sendFile(
+      filename,
+      { root: './src/platform/public/styles' },
+      (err) => {
+        if (err) {
+          this.render404(res, `/platform/assets/styles/${filename}`);
+        }
+      },
+    );
   }
 
   @Get('assets/scripts/:filename')
   getScriptFile(@Param('filename') filename: string, @Res() res: Response) {
-    return res.sendFile(filename, { root: './src/platform/public/scripts' }, (err) => {
-      if (err) {
-        this.render404(res, `/platform/assets/scripts/${filename}`);
-      }
-    });
+    return res.sendFile(
+      filename,
+      { root: './src/platform/public/scripts' },
+      (err) => {
+        if (err) {
+          this.render404(res, `/platform/assets/scripts/${filename}`);
+        }
+      },
+    );
   }
 
   @Get('assets/media/:filename')
@@ -158,11 +163,15 @@ export class PlatformController {
       res.setHeader('Content-Type', 'image/webp');
     }
 
-    return res.sendFile(filename, { root: './src/platform/public/media' }, (err) => {
-      if (err) {
-        this.render404(res, `/platform/assets/media/${filename}`);
-      }
-    });
+    return res.sendFile(
+      filename,
+      { root: './src/platform/public/media' },
+      (err) => {
+        if (err) {
+          this.render404(res, `/platform/assets/media/${filename}`);
+        }
+      },
+    );
   }
 
   @Get('assets/manifest.json')
@@ -171,11 +180,15 @@ export class PlatformController {
     const manifestFile = isDev ? 'manifest-dev.json' : 'manifest.json';
 
     res.setHeader('Content-Type', 'application/manifest+json');
-    return res.sendFile(manifestFile, { root: './src/platform/public' }, (err) => {
-      if (err) {
-        this.render404(res, '/platform/assets/manifest.json');
-      }
-    });
+    return res.sendFile(
+      manifestFile,
+      { root: './src/platform/public' },
+      (err) => {
+        if (err) {
+          this.render404(res, '/platform/assets/manifest.json');
+        }
+      },
+    );
   }
 
   // ==================== CATCH-ALL FOR PAGES ====================
@@ -188,10 +201,7 @@ export class PlatformController {
    * - Legacy pages in public/ → rendered directly
    */
   @Get(':pageName')
-  async getPage(
-    @Param('pageName') pageName: string,
-    @Res() res: Response,
-  ) {
+  async getPage(@Param('pageName') pageName: string, @Res() res: Response) {
     // Tenta renderizar a página (SPA ou standalone)
     return this.renderPage(res, pageName);
   }

@@ -35,6 +35,7 @@ export interface GitHubSocialAccount {
 export class GithubService {
   private readonly logger = new Logger(GithubService.name);
   private readonly GITHUB_API = 'https://api.github.com';
+  private readonly GITHUB_USERNAME = 'Augustos0204';
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutos
   private readonly CACHE_ENABLED = process.env.GITHUB_CACHE_ENABLED !== 'false';
 
@@ -50,18 +51,21 @@ export class GithubService {
   /**
    * Busca dados do usuário do GitHub
    */
-  async getUser(username: string): Promise<GitHubUser | null> {
-    const cacheKey = `user:${username}`;
+  async getUser(): Promise<GitHubUser | null> {
+    const cacheKey = `user:${this.GITHUB_USERNAME}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.GITHUB_API}/users/${username}`, {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'RoomStream-API',
+      const response = await fetch(
+        `${this.GITHUB_API}/users/${this.GITHUB_USERNAME}`,
+        {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'RoomStream-API',
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         this.logger.error(`GitHub API error: ${response.status}`);
@@ -80,17 +84,14 @@ export class GithubService {
   /**
    * Busca repositórios públicos do usuário
    */
-  async getRepos(
-    username: string,
-    limit = 6,
-  ): Promise<GitHubRepo[]> {
-    const cacheKey = `repos:${username}:${limit}`;
+  async getRepos(limit = 6): Promise<GitHubRepo[]> {
+    const cacheKey = `repos:${this.GITHUB_USERNAME}:${limit}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
     try {
       const response = await fetch(
-        `${this.GITHUB_API}/users/${username}/repos?sort=updated&per_page=${limit}`,
+        `${this.GITHUB_API}/users/${this.GITHUB_USERNAME}/repos?sort=updated&per_page=${limit}`,
         {
           headers: {
             Accept: 'application/vnd.github.v3+json',
@@ -116,14 +117,14 @@ export class GithubService {
   /**
    * Busca links sociais do usuário
    */
-  async getSocialAccounts(username: string): Promise<GitHubSocialAccount[]> {
-    const cacheKey = `social:${username}`;
+  async getSocialAccounts(): Promise<GitHubSocialAccount[]> {
+    const cacheKey = `social:${this.GITHUB_USERNAME}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
     try {
       const response = await fetch(
-        `${this.GITHUB_API}/users/${username}/social_accounts`,
+        `${this.GITHUB_API}/users/${this.GITHUB_USERNAME}/social_accounts`,
         {
           headers: {
             Accept: 'application/vnd.github.v3+json',
@@ -141,7 +142,9 @@ export class GithubService {
       this.setCache(cacheKey, data);
       return data;
     } catch (error) {
-      this.logger.error(`Failed to fetch GitHub social accounts: ${error.message}`);
+      this.logger.error(
+        `Failed to fetch GitHub social accounts: ${error.message}`,
+      );
       return [];
     }
   }
@@ -149,8 +152,8 @@ export class GithubService {
   /**
    * Busca linguagens mais usadas nos repositórios
    */
-  async getTopLanguages(username: string): Promise<string[]> {
-    const repos = await this.getRepos(username, 30);
+  async getTopLanguages(): Promise<string[]> {
+    const repos = await this.getRepos(30);
     const languages = repos
       .map((repo) => repo.language)
       .filter((lang): lang is string => !!lang);
@@ -172,7 +175,7 @@ export class GithubService {
 
   private getFromCache(key: string): any | null {
     if (!this.CACHE_ENABLED) return null;
-    
+
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
       return cached.data;
@@ -182,7 +185,7 @@ export class GithubService {
 
   private setCache(key: string, data: any): void {
     if (!this.CACHE_ENABLED) return;
-    
+
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 }
