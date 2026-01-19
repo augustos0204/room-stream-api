@@ -2,23 +2,50 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AsyncApiModule, AsyncApiDocumentBuilder } from 'nestjs-asyncapi';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as path from 'path';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { SupabaseService } from './supabase/supabase.service';
+import {
+  StartupConfig,
+  printBanner,
+  printStartupSummary,
+} from './common/utils/startup.util';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const packageJson = require('../package.json');
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const logger = new Logger('Bootstrap');
 
-  // Configurar EJS como template engine
-  // Configurar múltiplos diretórios de views para suportar a nova estrutura:
-  // - pages/: Páginas (file-based routing)
-  // - components/: Componentes reutilizáveis
-  // - public/: Arquivos estáticos e páginas de erro
-  // - partials/: Legacy partials (para compatibilidade)
+  // Collect startup configuration
+  const startupConfig: StartupConfig = {
+    port: parseInt(process.env.PORT || '3000', 10),
+    environment: process.env.NODE_ENV || 'development',
+    wsNamespace: process.env.WEBSOCKET_NAMESPACE || '/ws/rooms',
+    auth: {
+      apiKey: !!process.env.API_KEY,
+      supabase: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
+      appKeys: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
+    },
+    features: {
+      ejsCache: process.env.NODE_ENV === 'production',
+      cors: process.env.CORS_ORIGIN || '*',
+    },
+  };
+
+  // Create NestJS application
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger:
+      startupConfig.environment === 'production'
+        ? ['error', 'warn', 'log']
+        : ['error', 'warn', 'log', 'debug', 'verbose'],
+  });
+
+  // Configure EJS template engine
   app.setBaseViewsDir([
     path.join(__dirname, 'platform'),
     path.join(__dirname, 'platform', 'pages'),
@@ -27,63 +54,47 @@ async function bootstrap() {
   ]);
   app.setViewEngine('ejs');
 
-  // Desabilitar cache do EJS em desenvolvimento para hot-reload
-  if (process.env.NODE_ENV !== 'production') {
+  // Disable EJS cache in development for hot-reload
+  if (!startupConfig.features.ejsCache) {
     app.set('view cache', false);
-    console.log('🔥 EJS cache desabilitado para hot-reload');
   }
 
-  // Configurar CORS para permitir ferramentas externas
+  // Configure CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: startupConfig.features.cors,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization', // Supabase JWT tokens
-      'x-api-key', // API Key authentication
-      'Accept',
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'Accept'],
     credentials: true,
   });
 
-  // Habilitar validação global para DTOs em REST API
+  // Enable global validation for DTOs
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true, // Transforma payloads em DTOs
-      whitelist: true, // Remove propriedades não definidas no DTO
-      forbidNonWhitelisted: true, // Rejeita propriedades extras
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
       transformOptions: {
-        enableImplicitConversion: true, // Converte tipos automaticamente
+        enableImplicitConversion: true,
       },
     }),
   );
 
-  // Apply global guards
-  const reflector = app.get(Reflector);
-
-  // Aplicar filtro global de exceções (captura TODAS as exceções, incluindo erros não-HTTP)
+  // Apply global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  if (process.env.API_KEY) {
+  // Apply global guards based on configuration
+  const reflector = app.get(Reflector);
+
+  if (startupConfig.auth.apiKey) {
     app.useGlobalGuards(new ApiKeyGuard(reflector));
-    console.log('🔐 API Key authentication enabled');
-  } else {
-    console.log(
-      '⚠️  API Key authentication disabled - set API_KEY env var to enable',
-    );
   }
 
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+  if (startupConfig.auth.supabase) {
     const supabaseService = app.get(SupabaseService);
     app.useGlobalGuards(new SupabaseAuthGuard(supabaseService, reflector));
-    console.log('🔑 Supabase authentication enabled');
-  } else {
-    console.log('⚠️  Supabase authentication disabled');
   }
 
-  // Configurar Swagger
-  const wsNamespace = process.env.WEBSOCKET_NAMESPACE || '/ws/rooms';
-
+  // Configure Swagger
   const swaggerDescription = `
 Real-time WebSocket API for creating and managing chat rooms. Built with NestJS and Socket.IO.
 
@@ -95,13 +106,13 @@ Real-time WebSocket API for creating and managing chat rooms. Built with NestJS 
 
 ## Quick Start
 
-WebSocket namespace: \`${wsNamespace}\`
+WebSocket namespace: \`${startupConfig.wsNamespace}\`
 `;
 
   const configBuilder = new DocumentBuilder()
     .setTitle('RoomStream API')
     .setDescription(swaggerDescription)
-    .setVersion('0.0.1')
+    .setVersion(packageJson.version)
     .setExternalDoc('WebSocket Guide', '/platform/guide')
     .addTag('rooms', 'Chat room management endpoints')
     .addTag('applications', 'Application/API Key management')
@@ -109,7 +120,7 @@ WebSocket namespace: \`${wsNamespace}\`
     .addTag('health', 'Service health check')
     .addTag('metrics', 'System monitoring and observability');
 
-  if (process.env.API_KEY) {
+  if (startupConfig.auth.apiKey) {
     configBuilder.addApiKey(
       {
         type: 'apiKey',
@@ -121,7 +132,7 @@ WebSocket namespace: \`${wsNamespace}\`
     );
   }
 
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+  if (startupConfig.auth.supabase) {
     configBuilder.addBearerAuth(
       {
         type: 'http',
@@ -150,21 +161,21 @@ WebSocket namespace: \`${wsNamespace}\`
     },
   });
 
-  // Configurar AsyncAPI para WebSocket documentation
+  // Configure AsyncAPI for WebSocket documentation
   const asyncApiOptions = new AsyncApiDocumentBuilder()
     .setTitle('RoomStream WebSocket API')
     .setDescription(
       'Real-time WebSocket events for chat room management using Socket.IO',
     )
-    .setVersion('1.0.0')
+    .setVersion(packageJson.version)
     .setDefaultContentType('application/json')
     .addServer('production', {
-      url: `wss://your-domain.com${wsNamespace}`,
+      url: `wss://your-domain.com${startupConfig.wsNamespace}`,
       protocol: 'wss',
       description: 'Production WebSocket server',
     })
     .addServer('development', {
-      url: `ws://localhost:${process.env.PORT || 3000}${wsNamespace}`,
+      url: `ws://localhost:${startupConfig.port}${startupConfig.wsNamespace}`,
       protocol: 'ws',
       description: 'Development WebSocket server',
     })
@@ -173,18 +184,18 @@ WebSocket namespace: \`${wsNamespace}\`
   const asyncApiDocument = AsyncApiModule.createDocument(app, asyncApiOptions);
   await AsyncApiModule.setup('/async-api-docs', app, asyncApiDocument);
 
-  // Usar porta do ambiente ou padrão 3000
-  if (!process.env.PORT) console.log('PORT não definida, usando padrão 3000');
-  const port = process.env.PORT || 3000;
+  // Start the server
+  await app.listen(startupConfig.port);
 
-  await app.listen(port);
+  // Print banner and startup summary after everything is ready
+  const isDev = startupConfig.environment !== 'production';
+  printBanner(isDev);
+  printStartupSummary(startupConfig);
 
-  console.log(`🚀 Aplicação rodando na porta ${port}`);
-  console.log(`📱 Interface de teste: http://localhost:${port}/platform`);
-  console.log(`📚 REST API Docs: http://localhost:${port}/api-docs`);
-  console.log(`📡 WebSocket Docs: http://localhost:${port}/async-api-docs`);
-  console.log(
-    `🔌 WebSocket namespace: ${process.env.WEBSOCKET_NAMESPACE || '/ws/rooms'}`,
-  );
+  logger.log('Application started successfully');
 }
-bootstrap().catch((err) => console.error('Erro ao iniciar aplicação:', err));
+
+bootstrap().catch((err) => {
+  console.error('Failed to start application:', err);
+  process.exit(1);
+});
