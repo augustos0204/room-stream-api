@@ -16,3 +16,6 @@ export * from './leave-room.dto';
 export * from './send-message.dto';
 export * from './update-participant-name.dto';
 export * from './get-room-info.dto';
+
+// AsyncAPI Event Payloads
+export * from './events';
