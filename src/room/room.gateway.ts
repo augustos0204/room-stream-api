@@ -17,6 +17,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
+import { AsyncApiPub, AsyncApiSub } from 'nestjs-asyncapi';
 import { RoomService } from './room.service';
 import { EventsService } from '../events/events.service';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -28,6 +29,17 @@ import {
   SendMessageDto,
   UpdateParticipantNameDto,
   GetRoomInfoDto,
+  // Event payloads
+  JoinedRoomEvent,
+  LeftRoomEvent,
+  UserJoinedEvent,
+  UserLeftEvent,
+  RoomInfoEvent,
+  ParticipantNameUpdatedEvent,
+  RoomDeletedEvent,
+  ErrorEvent,
+  TokenExpiredEvent,
+  NewMessageEvent,
 } from './dto';
 import { WsExceptionFilter } from '../common/filters/websocket-exception.filter';
 
@@ -465,6 +477,35 @@ export class RoomGateway
     }
   }
 
+  @AsyncApiPub({
+    channel: 'joinRoom',
+    summary: 'Join a chat room',
+    description:
+      'Client requests to join a specific room. Returns room info and recent messages.',
+    message: {
+      name: 'joinRoom',
+      payload: JoinRoomDto,
+    },
+  })
+  @AsyncApiSub({
+    channel: 'joinedRoom',
+    summary: 'Room joined confirmation',
+    description:
+      'Sent to client after successfully joining a room with room details and recent messages.',
+    message: {
+      name: 'joinedRoom',
+      payload: JoinedRoomEvent,
+    },
+  })
+  @AsyncApiSub({
+    channel: 'userJoined',
+    summary: 'User joined notification',
+    description: 'Broadcast to all room participants when a new user joins.',
+    message: {
+      name: 'userJoined',
+      payload: UserJoinedEvent,
+    },
+  })
   @SubscribeMessage('joinRoom')
   @UsePipes(new ValidationPipe({ transform: true }))
   async handleJoinRoom(
@@ -538,6 +579,33 @@ export class RoomGateway
     );
   }
 
+  @AsyncApiPub({
+    channel: 'leaveRoom',
+    summary: 'Leave a chat room',
+    description: 'Client requests to leave a specific room.',
+    message: {
+      name: 'leaveRoom',
+      payload: LeaveRoomDto,
+    },
+  })
+  @AsyncApiSub({
+    channel: 'leftRoom',
+    summary: 'Room left confirmation',
+    description: 'Sent to client after successfully leaving a room.',
+    message: {
+      name: 'leftRoom',
+      payload: LeftRoomEvent,
+    },
+  })
+  @AsyncApiSub({
+    channel: 'userLeft',
+    summary: 'User left notification',
+    description: 'Broadcast to all room participants when a user leaves.',
+    message: {
+      name: 'userLeft',
+      payload: UserLeftEvent,
+    },
+  })
   @SubscribeMessage('leaveRoom')
   @UsePipes(new ValidationPipe({ transform: true }))
   async handleLeaveRoom(
@@ -600,6 +668,26 @@ export class RoomGateway
     }
   }
 
+  @AsyncApiPub({
+    channel: 'emit',
+    summary: 'Emit custom event to room',
+    description:
+      'Send a custom event with any payload to all participants in a room. The event name is customizable.',
+    message: {
+      name: 'emit',
+      payload: SendMessageDto,
+    },
+  })
+  @AsyncApiSub({
+    channel: '{eventName}',
+    summary: 'Custom event broadcast',
+    description:
+      'Dynamic event emitted to all room participants. Event name is defined by the "event" field in emit payload (default: "message").',
+    message: {
+      name: 'customEvent',
+      payload: NewMessageEvent,
+    },
+  })
   @SubscribeMessage('emit')
   @UsePipes(new ValidationPipe({ transform: true }))
   async handleEmit(
@@ -649,6 +737,16 @@ export class RoomGateway
    * Alias for 'emit' event - backwards compatibility
    * @deprecated Use 'emit' event instead
    */
+  @AsyncApiPub({
+    channel: 'sendMessage',
+    summary: 'Send message to room (deprecated)',
+    description:
+      'Alias for "emit" event. Use "emit" instead. Sends a message with event type "message".',
+    message: {
+      name: 'sendMessage',
+      payload: SendMessageDto,
+    },
+  })
   @SubscribeMessage('sendMessage')
   @UsePipes(new ValidationPipe({ transform: true }))
   async handleSendMessage(
@@ -659,6 +757,26 @@ export class RoomGateway
     return this.handleEmit({ ...data, event: data.event || 'message' }, client);
   }
 
+  @AsyncApiPub({
+    channel: 'getRoomInfo',
+    summary: 'Get room information',
+    description:
+      'Request detailed information about a specific room including participants and message count.',
+    message: {
+      name: 'getRoomInfo',
+      payload: GetRoomInfoDto,
+    },
+  })
+  @AsyncApiSub({
+    channel: 'roomInfo',
+    summary: 'Room information response',
+    description:
+      'Response containing room details, participants list, and statistics.',
+    message: {
+      name: 'roomInfo',
+      payload: RoomInfoEvent,
+    },
+  })
   @SubscribeMessage('getRoomInfo')
   @UsePipes(new ValidationPipe({ transform: true }))
   async handleGetRoomInfo(
@@ -686,6 +804,26 @@ export class RoomGateway
     });
   }
 
+  @AsyncApiPub({
+    channel: 'updateParticipantName',
+    summary: 'Update participant name',
+    description:
+      'Update the display name of the current participant. Only available for anonymous users.',
+    message: {
+      name: 'updateParticipantName',
+      payload: UpdateParticipantNameDto,
+    },
+  })
+  @AsyncApiSub({
+    channel: 'participantNameUpdated',
+    summary: 'Participant name updated notification',
+    description:
+      'Broadcast to all room participants when someone updates their display name.',
+    message: {
+      name: 'participantNameUpdated',
+      payload: ParticipantNameUpdatedEvent,
+    },
+  })
   @SubscribeMessage('updateParticipantName')
   @UsePipes(new ValidationPipe({ transform: true }))
   async handleUpdateParticipantName(
@@ -750,6 +888,16 @@ export class RoomGateway
    * Broadcast room deletion to all clients in the room
    * Called by RoomService when a room is deleted
    */
+  @AsyncApiSub({
+    channel: 'roomDeleted',
+    summary: 'Room deleted notification',
+    description:
+      'Broadcast to all room participants when a room is deleted via REST API.',
+    message: {
+      name: 'roomDeleted',
+      payload: RoomDeletedEvent,
+    },
+  })
   broadcastRoomDeleted(roomId: string, roomName: string): void {
     this.server.to(roomId).emit('roomDeleted', {
       roomId,
@@ -760,5 +908,45 @@ export class RoomGateway
     this.logger.log(
       `Broadcast de deleção enviado para sala ${roomId} (${roomName})`,
     );
+  }
+
+  // ============================================
+  // AsyncAPI Documentation for System Events
+  // ============================================
+
+  /**
+   * Error event documentation
+   * Emitted when an operation fails
+   */
+  @AsyncApiSub({
+    channel: 'error',
+    summary: 'Error notification',
+    description:
+      'Sent to client when an operation fails (authentication, room not found, etc.).',
+    message: {
+      name: 'error',
+      payload: ErrorEvent,
+    },
+  })
+  private _asyncApiDocError(): void {
+    // Documentation only - not a real handler
+  }
+
+  /**
+   * Token expired event documentation
+   * Emitted when Supabase JWT token expires
+   */
+  @AsyncApiSub({
+    channel: 'tokenExpired',
+    summary: 'Token expired notification',
+    description:
+      'Sent to client when Supabase JWT token expires. Client will be disconnected.',
+    message: {
+      name: 'tokenExpired',
+      payload: TokenExpiredEvent,
+    },
+  })
+  private _asyncApiDocTokenExpired(): void {
+    // Documentation only - not a real handler
   }
 }
