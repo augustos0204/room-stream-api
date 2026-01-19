@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <% const isDev = process.env.NODE_ENV !== 'production'; %>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Theme color para barra de sistema no mobile (Android/iOS) -->
+    <meta name="theme-color" content="<%= isDev ? '#ea580c' : '#1e1b4b' %>" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="msapplication-navbutton-color"
+      content="<%= isDev ? '#ea580c' : '#1e1b4b' %>"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+
+    <title>AppKey Tester</title>
+    <meta
+      name="description"
+      content="Ferramenta de teste para conexões WebSocket com x-app-key"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/platform/assets/media/<%= isDev ? 'favicon-dev.svg' : 'favicon.svg' %>"
+    />
+
+    <!-- External Dependencies -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            animation: {
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'fade-in': 'fadeIn 0.3s ease-out',
+              'slide-up': 'slideUp 0.3s ease-out',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <link rel="stylesheet" href="/platform/assets/styles/main.css" />
+
+    <style>
+      .glass-effect {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .log-entry {
+        animation: slideUp 0.2s ease-out;
+      }
+
+      .log-container {
+        max-height: calc(100dvh - 16rem);
+        overflow-y: auto;
+      }
+
+      .log-container::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .log-container::-webkit-scrollbar-track {
+        background: rgba(88, 28, 135, 0.2);
+        border-radius: 3px;
+      }
+
+      .log-container::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #8b5cf6, #a855f7);
+        border-radius: 3px;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        transition: background-color 0.3s ease;
+      }
+
+      .status-dot.connected {
+        background-color: #10b981;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+      }
+
+      .status-dot.disconnected {
+        background-color: #ef4444;
+      }
+
+      .status-dot.connecting {
+        background-color: #f59e0b;
+        animation: pulse 1s infinite;
+      }
+    </style>
+  </head>
+
+  <body
+    class="bg-slate-950 bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-sans min-h-screen"
+    style="color-scheme: dark"
+  >
+    <!-- Background animated elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+      <div
+        class="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow"
+      ></div>
+      <div
+        class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow"
+        style="animation-delay: 1.5s"
+      ></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="relative z-10 glass-effect border-b border-white/10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <!-- Logo -->
+          <div class="flex items-center gap-3">
+            <a
+              href="/platform"
+              class="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            >
+              <div
+                class="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center"
+              >
+                <i data-lucide="radio" class="w-5 h-5 text-white"></i>
+              </div>
+              <span
+                class="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent"
+              >
+                Application Tester
+              </span>
+            </a>
+          </div>
+
+          <!-- Status Indicator -->
+          <div
+            id="connection-status"
+            class="flex items-center gap-2 px-4 py-2 glass-effect rounded-full"
+          >
+            <div class="status-dot disconnected" id="status-dot"></div>
+            <span class="text-sm text-gray-300" id="status-text"
+              >Desconectado</span
+            >
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="relative z-10 py-8 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-8">
+          <!-- Left Column - Connection & Controls -->
+          <div class="space-y-6">
+            <!-- Connection Panel -->
+            <div class="glass-effect rounded-2xl p-6 border border-white/10">
+              <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="key" class="w-5 h-5 text-purple-400"></i>
+                Conexão
+              </h2>
+
+              <div class="space-y-4">
+                <!-- App Key Input -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-2"
+                    >Application Key (x-app-key)</label
+                  >
+                  <input
+                    type="text"
+                    id="app-key-input"
+                    placeholder="app_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
+                    class="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all font-mono text-sm"
+                  />
+                </div>
+
+                <!-- WebSocket Namespace -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-2"
+                    >Namespace</label
+                  >
+                  <input
+                    type="text"
+                    id="namespace-input"
+                    value="<%= wsNamespace || '/ws/rooms' %>"
+                    class="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all font-mono text-sm"
+                  />
+                </div>
+
+                <!-- Connect/Disconnect Buttons -->
+                <div class="flex gap-3">
+                  <button
+                    id="connect-btn"
+                    onclick="connect()"
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <i data-lucide="plug" class="w-4 h-4"></i>
+                    Conectar
+                  </button>
+                  <button
+                    id="disconnect-btn"
+                    onclick="disconnect()"
+                    disabled
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i data-lucide="plug-zap" class="w-4 h-4"></i>
+                    Desconectar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Room Panel -->
+            <div class="glass-effect rounded-2xl p-6 border border-white/10">
+              <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="door-open" class="w-5 h-5 text-blue-400"></i>
+                Sala
+              </h2>
+
+              <div class="space-y-4">
+                <!-- Room ID Input -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-2"
+                    >Room ID</label
+                  >
+                  <input
+                    type="text"
+                    id="room-id-input"
+                    placeholder="room_xxxxxxxxx_xxxxxxxxx"
+                    class="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono text-sm"
+                  />
+                </div>
+
+                <!-- Join/Leave Buttons -->
+                <div class="flex gap-3">
+                  <button
+                    id="join-btn"
+                    onclick="joinRoom()"
+                    disabled
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    Entrar
+                  </button>
+                  <button
+                    id="leave-btn"
+                    onclick="leaveRoom()"
+                    disabled
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    Sair
+                  </button>
+                </div>
+
+                <!-- Get Room Info -->
+                <button
+                  id="room-info-btn"
+                  onclick="getRoomInfo()"
+                  disabled
+                  class="w-full px-6 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i data-lucide="info" class="w-4 h-4"></i>
+                  Obter Info da Sala
+                </button>
+              </div>
+            </div>
+
+            <!-- Message Panel -->
+            <div class="glass-effect rounded-2xl p-6 border border-white/10">
+              <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="send" class="w-5 h-5 text-cyan-400"></i>
+                Enviar Evento
+              </h2>
+
+              <div class="space-y-4">
+                <!-- Event Name -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-2"
+                    >Nome do Evento</label
+                  >
+                  <input
+                    type="text"
+                    id="event-name-input"
+                    value="message"
+                    placeholder="message, update, custom-event..."
+                    class="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                  />
+                </div>
+
+                <!-- Message Content -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-2"
+                    >Mensagem (JSON ou texto)</label
+                  >
+                  <textarea
+                    id="message-input"
+                    rows="4"
+                    placeholder='{"type": "test", "data": "Hello World!"}'
+                    class="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all font-mono text-sm resize-none"
+                  ></textarea>
+                </div>
+
+                <!-- Send Button -->
+                <button
+                  id="send-btn"
+                  onclick="sendMessage()"
+                  disabled
+                  class="w-full px-6 py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i data-lucide="send" class="w-4 h-4"></i>
+                  Enviar Evento
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column - Event Log -->
+          <div class="space-y-6">
+            <!-- Event Log Panel -->
+            <div
+              class="glass-effect rounded-2xl p-6 border border-white/10 h-full flex flex-col"
+            >
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                  <i
+                    data-lucide="scroll-text"
+                    class="w-5 h-5 text-yellow-400"
+                  ></i>
+                  Log de Eventos
+                </h2>
+                <button
+                  onclick="clearLog()"
+                  class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-sm transition-all flex items-center gap-2"
+                >
+                  <i data-lucide="trash-2" class="w-3 h-3"></i>
+                  Limpar
+                </button>
+              </div>
+
+              <!-- Log Container -->
+              <div
+                id="log-container"
+                class="log-container space-y-2 font-mono text-sm flex-1"
+              >
+                <div class="text-gray-500 text-center py-8 flex flex-col">
+                  <i
+                    data-lucide="terminal"
+                    class="w-12 h-12 mx-auto mb-3 opacity-50"
+                  ></i>
+                  <p>Nenhum evento registrado</p>
+                  <p class="text-xs mt-1">Conecte-se para começar</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Reference -->
+        <div class="mt-8 glass-effect rounded-2xl p-6 border border-white/10">
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <i data-lucide="book-open" class="w-5 h-5 text-purple-400"></i>
+            Referência Rápida
+          </h2>
+
+          <div class="grid md:grid-cols-3 gap-6 text-sm">
+            <!-- Events Sent -->
+            <div>
+              <h3 class="font-semibold text-purple-400 mb-2">
+                Eventos Enviados (Client)
+              </h3>
+              <ul class="space-y-1 text-gray-400">
+                <li>
+                  <code class="text-cyan-400">joinRoom</code> - Entrar em uma
+                  sala
+                </li>
+                <li>
+                  <code class="text-cyan-400">leaveRoom</code> - Sair de uma
+                  sala
+                </li>
+                <li>
+                  <code class="text-cyan-400">emit</code> - Enviar evento
+                  customizado
+                </li>
+                <li>
+                  <code class="text-cyan-400">sendMessage</code> - Enviar
+                  mensagem (alias)
+                </li>
+                <li>
+                  <code class="text-cyan-400">getRoomInfo</code> - Obter info da
+                  sala
+                </li>
+              </ul>
+            </div>
+
+            <!-- Events Received -->
+            <div>
+              <h3 class="font-semibold text-blue-400 mb-2">
+                Eventos Recebidos (Server)
+              </h3>
+              <ul class="space-y-1 text-gray-400">
+                <li>
+                  <code class="text-green-400">joinedRoom</code> - Entrou na
+                  sala
+                </li>
+                <li>
+                  <code class="text-green-400">leftRoom</code> - Saiu da sala
+                </li>
+                <li>
+                  <code class="text-green-400">userJoined</code> - Usuário
+                  entrou
+                </li>
+                <li>
+                  <code class="text-green-400">userLeft</code> - Usuário saiu
+                </li>
+                <li>
+                  <code class="text-green-400">roomInfo</code> - Info da sala
+                </li>
+                <li><code class="text-green-400">error</code> - Erro</li>
+              </ul>
+            </div>
+
+            <!-- Auth Methods -->
+            <div>
+              <h3 class="font-semibold text-orange-400 mb-2">
+                Métodos de Autenticação
+              </h3>
+              <ul class="space-y-1 text-gray-400">
+                <li>
+                  <code class="text-yellow-400">auth.appKey</code> - Application
+                  Key
+                </li>
+                <li><code class="text-yellow-400">x-app-key</code> - Header</li>
+                <li>
+                  <code class="text-yellow-400">auth.token</code> - Supabase JWT
+                </li>
+                <li>
+                  <code class="text-yellow-400">auth.apiKey</code> - Global API
+                  Key
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="relative z-10 border-t border-white/10 py-6 px-4 mt-8">
+      <div
+        class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-400"
+      >
+        <div class="flex items-center gap-2">
+          <span>RoomStream WebSocket Tester</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <a
+            href="/platform"
+            class="hover:text-white transition-colors flex items-center gap-2"
+          >
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            Dashboard
+          </a>
+          <a
+            href="/api-docs"
+            class="hover:text-white transition-colors flex items-center gap-2"
+          >
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            API Docs
+          </a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // State
+      let socket = null;
+      let currentRoom = null;
+      let isConnected = false;
+      let logCounter = 0;
+
+      // DOM Elements
+      const appKeyInput = document.getElementById('app-key-input');
+      const namespaceInput = document.getElementById('namespace-input');
+      const roomIdInput = document.getElementById('room-id-input');
+      const eventNameInput = document.getElementById('event-name-input');
+      const messageInput = document.getElementById('message-input');
+      const logContainer = document.getElementById('log-container');
+
+      const connectBtn = document.getElementById('connect-btn');
+      const disconnectBtn = document.getElementById('disconnect-btn');
+      const joinBtn = document.getElementById('join-btn');
+      const leaveBtn = document.getElementById('leave-btn');
+      const roomInfoBtn = document.getElementById('room-info-btn');
+      const sendBtn = document.getElementById('send-btn');
+
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+
+      // Initialize Lucide icons
+      lucide.createIcons();
+
+      // Log functions
+      function addLog(type, event, data = null) {
+        logCounter++;
+        const timestamp = new Date().toLocaleTimeString('pt-BR', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          fractionalSecondDigits: 3,
+        });
+
+        const typeColors = {
+          sent: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
+          received: 'text-green-400 bg-green-400/10 border-green-400/20',
+          error: 'text-red-400 bg-red-400/10 border-red-400/20',
+          info: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+          warning: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
+          system: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
+        };
+
+        const typeIcons = {
+          sent: 'arrow-up-right',
+          received: 'arrow-down-left',
+          error: 'alert-circle',
+          info: 'info',
+          warning: 'alert-triangle',
+          system: 'settings',
+        };
+
+        const colorClass = typeColors[type] || typeColors['info'];
+        const icon = typeIcons[type] || 'circle';
+
+        // Remove placeholder if exists
+        const placeholder = logContainer.querySelector(
+          '.text-gray-500.text-center',
+        );
+        if (placeholder) {
+          placeholder.remove();
+        }
+
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry p-3 rounded-lg border ${colorClass}`;
+        logEntry.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <i data-lucide="${icon}" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-semibold">${event}</span>
+                            <span class="text-xs text-gray-500">${timestamp}</span>
+                            <span class="text-xs text-gray-600">#${logCounter}</span>
+                        </div>
+                        ${data !== null ? `<pre class="mt-1 text-xs text-gray-300 whitespace-pre-wrap break-all overflow-wrap-anywhere">${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}</pre>` : ''}
+                    </div>
+                </div>
+            `;
+
+        logContainer.appendChild(logEntry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+
+        // Re-init lucide icons for new elements
+        lucide.createIcons();
+      }
+
+      function clearLog() {
+        logCounter = 0;
+        logContainer.innerHTML = `
+                <div class="text-gray-500 text-center py-8">
+                    <i data-lucide="terminal" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                    <p>Log limpo</p>
+                    <p class="text-xs mt-1">Pronto para novos eventos</p>
+                </div>
+            `;
+        lucide.createIcons();
+      }
+
+      // Connection functions
+      function updateConnectionStatus(status) {
+        statusDot.className = 'status-dot ' + status;
+
+        const statusTexts = {
+          connected: 'Conectado',
+          disconnected: 'Desconectado',
+          connecting: 'Conectando...',
+        };
+
+        statusText.textContent = statusTexts[status] || status;
+      }
+
+      function updateButtons() {
+        connectBtn.disabled = isConnected;
+        disconnectBtn.disabled = !isConnected;
+        joinBtn.disabled = !isConnected;
+        leaveBtn.disabled = !isConnected || !currentRoom;
+        roomInfoBtn.disabled = !isConnected;
+        sendBtn.disabled = !isConnected || !currentRoom;
+      }
+
+      function connect() {
+        const appKey = appKeyInput.value.trim();
+        const namespace = namespaceInput.value.trim() || '/ws/rooms';
+
+        if (!appKey) {
+          addLog('error', 'Erro', 'Application Key é obrigatória');
+          return;
+        }
+
+        updateConnectionStatus('connecting');
+        addLog('system', 'Conectando...', {
+          namespace,
+          appKey: appKey.substring(0, 20) + '...',
+        });
+
+        try {
+          socket = io(namespace, {
+            auth: {
+              appKey: appKey,
+            },
+            transports: ['websocket', 'polling'],
+            reconnection: false,
+          });
+
+          // Connection events
+          socket.on('connect', () => {
+            isConnected = true;
+            updateConnectionStatus('connected');
+            updateButtons();
+            addLog('system', 'Conectado', {
+              socketId: socket.id,
+              namespace: namespace,
+            });
+          });
+
+          socket.on('disconnect', (reason) => {
+            isConnected = false;
+            currentRoom = null;
+            updateConnectionStatus('disconnected');
+            updateButtons();
+            addLog('warning', 'Desconectado', { reason });
+          });
+
+          socket.on('connect_error', (error) => {
+            isConnected = false;
+            updateConnectionStatus('disconnected');
+            updateButtons();
+            addLog('error', 'Erro de Conexao', { message: error.message });
+          });
+
+          // Server events
+          socket.on('error', (data) => {
+            addLog('error', 'error', data);
+          });
+
+          socket.on('joinedRoom', (data) => {
+            currentRoom = data.roomId;
+            updateButtons();
+            addLog('received', 'joinedRoom', data);
+          });
+
+          socket.on('leftRoom', (data) => {
+            if (data.roomId === currentRoom) {
+              currentRoom = null;
+              updateButtons();
+            }
+            addLog('received', 'leftRoom', data);
+          });
+
+          socket.on('userJoined', (data) => {
+            addLog('received', 'userJoined', data);
+          });
+
+          socket.on('userLeft', (data) => {
+            addLog('received', 'userLeft', data);
+          });
+
+          socket.on('roomInfo', (data) => {
+            addLog('received', 'roomInfo', data);
+          });
+
+          socket.on('newMessage', (data) => {
+            addLog('received', 'newMessage', data);
+          });
+
+          socket.on('message', (data) => {
+            addLog('received', 'message', data);
+          });
+
+          socket.on('roomDeleted', (data) => {
+            if (data.roomId === currentRoom) {
+              currentRoom = null;
+              updateButtons();
+            }
+            addLog('warning', 'roomDeleted', data);
+          });
+
+          socket.on('participantNameUpdated', (data) => {
+            addLog('received', 'participantNameUpdated', data);
+          });
+
+          socket.on('tokenExpired', (data) => {
+            addLog('warning', 'tokenExpired', data);
+          });
+
+          // Catch-all for custom events
+          socket.onAny((eventName, ...args) => {
+            // Skip already handled events
+            const handledEvents = [
+              'connect',
+              'disconnect',
+              'connect_error',
+              'error',
+              'joinedRoom',
+              'leftRoom',
+              'userJoined',
+              'userLeft',
+              'roomInfo',
+              'newMessage',
+              'message',
+              'roomDeleted',
+              'participantNameUpdated',
+              'tokenExpired',
+            ];
+
+            if (!handledEvents.includes(eventName)) {
+              addLog('received', eventName, args.length === 1 ? args[0] : args);
+            }
+          });
+        } catch (error) {
+          addLog('error', 'Erro', { message: error.message });
+          updateConnectionStatus('disconnected');
+        }
+      }
+
+      function disconnect() {
+        if (socket) {
+          addLog('system', 'Desconectando...');
+          socket.disconnect();
+          socket = null;
+        }
+        isConnected = false;
+        currentRoom = null;
+        updateConnectionStatus('disconnected');
+        updateButtons();
+      }
+
+      // Room functions
+      function joinRoom() {
+        const roomId = roomIdInput.value.trim();
+
+        if (!roomId) {
+          addLog('error', 'Erro', 'Room ID é obrigatório');
+          return;
+        }
+
+        const payload = { roomId };
+        addLog('sent', 'joinRoom', payload);
+        socket.emit('joinRoom', payload);
+      }
+
+      function leaveRoom() {
+        if (!currentRoom) {
+          addLog('error', 'Erro', 'Não está em nenhuma sala');
+          return;
+        }
+
+        const payload = { roomId: currentRoom };
+        addLog('sent', 'leaveRoom', payload);
+        socket.emit('leaveRoom', payload);
+      }
+
+      function getRoomInfo() {
+        const roomId = roomIdInput.value.trim() || currentRoom;
+
+        if (!roomId) {
+          addLog('error', 'Erro', 'Room ID é obrigatório');
+          return;
+        }
+
+        const payload = { roomId };
+        addLog('sent', 'getRoomInfo', payload);
+        socket.emit('getRoomInfo', payload);
+      }
+
+      // Message functions
+      function sendMessage() {
+        if (!currentRoom) {
+          addLog('error', 'Erro', 'Entre em uma sala primeiro');
+          return;
+        }
+
+        const eventName = eventNameInput.value.trim() || 'message';
+        let message = messageInput.value.trim();
+
+        if (!message) {
+          addLog('error', 'Erro', 'Mensagem é obrigatória');
+          return;
+        }
+
+        // Try to parse as JSON
+        try {
+          message = JSON.parse(message);
+        } catch (e) {
+          // Keep as string if not valid JSON
+        }
+
+        const payload = {
+          roomId: currentRoom,
+          event: eventName,
+          message: message,
+        };
+
+        addLog('sent', 'emit', payload);
+        socket.emit('emit', payload);
+      }
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + Enter to send message
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          if (isConnected && currentRoom) {
+            sendMessage();
+          }
+        }
+
+        // Escape to disconnect
+        if (e.key === 'Escape' && isConnected) {
+          disconnect();
+        }
+      });
+
+      // Initialize
+      updateButtons();
+    </script>
+  </body>
+</html>
