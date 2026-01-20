@@ -7,6 +7,7 @@ export interface StartupConfig {
   port: number;
   environment: string;
   wsNamespace: string;
+  startTime: number;
   auth: {
     apiKey: boolean;
     supabase: boolean;
@@ -93,56 +94,73 @@ export function printBanner(isDev: boolean): void {
 }
 
 /**
+ * Formats the startup time in a human-readable format.
+ */
+function formatStartupTime(ms: number): string {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  return `${(ms / 1000).toFixed(2)}s`;
+}
+
+/**
  * Prints a formatted startup summary with server configuration details.
  */
 export function printStartupSummary(config: StartupConfig): void {
-  const { port, environment, wsNamespace, auth, features } = config;
+  const { port, environment, wsNamespace, startTime, auth, features } = config;
   const baseUrl = `http://localhost:${port}`;
+  const startupTime = Date.now() - startTime;
 
-  const check = (enabled: boolean) => (enabled ? '✓' : '✗');
-  const status = (enabled: boolean) => (enabled ? 'enabled' : 'disabled');
+  const check = (enabled: boolean) => (enabled ? '✅' : '❌');
 
   console.log('');
   console.log(
     '┌─────────────────────────────────────────────────────────────┐',
   );
   console.log(`  🚀 Server running on port ${String(port).padEnd(33)} `);
+  console.log(`  ⚡ Started in ${formatStartupTime(startupTime).padEnd(45)} `);
   console.log(
     '├─────────────────────────────────────────────────────────────┤',
   );
-  console.log(`  Environment:    ${environment.padEnd(43)} `);
-  console.log(`  WebSocket:      ${wsNamespace.padEnd(43)} `);
+  console.log(`  🌍 Environment:    ${environment.padEnd(40)} `);
+  console.log(`  🔌 WebSocket:      ${wsNamespace.padEnd(40)} `);
   console.log(
-    `  CORS Origin:    ${features.cors.substring(0, 43).padEnd(43)} `,
-  );
-  console.log(
-    '├─────────────────────────────────────────────────────────────┤',
-  );
-  console.log(
-    '  Authentication:                                              ',
-  );
-  console.log(
-    `    ├─ API Key:     ${check(auth.apiKey)} ${status(auth.apiKey).padEnd(38)} `,
-  );
-  console.log(
-    `    ├─ Supabase:    ${check(auth.supabase)} ${status(auth.supabase).padEnd(38)} `,
-  );
-  console.log(
-    `    └─ App Keys:    ${check(auth.appKeys)} ${status(auth.appKeys).padEnd(38)} `,
+    `  🔗 CORS Origin:    ${features.cors.substring(0, 40).padEnd(40)} `,
   );
   console.log(
     '├─────────────────────────────────────────────────────────────┤',
   );
   console.log(
-    '  Documentation:                                              │',
+    '  🔐 Authentication:                                           ',
   );
-  console.log(`    ├─ REST API:    ${baseUrl}/api-docs`.padEnd(62) + ' ');
-  console.log(`    ├─ WebSocket:   ${baseUrl}/async-api-docs`.padEnd(62) + ' ');
-  console.log(`    └─ Guide:       ${baseUrl}/platform/guide`.padEnd(62) + ' ');
+  console.log(
+    `       API Key:     ${check(auth.apiKey)}  ${auth.apiKey ? 'enabled' : 'disabled'}`.padEnd(
+      63,
+    ) + ' ',
+  );
+  console.log(
+    `       Supabase:    ${check(auth.supabase)}  ${auth.supabase ? 'enabled' : 'disabled'}`.padEnd(
+      63,
+    ) + ' ',
+  );
+  console.log(
+    `       App Keys:    ${check(auth.appKeys)}  ${auth.appKeys ? 'enabled' : 'disabled'}`.padEnd(
+      63,
+    ) + ' ',
+  );
   console.log(
     '├─────────────────────────────────────────────────────────────┤',
   );
-  console.log(`  Platform:        ${baseUrl}/platform`.padEnd(62) + ' ');
+  console.log(
+    '  📚 Documentation:                                            ',
+  );
+  console.log(`       REST API:    ${baseUrl}/api-docs`.padEnd(63) + ' ');
+  console.log(`       WebSocket:   ${baseUrl}/async-api-docs`.padEnd(63) + ' ');
+  console.log(`       Guide:       ${baseUrl}/platform/guide`.padEnd(63) + ' ');
+  console.log(
+    '├─────────────────────────────────────────────────────────────┤',
+  );
+  console.log(`  🖥️  Platform:       ${baseUrl}/platform`.padEnd(62) + ' ');
   console.log(
     '└─────────────────────────────────────────────────────────────┘',
   );

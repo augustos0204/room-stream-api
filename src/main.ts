@@ -19,6 +19,7 @@ import {
 const packageJson = require('../package.json');
 
 async function bootstrap() {
+  const startTime = Date.now();
   const logger = new Logger('Bootstrap');
 
   // Collect startup configuration
@@ -26,6 +27,7 @@ async function bootstrap() {
     port: parseInt(process.env.PORT || '3000', 10),
     environment: process.env.NODE_ENV || 'development',
     wsNamespace: process.env.WEBSOCKET_NAMESPACE || '/ws/rooms',
+    startTime,
     auth: {
       apiKey: !!process.env.API_KEY,
       supabase: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
