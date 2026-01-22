@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsyncAPI Documentation | RoomStream</title>
+    <link rel="icon" type="image/svg+xml" href="/platform/assets/media/favicon.svg">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-10px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-mono flex items-center justify-center p-4">
+    
+    <!-- Background animated elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow"></div>
+        <div class="absolute top-1/3 right-1/4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow" style="animation-delay: 1s;"></div>
+        <div class="absolute bottom-1/4 left-1/3 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="relative max-w-3xl w-full">
+        <div class="glass-effect rounded-2xl p-8 md:p-12 shadow-2xl">
+            
+            <!-- Icon -->
+            <div class="flex justify-center mb-8">
+                <div class="relative animate-float">
+                    <div class="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center shadow-2xl">
+                        <i data-lucide="radio" class="w-12 h-12 text-white"></i>
+                    </div>
+                    <div class="absolute -bottom-1 -right-1 w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl">
+                        <i data-lucide="zap" class="w-5 h-5 text-white"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Title -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl md:text-4xl font-black gradient-text mb-3">RoomStream WebSocket API</h1>
+                <p class="text-gray-400 text-lg">
+                    Documentação AsyncAPI para eventos WebSocket em tempo real
+                </p>
+                <p class="text-gray-500 text-sm mt-2">
+                    Versão: <%= version %>
+                </p>
+            </div>
+
+            <!-- Download Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <a href="/async-api-docs-json" 
+                   class="card-hover glass-effect rounded-xl p-6 flex items-center gap-4 hover:border-blue-500/50">
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <i data-lucide="braces" class="w-6 h-6 text-blue-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-200">Download JSON</h3>
+                        <p class="text-sm text-gray-500">Especificação em formato JSON</p>
+                    </div>
+                    <i data-lucide="download" class="w-5 h-5 text-gray-500 ml-auto"></i>
+                </a>
+
+                <a href="/async-api-docs-yaml" 
+                   class="card-hover glass-effect rounded-xl p-6 flex items-center gap-4 hover:border-purple-500/50">
+                    <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                        <i data-lucide="file-code" class="w-6 h-6 text-purple-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-200">Download YAML</h3>
+                        <p class="text-sm text-gray-500">Especificação em formato YAML</p>
+                    </div>
+                    <i data-lucide="download" class="w-5 h-5 text-gray-500 ml-auto"></i>
+                </a>
+            </div>
+
+            <!-- AsyncAPI Studio Button -->
+            <div class="mb-8">
+                <button onclick="openAsyncApiStudio()" 
+                   class="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl">
+                    <i data-lucide="external-link" class="w-5 h-5"></i>
+                    <span>Abrir no AsyncAPI Studio</span>
+                </button>
+                <p class="text-center text-gray-500 text-sm mt-3">
+                    Visualize e explore a documentação interativamente
+                </p>
+            </div>
+
+            <!-- Info Box -->
+            <div class="bg-gray-900/50 rounded-lg p-5 border border-gray-700">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="info" class="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5"></i>
+                    <div class="text-sm text-gray-400">
+                        <p class="mb-2">
+                            Esta documentação descreve todos os eventos WebSocket disponíveis na API RoomStream.
+                        </p>
+                        <p>
+                            Para a documentação REST API, acesse 
+                            <a href="/api-docs" class="text-purple-400 hover:text-purple-300 underline">/api-docs</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="mt-8 pt-6 border-t border-gray-700">
+                <div class="flex flex-wrap justify-center gap-6 text-sm">
+                    <a href="/api-docs" class="text-gray-400 hover:text-purple-400 transition-colors flex items-center gap-1">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                        REST API Docs
+                    </a>
+                    <a href="/platform/guide" class="text-gray-400 hover:text-blue-400 transition-colors flex items-center gap-1">
+                        <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+                        Guia de Integração
+                    </a>
+                    <a href="/platform" class="text-gray-400 hover:text-green-400 transition-colors flex items-center gap-1">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="mt-6 text-center text-sm text-gray-500">
+                <p>RoomStream API &bull; <%= new Date().getFullYear() %></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Open AsyncAPI Studio with the YAML URL
+        function openAsyncApiStudio() {
+            const baseUrl = window.location.origin;
+            const yamlUrl = `${baseUrl}/async-api-docs-yaml`;
+            const studioUrl = `https://studio.asyncapi.com/?url=${encodeURIComponent(yamlUrl)}`;
+            window.open(studioUrl, '_blank');
+        }
+    </script>
+</body>
+</html>
