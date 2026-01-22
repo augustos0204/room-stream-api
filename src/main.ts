@@ -5,6 +5,9 @@ import { AsyncApiModule, AsyncApiDocumentBuilder } from 'nestjs-asyncapi';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as yaml from 'js-yaml';
+import * as ejs from 'ejs';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -192,9 +195,6 @@ WebSocket namespace: \`${startupConfig.wsNamespace}\`
   } catch {
     // HTML generation failed, setup custom EJS page with JSON/YAML endpoints
     const httpAdapter = app.getHttpAdapter();
-    const yaml = require('js-yaml');
-    const ejs = require('ejs');
-    const fs = require('fs');
 
     const yamlDocument = yaml.dump(asyncApiDocument);
     const jsonDocument = JSON.stringify(asyncApiDocument, null, 2);
