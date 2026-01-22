@@ -151,14 +151,17 @@ export class GithubService {
 
   /**
    * Busca linguagens mais usadas nos repositórios
+   * Retorna estatísticas com nome, porcentagem e contagem
    */
-  async getTopLanguages(): Promise<string[]> {
+  async getTopLanguages(): Promise<
+    { name: string; percentage: number; count: number }[]
+  > {
     const repos = await this.getRepos(30);
     const languages = repos
       .map((repo) => repo.language)
       .filter((lang): lang is string => !!lang);
 
-    // Conta ocorrências e retorna as mais usadas
+    // Conta ocorrências
     const counts = languages.reduce(
       (acc, lang) => {
         acc[lang] = (acc[lang] || 0) + 1;
@@ -167,10 +170,17 @@ export class GithubService {
       {} as Record<string, number>,
     );
 
+    const total = languages.length;
+
+    // Retorna as top 8 com estatísticas
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
-      .map(([lang]) => lang);
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+      }));
   }
 
   private getFromCache(key: string): any | null {
