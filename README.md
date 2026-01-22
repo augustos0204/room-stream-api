@@ -54,7 +54,7 @@ A robust and scalable WebSocket API built with **NestJS** and **Socket.IO** for 
 - **Periodic token validation** for Supabase
 
 ### 🧪 Development Tools
-- **Interactive Swagger docs** at `/api-docs`
+- **Interactive Swagger docs** at `/docs/api`
 - **HTTP request files** for endpoint validation  
 - **Health checks** and **metrics endpoints**
 - **Comprehensive logging** for debugging
@@ -175,7 +175,7 @@ The server will be available at:
 - **🎯 REST API**: `http://localhost:3000`
 - **🔌 WebSocket**: `ws://localhost:3000/ws/rooms`
 - **🌐 Web Platform**: `http://localhost:3000/platform`
-- **📚 API Docs**: `http://localhost:3000/api-docs`
+- **📚 API Docs**: `http://localhost:3000/docs/api`
 
 ## 📚 API Endpoints
 
@@ -570,7 +570,7 @@ pnpm run test:cov
 
 ### Manual API Testing
 
-Use the Swagger UI at `/api-docs` or the provided `.http` files in the `requests/` folder.
+Use the Swagger UI at `/docs/api` or the provided `.http` files in the `requests/` folder.
 
 ## 📊 Monitoring
 
@@ -632,7 +632,7 @@ docker run -p 3000:3000 --env-file .env roomstream-api
 
 ## 📞 Support
 
-- **Documentation**: Check this README and `/api-docs`
+- **Documentation**: Check this README and `/docs/api`
 - **Issues**: Use [GitHub Issues](https://github.com/augustos0204/room-stream-api/issues)
 - **Contact**: Start a discussion in the repository
 

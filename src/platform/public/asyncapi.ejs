@@ -87,7 +87,7 @@
 
             <!-- Download Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                <a href="/async-api-docs-json" 
+                <a href="/docs/async-api-json" 
                    class="card-hover glass-effect rounded-xl p-6 flex items-center gap-4 hover:border-blue-500/50">
                     <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
                         <i data-lucide="braces" class="w-6 h-6 text-blue-400"></i>
@@ -99,7 +99,7 @@
                     <i data-lucide="download" class="w-5 h-5 text-gray-500 ml-auto"></i>
                 </a>
 
-                <a href="/async-api-docs-yaml" 
+                <a href="/docs/async-api-yaml" 
                    class="card-hover glass-effect rounded-xl p-6 flex items-center gap-4 hover:border-purple-500/50">
                     <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
                         <i data-lucide="file-code" class="w-6 h-6 text-purple-400"></i>
@@ -134,7 +134,7 @@
                         </p>
                         <p>
                             Para a documentação REST API, acesse 
-                            <a href="/api-docs" class="text-purple-400 hover:text-purple-300 underline">/api-docs</a>
+                            <a href="/docs/api" class="text-purple-400 hover:text-purple-300 underline">/docs/api</a>
                         </p>
                     </div>
                 </div>
@@ -143,7 +143,7 @@
             <!-- Navigation Links -->
             <div class="mt-8 pt-6 border-t border-gray-700">
                 <div class="flex flex-wrap justify-center gap-6 text-sm">
-                    <a href="/api-docs" class="text-gray-400 hover:text-purple-400 transition-colors flex items-center gap-1">
+                    <a href="/docs/api" class="text-gray-400 hover:text-purple-400 transition-colors flex items-center gap-1">
                         <i data-lucide="book-open" class="w-4 h-4"></i>
                         REST API Docs
                     </a>
@@ -172,7 +172,7 @@
         // Open AsyncAPI Studio with the YAML URL
         function openAsyncApiStudio() {
             const baseUrl = window.location.origin;
-            const yamlUrl = `${baseUrl}/async-api-docs-yaml`;
+            const yamlUrl = `${baseUrl}/docs/async-api-yaml`;
             const studioUrl = `https://studio.asyncapi.com/?url=${encodeURIComponent(yamlUrl)}`;
             window.open(studioUrl, '_blank');
         }

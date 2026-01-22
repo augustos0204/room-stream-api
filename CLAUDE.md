@@ -193,14 +193,37 @@ The WebSocket gateway supports **three types of connections**:
 4. Client emits `joinRoom` → joins Socket.IO room + added to RoomService participants
 5. Disconnection → automatically removed from all rooms (see `handleDisconnect`)
 
-## API Documentation (Swagger/OpenAPI)
+## API Documentation (DocsModule)
 
-The application includes comprehensive API documentation using Swagger/OpenAPI:
+The application includes comprehensive API documentation managed by the `DocsModule`:
 
-### Access
-- **Documentation UI**: `/api-docs` - Interactive Swagger interface
+### DocsModule Structure
+
+- **DocsModule** (`src/docs/`) - Documentation management
+  - `DocsService`: Configures and sets up all documentation endpoints
+  - `DocsConfig`: Interface for documentation configuration
+  - Handles both Swagger (REST) and AsyncAPI (WebSocket) documentation
+
+### Endpoints
+
+| Route | Description |
+|-------|-------------|
+| `/docs/api` | Swagger/OpenAPI - REST API documentation |
+| `/docs/async-api` | AsyncAPI - WebSocket events documentation |
+| `/docs/async-api-json` | AsyncAPI specification in JSON format |
+| `/docs/async-api-yaml` | AsyncAPI specification in YAML format |
+
+### Swagger (REST API)
+
+- **Documentation UI**: `/docs/api` - Interactive Swagger interface
 - Auto-generated from NestJS decorators and DTOs
 - Customized with alphabetical sorting and clean UI
+
+### AsyncAPI (WebSocket)
+
+- **Documentation UI**: `/docs/async-api` - WebSocket events documentation
+- Falls back to custom EJS page with JSON/YAML downloads if HTML generation fails
+- Includes link to open in AsyncAPI Studio
 
 ### Implementation
 - All REST endpoints use Swagger decorators:
@@ -209,10 +232,13 @@ The application includes comprehensive API documentation using Swagger/OpenAPI:
   - `@ApiResponse()` - Document response schemas
   - `@ApiParam()` - Document URL parameters
   - `@ApiBody()` - Document request body
-- Configuration in `main.ts`
-- Packages: `@nestjs/swagger`, `swagger-ui-express`
+- WebSocket events use AsyncAPI decorators:
+  - `@AsyncApiPub()` - Document published events
+  - `@AsyncApiSub()` - Document subscribed events
+- Configuration in `DocsService`
+- Packages: `@nestjs/swagger`, `swagger-ui-express`, `nestjs-asyncapi`
 
-### Tags
+### Tags (Swagger)
 - `rooms` - Chat room management endpoints
 - `applications` - Application/API Key management endpoints
 - `health` - Service health check
@@ -518,7 +544,7 @@ Ao adicionar código que usa Supabase:
 - **REST API**: `http://localhost:${PORT}` (default: 3000)
 - **WebSocket**: `/ws/rooms` namespace
 - **Platform**: `/platform` - Full web platform with dashboard, chat, applications, etc.
-- **API Docs**: `/api-docs` - Interactive Swagger/OpenAPI documentation
+- **API Docs**: `/docs/api` - Interactive Swagger/OpenAPI documentation
 - **Health**: `/health` - Service health check
 - **Metrics**: `/metrics` - System metrics and observability
 - **GitHub API**: `/api/github/profile` - GitHub profile data
@@ -587,7 +613,7 @@ The application has a comprehensive error handling system with custom error page
    - `@ApiParam()` / `@ApiBody()` for parameters
 3. Implement validation using DTOs if needed
 4. Add proper error handling with `HttpException` and status codes
-5. Test endpoint via `/api-docs` Swagger interface
+5. Test endpoint via `/docs/api` Swagger interface
 6. Update CLAUDE.md documentation if significant
 
 ### Adding New Platform Pages

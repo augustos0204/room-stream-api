@@ -11,6 +11,7 @@ import { PlatformModule } from './platform/platform.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { ApplicationModule } from './application/application.module';
 import { GithubModule } from './github/github.module';
+import { DocsModule } from './docs/docs.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { GithubModule } from './github/github.module';
     SupabaseModule,
     ApplicationModule,
     GithubModule,
+    DocsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

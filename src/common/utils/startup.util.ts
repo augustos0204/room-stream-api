@@ -154,8 +154,8 @@ export function printStartupSummary(config: StartupConfig): void {
   console.log(
     '  📚 Documentation:                                            ',
   );
-  console.log(`       REST API:    ${baseUrl}/api-docs`.padEnd(63) + ' ');
-  console.log(`       WebSocket:   ${baseUrl}/async-api-docs`.padEnd(63) + ' ');
+  console.log(`       REST API:    ${baseUrl}/docs/api`.padEnd(63) + ' ');
+  console.log(`       WebSocket:   ${baseUrl}/docs/async-api`.padEnd(63) + ' ');
   console.log(`       Guide:       ${baseUrl}/platform/guide`.padEnd(63) + ' ');
   console.log(
     '├─────────────────────────────────────────────────────────────┤',
