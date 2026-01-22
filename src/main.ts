@@ -184,7 +184,52 @@ WebSocket namespace: \`${startupConfig.wsNamespace}\`
     .build();
 
   const asyncApiDocument = AsyncApiModule.createDocument(app, asyncApiOptions);
-  await AsyncApiModule.setup('/async-api-docs', app, asyncApiDocument);
+
+  // Try to setup full HTML documentation, fallback to custom EJS page with JSON/YAML endpoints
+  try {
+    await AsyncApiModule.setup('/async-api-docs', app, asyncApiDocument);
+    logger.log('AsyncAPI HTML documentation available at /async-api-docs');
+  } catch {
+    // HTML generation failed, setup custom EJS page with JSON/YAML endpoints
+    const httpAdapter = app.getHttpAdapter();
+    const yaml = require('js-yaml');
+    const ejs = require('ejs');
+    const fs = require('fs');
+
+    const yamlDocument = yaml.dump(asyncApiDocument);
+    const jsonDocument = JSON.stringify(asyncApiDocument, null, 2);
+
+    // Load the EJS template
+    const templatePath = path.join(
+      __dirname,
+      'platform',
+      'public',
+      'asyncapi.ejs',
+    );
+
+    httpAdapter.get('/async-api-docs', (req: any, res: any) => {
+      const templateContent = fs.readFileSync(templatePath, 'utf-8');
+      const html = ejs.render(templateContent, {
+        version: packageJson.version,
+      });
+      res.type('text/html');
+      res.send(html);
+    });
+
+    httpAdapter.get('/async-api-docs-json', (req: any, res: any) => {
+      res.type('application/json');
+      res.send(jsonDocument);
+    });
+
+    httpAdapter.get('/async-api-docs-yaml', (req: any, res: any) => {
+      res.type('text/yaml');
+      res.send(yamlDocument);
+    });
+
+    logger.log(
+      'AsyncAPI documentation available at /async-api-docs (JSON/YAML mode)',
+    );
+  }
 
   // Start the server
   await app.listen(startupConfig.port);
