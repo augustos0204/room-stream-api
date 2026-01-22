@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, Matches } from 'class-validator';
 
 /**
@@ -6,19 +7,33 @@ import { IsString, IsNotEmpty, IsOptional, Matches } from 'class-validator';
  * Used by 'emit' WebSocket event
  */
 export class SendMessageDto {
+  @ApiProperty({
+    description: 'Room ID to send the message to',
+    example: 'room_1737550000000_abc123def',
+  })
   @IsString()
   @IsNotEmpty()
   roomId: string;
 
+  @ApiProperty({
+    description: 'Message content to send',
+    example: 'Hello everyone!',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Message cannot be empty' })
-  // @MaxLength(1000, { message: 'Message too long (max 1000 characters)' })
   message: string;
 
+  @ApiProperty({
+    description: 'Custom event name (defaults to "message")',
+    example: 'message',
+    required: false,
+    default: 'message',
+  })
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-Z][a-zA-Z0-9_-]*$/, {
-    message: 'Event name must start with a letter and contain only letters, numbers, underscores, or hyphens',
+    message:
+      'Event name must start with a letter and contain only letters, numbers, underscores, or hyphens',
   })
   event?: string = 'message';
 }

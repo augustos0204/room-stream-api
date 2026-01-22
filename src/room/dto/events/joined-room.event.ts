@@ -1,21 +1,53 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
+ * Supabase user data for authenticated participants
+ */
+export class SupabaseUserInfo {
+  @ApiProperty({
+    description: 'Supabase user ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  id: string;
+
+  @ApiProperty({
+    description: 'User email',
+    example: 'user@example.com',
+    nullable: true,
+  })
+  email: string | null;
+
+  @ApiProperty({
+    description: 'User display name',
+    example: 'John Doe',
+    nullable: true,
+  })
+  name: string | null;
+}
+
+/**
  * Participant information in a room
  */
 export class ParticipantInfo {
-  @ApiProperty({ description: 'Client socket ID or user ID', example: 'abc123' })
+  @ApiProperty({
+    description: 'Client socket ID or user ID',
+    example: 'xW3kJ9pL2mN8qR5t',
+  })
   clientId: string;
 
-  @ApiProperty({ description: 'Participant display name', example: 'John Doe', nullable: true })
+  @ApiProperty({
+    description: 'Participant display name',
+    example: 'John Doe',
+    nullable: true,
+  })
   name: string | null;
 
-  @ApiProperty({ description: 'Supabase user data if authenticated', required: false })
-  supabaseUser?: {
-    id: string;
-    email: string | null;
-    name: string | null;
-  };
+  @ApiProperty({
+    description: 'Supabase user data if authenticated',
+    type: SupabaseUserInfo,
+    required: false,
+  })
+  supabaseUser?: SupabaseUserInfo;
 }
 
 /**
