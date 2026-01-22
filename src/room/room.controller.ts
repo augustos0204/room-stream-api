@@ -22,7 +22,14 @@ import type {
   RoomMessagesResponse,
   RoomParticipantsResponse,
 } from './interfaces';
-import { CreateRoomDto, RoomIdDto } from './dto';
+import {
+  CreateRoomDto,
+  RoomIdDto,
+  RoomResponseDto,
+  RoomMessagesResponseDto,
+  RoomParticipantsResponseDto,
+  DeleteRoomResponseDto,
+} from './dto';
 import type { MessageResponse } from '../common/interfaces';
 import { RoomSerializerInterceptor } from '../common/interceptors/room-serializer.interceptor';
 
@@ -38,7 +45,7 @@ export class RoomController {
   @ApiResponse({
     status: 201,
     description: 'Room successfully created',
-    type: Object,
+    type: RoomResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid room name' })
   async createRoom(@Body() createRoomDto: CreateRoomDto): Promise<Room> {
@@ -51,7 +58,7 @@ export class RoomController {
   @ApiResponse({
     status: 200,
     description: 'List of all rooms',
-    type: [Object],
+    type: [RoomResponseDto],
   })
   async getAllRooms(): Promise<Room[]> {
     return this.roomService.getAllRooms();
@@ -60,7 +67,7 @@ export class RoomController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific room by ID' })
   @ApiParam({ name: 'id', description: 'Room ID' })
-  @ApiResponse({ status: 200, description: 'Room found', type: Object })
+  @ApiResponse({ status: 200, description: 'Room found', type: RoomResponseDto })
   @ApiResponse({ status: 404, description: 'Room not found' })
   async getRoom(@Param() params: RoomIdDto): Promise<Room> {
     const room = await this.roomService.getRoom(params.id);
@@ -75,7 +82,7 @@ export class RoomController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a room' })
   @ApiParam({ name: 'id', description: 'Room ID' })
-  @ApiResponse({ status: 200, description: 'Room deleted successfully' })
+  @ApiResponse({ status: 200, description: 'Room deleted successfully', type: DeleteRoomResponseDto })
   @ApiResponse({ status: 404, description: 'Room not found' })
   async deleteRoom(@Param() params: RoomIdDto): Promise<MessageResponse> {
     const deleted = await this.roomService.deleteRoom(params.id);
@@ -93,14 +100,7 @@ export class RoomController {
   @ApiResponse({
     status: 200,
     description: 'Room messages retrieved',
-    schema: {
-      properties: {
-        roomId: { type: 'string' },
-        roomName: { type: 'string' },
-        messages: { type: 'array', items: { type: 'object' } },
-        totalMessages: { type: 'number' },
-      },
-    },
+    type: RoomMessagesResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Room not found' })
   async getRoomMessages(@Param() params: RoomIdDto): Promise<RoomMessagesResponse> {
@@ -124,14 +124,7 @@ export class RoomController {
   @ApiResponse({
     status: 200,
     description: 'Room participants retrieved',
-    schema: {
-      properties: {
-        roomId: { type: 'string' },
-        roomName: { type: 'string' },
-        participants: { type: 'array', items: { type: 'object' } },
-        participantCount: { type: 'number' },
-      },
-    },
+    type: RoomParticipantsResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Room not found' })
   async getRoomParticipants(@Param() params: RoomIdDto): Promise<RoomParticipantsResponse> {

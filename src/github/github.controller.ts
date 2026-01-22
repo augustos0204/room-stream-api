@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '../common/decorators';
 import { GithubService } from './github.service';
+import { GithubProfileResponseDto } from './dto';
 
 @ApiTags('github')
 @Controller('api/github')
@@ -19,8 +20,9 @@ export class GithubController {
     status: 200,
     description:
       'Developer profile data including user info, repos, languages and social accounts',
+    type: GithubProfileResponseDto,
   })
-  async getProfile() {
+  async getProfile(): Promise<GithubProfileResponseDto> {
     const [user, repos, languages, socialAccounts] = await Promise.all([
       this.githubService.getUser(),
       this.githubService.getRepos(6),
