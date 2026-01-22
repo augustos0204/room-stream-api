@@ -13,13 +13,16 @@ export class DocsService {
   private readonly logger = new Logger(DocsService.name);
   private swaggerDocument: OpenAPIObject;
   private asyncApiDocument: any;
+  private asyncApiInitialized = false;
+  private asyncApiInitializing = false;
 
   /**
    * Setup all documentation endpoints (Swagger and AsyncAPI)
+   * AsyncAPI is now lazy-loaded for faster startup
    */
   async setup(app: NestExpressApplication, config: DocsConfig): Promise<void> {
     this.setupSwagger(app, config);
-    await this.setupAsyncApi(app, config);
+    this.setupAsyncApiLazy(app, config); // Lazy loading - não bloqueia startup
     this.setupDocsExplorer(app, config);
   }
 
@@ -107,68 +110,86 @@ WebSocket namespace: \`${config.wsNamespace}\`
   }
 
   /**
-   * Setup AsyncAPI documentation at /docs/async-api
-   * Falls back to custom EJS page with JSON/YAML endpoints if HTML generation fails
+   * Setup AsyncAPI documentation with lazy loading
+   * Document is generated on first access, not during startup
    */
-  private async setupAsyncApi(
+  private setupAsyncApiLazy(
     app: NestExpressApplication,
     config: DocsConfig,
-  ): Promise<void> {
-    const asyncApiOptions = new AsyncApiDocumentBuilder()
-      .setTitle('RoomStream WebSocket API')
-      .setDescription(
-        'Real-time WebSocket events for chat room management using Socket.IO',
-      )
-      .setVersion(config.version)
-      .setDefaultContentType('application/json')
-      .addServer('production', {
-        url: `wss://your-domain.com${config.wsNamespace}`,
-        protocol: 'wss',
-        description: 'Production WebSocket server',
-      })
-      .addServer('development', {
-        url: `ws://localhost:${config.port}${config.wsNamespace}`,
-        protocol: 'ws',
-        description: 'Development WebSocket server',
-      })
-      .build();
-
-    this.asyncApiDocument = AsyncApiModule.createDocument(app, asyncApiOptions);
-
-    // Always setup JSON/YAML endpoints (needed for docs explorer)
-    this.setupAsyncApiJsonEndpoints(app);
-
-    try {
-      await AsyncApiModule.setup('/docs/async-api', app, this.asyncApiDocument);
-      this.logger.log(
-        'AsyncAPI HTML documentation available at /docs/async-api',
-      );
-    } catch {
-      // HTML generation failed, setup custom EJS page
-      this.setupAsyncApiFallback(app, config.version);
-      this.logger.log(
-        'AsyncAPI documentation available at /docs/async-api (JSON/YAML mode)',
-      );
-    }
-  }
-
-  /**
-   * Setup JSON/YAML endpoints for AsyncAPI (always available)
-   */
-  private setupAsyncApiJsonEndpoints(app: NestExpressApplication): void {
+  ): void {
     const httpAdapter = app.getHttpAdapter();
-    const yamlDocument = yaml.dump(this.asyncApiDocument);
-    const jsonDocument = JSON.stringify(this.asyncApiDocument, null, 2);
 
-    httpAdapter.get('/docs/async-api-json', (req: any, res: any) => {
-      res.type('application/json');
-      res.send(jsonDocument);
+    // Lazy initialization function
+    const initAsyncApi = async (): Promise<void> => {
+      if (this.asyncApiInitialized || this.asyncApiInitializing) return;
+
+      this.asyncApiInitializing = true;
+      const startTime = Date.now();
+
+      try {
+        const asyncApiOptions = new AsyncApiDocumentBuilder()
+          .setTitle('RoomStream WebSocket API')
+          .setDescription(
+            'Real-time WebSocket events for chat room management using Socket.IO',
+          )
+          .setVersion(config.version)
+          .setDefaultContentType('application/json')
+          .addServer('production', {
+            url: `wss://your-domain.com${config.wsNamespace}`,
+            protocol: 'wss',
+            description: 'Production WebSocket server',
+          })
+          .addServer('development', {
+            url: `ws://localhost:${config.port}${config.wsNamespace}`,
+            protocol: 'ws',
+            description: 'Development WebSocket server',
+          })
+          .build();
+
+        this.asyncApiDocument = AsyncApiModule.createDocument(
+          app,
+          asyncApiOptions,
+        );
+        this.asyncApiInitialized = true;
+
+        const elapsed = Date.now() - startTime;
+        this.logger.log(`AsyncAPI document generated in ${elapsed}ms (lazy)`);
+      } catch (error) {
+        this.logger.error('Failed to generate AsyncAPI document:', error);
+        this.asyncApiInitializing = false;
+        throw error;
+      }
+    };
+
+    // JSON endpoint (lazy)
+    httpAdapter.get('/docs/async-api-json', async (req: any, res: any) => {
+      try {
+        await initAsyncApi();
+        res.type('application/json');
+        res.send(JSON.stringify(this.asyncApiDocument, null, 2));
+      } catch {
+        res.status(500).json({ error: 'Failed to generate AsyncAPI document' });
+      }
     });
 
-    httpAdapter.get('/docs/async-api-yaml', (req: any, res: any) => {
-      res.type('text/yaml');
-      res.send(yamlDocument);
+    // YAML endpoint (lazy)
+    httpAdapter.get('/docs/async-api-yaml', async (req: any, res: any) => {
+      try {
+        await initAsyncApi();
+        const yamlDocument = yaml.dump(this.asyncApiDocument);
+        res.type('text/yaml');
+        res.send(yamlDocument);
+      } catch {
+        res.status(500).json({ error: 'Failed to generate AsyncAPI document' });
+      }
     });
+
+    // HTML page (uses EJS fallback - faster than AsyncApiModule.setup)
+    this.setupAsyncApiFallback(app, config.version);
+
+    this.logger.log(
+      'AsyncAPI documentation configured (lazy loading enabled)',
+    );
   }
 
   /**
