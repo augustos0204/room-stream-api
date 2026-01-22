@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
 import { AsyncApiModule, AsyncApiDocumentBuilder } from 'nestjs-asyncapi';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -11,6 +11,8 @@ import { DocsConfig } from './interfaces';
 @Injectable()
 export class DocsService {
   private readonly logger = new Logger(DocsService.name);
+  private swaggerDocument: OpenAPIObject;
+  private asyncApiDocument: any;
 
   /**
    * Setup all documentation endpoints (Swagger and AsyncAPI)
@@ -18,6 +20,7 @@ export class DocsService {
   async setup(app: NestExpressApplication, config: DocsConfig): Promise<void> {
     this.setupSwagger(app, config);
     await this.setupAsyncApi(app, config);
+    this.setupDocsExplorer(app, config);
   }
 
   /**
@@ -30,7 +33,7 @@ Real-time WebSocket API for creating and managing chat rooms. Built with NestJS 
 ## Documentation
 
 - 📡 **[WebSocket Events (AsyncAPI)](/docs/async-api)** - Full WebSocket events documentation with payloads
-- 📖 **[Integration Guide](/platform/guide)** - Step-by-step guide with code examples
+- 📖 **[Documentation Explorer](/docs)** - Interactive unified documentation
 - 🧪 **[WebSocket Tester](/platform/public/app-key-test.ejs)** - Test your Application Key connections
 
 ## Quick Start
@@ -42,7 +45,7 @@ WebSocket namespace: \`${config.wsNamespace}\`
       .setTitle('RoomStream API')
       .setDescription(description)
       .setVersion(config.version)
-      .setExternalDoc('WebSocket Guide', '/platform/guide')
+      .setExternalDoc('Documentation Explorer', '/docs')
       .addTag('rooms', 'Chat room management endpoints')
       .addTag('applications', 'Application/API Key management')
       .addTag('github', 'GitHub profile integration')
@@ -75,12 +78,12 @@ WebSocket namespace: \`${config.wsNamespace}\`
 
     const swaggerConfig = configBuilder.build();
 
-    const document = SwaggerModule.createDocument(app, swaggerConfig, {
+    this.swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig, {
       operationIdFactory: (controllerKey: string, methodKey: string) =>
         methodKey,
     });
 
-    SwaggerModule.setup('docs/api', app, document, {
+    SwaggerModule.setup('docs/api', app, this.swaggerDocument, {
       customSiteTitle: 'RoomStream API Documentation',
       customfavIcon: '/platform/assets/media/favicon.svg',
       swaggerOptions: {
@@ -89,6 +92,15 @@ WebSocket namespace: \`${config.wsNamespace}\`
         persistAuthorization: true,
         displayRequestDuration: true,
       },
+    });
+
+    // Setup JSON endpoint for Swagger
+    const httpAdapter = app.getHttpAdapter();
+    const jsonDocument = JSON.stringify(this.swaggerDocument, null, 2);
+
+    httpAdapter.get('/docs/api-json', (req: any, res: any) => {
+      res.type('application/json');
+      res.send(jsonDocument);
     });
 
     this.logger.log('Swagger documentation available at /docs/api');
@@ -121,31 +133,53 @@ WebSocket namespace: \`${config.wsNamespace}\`
       })
       .build();
 
-    const asyncApiDocument = AsyncApiModule.createDocument(app, asyncApiOptions);
+    this.asyncApiDocument = AsyncApiModule.createDocument(app, asyncApiOptions);
+
+    // Always setup JSON/YAML endpoints (needed for docs explorer)
+    this.setupAsyncApiJsonEndpoints(app);
 
     try {
-      await AsyncApiModule.setup('/docs/async-api', app, asyncApiDocument);
-      this.logger.log('AsyncAPI HTML documentation available at /docs/async-api');
+      await AsyncApiModule.setup('/docs/async-api', app, this.asyncApiDocument);
+      this.logger.log(
+        'AsyncAPI HTML documentation available at /docs/async-api',
+      );
     } catch {
-      // HTML generation failed, setup custom EJS page with JSON/YAML endpoints
-      this.setupAsyncApiFallback(app, asyncApiDocument, config.version);
+      // HTML generation failed, setup custom EJS page
+      this.setupAsyncApiFallback(app, config.version);
+      this.logger.log(
+        'AsyncAPI documentation available at /docs/async-api (JSON/YAML mode)',
+      );
     }
   }
 
   /**
-   * Setup fallback AsyncAPI documentation with custom EJS page and JSON/YAML endpoints
+   * Setup JSON/YAML endpoints for AsyncAPI (always available)
+   */
+  private setupAsyncApiJsonEndpoints(app: NestExpressApplication): void {
+    const httpAdapter = app.getHttpAdapter();
+    const yamlDocument = yaml.dump(this.asyncApiDocument);
+    const jsonDocument = JSON.stringify(this.asyncApiDocument, null, 2);
+
+    httpAdapter.get('/docs/async-api-json', (req: any, res: any) => {
+      res.type('application/json');
+      res.send(jsonDocument);
+    });
+
+    httpAdapter.get('/docs/async-api-yaml', (req: any, res: any) => {
+      res.type('text/yaml');
+      res.send(yamlDocument);
+    });
+  }
+
+  /**
+   * Setup fallback AsyncAPI documentation with custom EJS page
    */
   private setupAsyncApiFallback(
     app: NestExpressApplication,
-    asyncApiDocument: any,
     version: string,
   ): void {
     const httpAdapter = app.getHttpAdapter();
 
-    const yamlDocument = yaml.dump(asyncApiDocument);
-    const jsonDocument = JSON.stringify(asyncApiDocument, null, 2);
-
-    // Get the template path - works for both dev and production
     const templatePath = path.join(
       __dirname,
       '..',
@@ -160,19 +194,32 @@ WebSocket namespace: \`${config.wsNamespace}\`
       res.type('text/html');
       res.send(html);
     });
+  }
 
-    httpAdapter.get('/docs/async-api-json', (req: any, res: any) => {
-      res.type('application/json');
-      res.send(jsonDocument);
-    });
+  /**
+   * Setup Documentation Explorer at /docs
+   */
+  private setupDocsExplorer(
+    app: NestExpressApplication,
+    config: DocsConfig,
+  ): void {
+    const httpAdapter = app.getHttpAdapter();
 
-    httpAdapter.get('/docs/async-api-yaml', (req: any, res: any) => {
-      res.type('text/yaml');
-      res.send(yamlDocument);
-    });
-
-    this.logger.log(
-      'AsyncAPI documentation available at /docs/async-api (JSON/YAML mode)',
+    const templatePath = path.join(
+      __dirname,
+      '..',
+      'platform',
+      'public',
+      'docs-explorer.ejs',
     );
+
+    httpAdapter.get('/docs', (req: any, res: any) => {
+      const templateContent = fs.readFileSync(templatePath, 'utf-8');
+      const html = ejs.render(templateContent, { version: config.version });
+      res.type('text/html');
+      res.send(html);
+    });
+
+    this.logger.log('Documentation Explorer available at /docs');
   }
 }

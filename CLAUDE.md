@@ -208,7 +208,9 @@ The application includes comprehensive API documentation managed by the `DocsMod
 
 | Route | Description |
 |-------|-------------|
+| `/docs` | Documentation Explorer - Interactive unified documentation |
 | `/docs/api` | Swagger/OpenAPI - REST API documentation |
+| `/docs/api-json` | Swagger specification in JSON format |
 | `/docs/async-api` | AsyncAPI - WebSocket events documentation |
 | `/docs/async-api-json` | AsyncAPI specification in JSON format |
 | `/docs/async-api-yaml` | AsyncAPI specification in YAML format |
