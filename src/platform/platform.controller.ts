@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Res, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { Public } from '../common/decorators';
-import { RoomService } from '../room/room.service';
+import { RoomService } from '../rooms/room.service';
 import { PagesService } from './pages.service';
 import { GithubService } from '../github/github.service';
 

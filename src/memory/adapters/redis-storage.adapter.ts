@@ -1,20 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import type { IStorageAdapter } from '../interfaces';
-import type { Room, RoomMessage } from '../../room/interfaces';
-import { getParticipantKey } from '../../room/interfaces';
+import type { RoomMessage } from '../../rooms/interfaces';
+import { getParticipantKey } from '../../rooms/interfaces';
 import type { SupabaseUserData } from '../../types/room.types';
 
 /**
  * Redis storage adapter
  *
- * Stores all room data in Redis for persistence and scalability.
+ * Stores room runtime data in Redis for real-time operations.
  * Data survives application restarts.
  *
  * Redis Key Structure (Hybrid):
- * - rooms - Set of all room IDs
- * - room:{roomId} - Room metadata (JSON)
  * - room:{roomId}:participants - Set of participant keys (userId or clientId)
+ * - room:{roomId}:participant:{key}:presence - Participant presence marker (TTL)
  * - room:{roomId}:participant:{key}:name - Participant name (string)
  * - room:{roomId}:participant:{key}:supabase - Participant Supabase user data (JSON)
  * - room:{roomId}:messages - List of messages (JSON array)
@@ -28,6 +27,10 @@ export class RedisStorageAdapter implements IStorageAdapter {
   private readonly logger = new Logger(RedisStorageAdapter.name);
   private redis: Redis | null = null;
   private readonly redisUrl: string | undefined;
+  private readonly participantTtlSeconds = parseInt(
+    process.env.ROOM_PARTICIPANT_TTL_SECONDS || '120',
+    10,
+  );
 
   constructor() {
     this.redisUrl = process.env.REDIS_URL;
@@ -84,131 +87,6 @@ export class RedisStorageAdapter implements IStorageAdapter {
     }
   }
 
-  // Room operations
-  async setRoom(roomId: string, room: Room): Promise<void> {
-    if (!this.redis) return;
-
-    try {
-      // Store room metadata (without Maps and arrays that need special handling)
-      const roomData = {
-        id: room.id,
-        name: room.name,
-        createdAt: room.createdAt.toISOString(),
-      };
-
-      await this.redis.set(
-        `room:${roomId}`,
-        JSON.stringify(roomData),
-      );
-
-      // Add to rooms set
-      await this.redis.sadd('rooms', roomId);
-
-      // Store participants as a set
-      if (room.participants.length > 0) {
-        await this.redis.sadd(
-          `room:${roomId}:participants`,
-          ...room.participants,
-        );
-      }
-
-      // Store participant names
-      for (const [key, name] of room.participantNames.entries()) {
-        if (name !== null) {
-          await this.redis.set(
-            `room:${roomId}:participant:${key}:name`,
-            name,
-          );
-        }
-      }
-
-      // Store participant Supabase users
-      for (const [key, user] of room.participantSupabaseUsers.entries()) {
-        if (user !== null) {
-          await this.redis.set(
-            `room:${roomId}:participant:${key}:supabase`,
-            JSON.stringify(user),
-          );
-        }
-      }
-
-      // Store messages
-      if (room.messages.length > 0) {
-        const messagesJson = room.messages.map((msg) => JSON.stringify(msg));
-        await this.redis.rpush(`room:${roomId}:messages`, ...messagesJson);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to set room ${roomId}:`, error);
-    }
-  }
-
-  async getRoom(roomId: string): Promise<Room | null> {
-    if (!this.redis) return null;
-
-    try {
-      const roomData = await this.redis.get(`room:${roomId}`);
-      if (!roomData) return null;
-
-      const room = JSON.parse(roomData);
-
-      // Reconstruct participants array
-      const participants = await this.redis.smembers(
-        `room:${roomId}:participants`,
-      );
-
-      // Reconstruct participantNames Map
-      const participantNames = new Map<string, string | null>();
-      for (const key of participants) {
-        const name = await this.redis.get(
-          `room:${roomId}:participant:${key}:name`,
-        );
-        participantNames.set(key, name);
-      }
-
-      // Reconstruct participantSupabaseUsers Map
-      const participantSupabaseUsers = new Map<
-        string,
-        SupabaseUserData | null
-      >();
-      for (const key of participants) {
-        const userData = await this.redis.get(
-          `room:${roomId}:participant:${key}:supabase`,
-        );
-        participantSupabaseUsers.set(
-          key,
-          userData ? JSON.parse(userData) : null,
-        );
-      }
-
-      // Reconstruct messages array
-      const messagesJson = await this.redis.lrange(
-        `room:${roomId}:messages`,
-        0,
-        -1,
-      );
-      const messages = messagesJson.map((msg) => {
-        const parsed = JSON.parse(msg);
-        return {
-          ...parsed,
-          timestamp: new Date(parsed.timestamp),
-        };
-      });
-
-      return {
-        id: room.id,
-        name: room.name,
-        participants,
-        participantNames,
-        participantSupabaseUsers,
-        createdAt: new Date(room.createdAt),
-        messages,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get room ${roomId}:`, error);
-      return null;
-    }
-  }
-
   async deleteRoom(roomId: string): Promise<boolean> {
     if (!this.redis) return false;
 
@@ -220,46 +98,23 @@ export class RedisStorageAdapter implements IStorageAdapter {
 
       // Delete all participant-related keys
       const keysToDelete = [
-        `room:${roomId}`,
         `room:${roomId}:participants`,
         `room:${roomId}:messages`,
       ];
 
       for (const key of participants) {
         keysToDelete.push(
+          `room:${roomId}:participant:${key}:presence`,
           `room:${roomId}:participant:${key}:name`,
           `room:${roomId}:participant:${key}:supabase`,
         );
       }
 
       await this.redis.del(...keysToDelete);
-      await this.redis.srem('rooms', roomId);
-
       return true;
     } catch (error) {
       this.logger.error(`Failed to delete room ${roomId}:`, error);
       return false;
-    }
-  }
-
-  async getAllRooms(): Promise<Room[]> {
-    if (!this.redis) return [];
-
-    try {
-      const roomIds = await this.redis.smembers('rooms');
-      const rooms: Room[] = [];
-
-      for (const roomId of roomIds) {
-        const room = await this.getRoom(roomId);
-        if (room) {
-          rooms.push(room);
-        }
-      }
-
-      return rooms;
-    } catch (error) {
-      this.logger.error('Failed to get all rooms:', error);
-      return [];
     }
   }
 
@@ -270,9 +125,43 @@ export class RedisStorageAdapter implements IStorageAdapter {
     try {
       const key = getParticipantKey(clientId, userId);
       await this.redis.sadd(`room:${roomId}:participants`, key);
+      await this.touchParticipantPresence(roomId, key);
     } catch (error) {
       this.logger.error(
         `Failed to add participant ${clientId} to room ${roomId}:`,
+        error,
+      );
+    }
+  }
+
+  async refreshParticipantPresence(
+    roomId: string,
+    clientId: string,
+    userId?: string | null,
+  ): Promise<void> {
+    if (!this.redis) return;
+
+    try {
+      const key = getParticipantKey(clientId, userId);
+      const presenceKey = this.getPresenceKey(roomId, key);
+      await this.redis.set(
+        presenceKey,
+        '1',
+        'EX',
+        this.participantTtlSeconds,
+      );
+
+      await this.redis.expire(
+        `room:${roomId}:participant:${key}:name`,
+        this.participantTtlSeconds,
+      );
+      await this.redis.expire(
+        `room:${roomId}:participant:${key}:supabase`,
+        this.participantTtlSeconds,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to refresh presence for participant ${clientId} in room ${roomId}:`,
         error,
       );
     }
@@ -286,6 +175,7 @@ export class RedisStorageAdapter implements IStorageAdapter {
       await this.redis.srem(`room:${roomId}:participants`, key);
       // Also clean up participant data
       await this.redis.del(
+        `room:${roomId}:participant:${key}:presence`,
         `room:${roomId}:participant:${key}:name`,
         `room:${roomId}:participant:${key}:supabase`,
       );
@@ -301,7 +191,36 @@ export class RedisStorageAdapter implements IStorageAdapter {
     if (!this.redis) return [];
 
     try {
-      return await this.redis.smembers(`room:${roomId}:participants`);
+      const participants = await this.redis.smembers(
+        `room:${roomId}:participants`,
+      );
+
+      if (participants.length === 0) {
+        return [];
+      }
+
+      const presenceKeys = participants.map((key) =>
+        this.getPresenceKey(roomId, key),
+      );
+      const presenceValues = await this.redis.mget(presenceKeys);
+
+      const activeParticipants: string[] = [];
+      const staleParticipants: string[] = [];
+
+      presenceValues.forEach((value, index) => {
+        const participantKey = participants[index];
+        if (value) {
+          activeParticipants.push(participantKey);
+        } else if (participantKey) {
+          staleParticipants.push(participantKey);
+        }
+      });
+
+      if (staleParticipants.length > 0) {
+        await this.cleanupStaleParticipants(roomId, staleParticipants);
+      }
+
+      return activeParticipants;
     } catch (error) {
       this.logger.error(
         `Failed to get participants for room ${roomId}:`,
@@ -320,7 +239,15 @@ export class RedisStorageAdapter implements IStorageAdapter {
         `room:${roomId}:participants`,
         key,
       );
-      return result === 1;
+      if (result !== 1) {
+        return false;
+      }
+
+      const isActive = await this.isParticipantActive(roomId, key);
+      if (!isActive) {
+        await this.cleanupStaleParticipants(roomId, [key]);
+      }
+      return isActive;
     } catch (error) {
       this.logger.error(
         `Failed to check participant ${clientId} in room ${roomId}:`,
@@ -347,7 +274,10 @@ export class RedisStorageAdapter implements IStorageAdapter {
         await this.redis.set(
           `room:${roomId}:participant:${key}:name`,
           name,
+          'EX',
+          this.participantTtlSeconds,
         );
+        await this.touchParticipantPresence(roomId, key);
       }
     } catch (error) {
       this.logger.error(
@@ -366,6 +296,11 @@ export class RedisStorageAdapter implements IStorageAdapter {
 
     try {
       const key = getParticipantKey(clientId, userId);
+      const isActive = await this.isParticipantActive(roomId, key);
+      if (!isActive) {
+        await this.cleanupStaleParticipants(roomId, [key]);
+        return null;
+      }
       return await this.redis.get(
         `room:${roomId}:participant:${key}:name`,
       );
@@ -402,9 +337,7 @@ export class RedisStorageAdapter implements IStorageAdapter {
     if (!this.redis) return new Map();
 
     try {
-      const participants = await this.redis.smembers(
-        `room:${roomId}:participants`,
-      );
+      const participants = await this.getParticipants(roomId);
       const names = new Map<string, string | null>();
 
       for (const key of participants) {
@@ -443,7 +376,10 @@ export class RedisStorageAdapter implements IStorageAdapter {
         await this.redis.set(
           `room:${roomId}:participant:${key}:supabase`,
           JSON.stringify(user),
+          'EX',
+          this.participantTtlSeconds,
         );
+        await this.touchParticipantPresence(roomId, key);
       }
     } catch (error) {
       this.logger.error(
@@ -462,6 +398,11 @@ export class RedisStorageAdapter implements IStorageAdapter {
 
     try {
       const key = getParticipantKey(clientId, userId);
+      const isActive = await this.isParticipantActive(roomId, key);
+      if (!isActive) {
+        await this.cleanupStaleParticipants(roomId, [key]);
+        return null;
+      }
       const userData = await this.redis.get(
         `room:${roomId}:participant:${key}:supabase`,
       );
@@ -499,9 +440,7 @@ export class RedisStorageAdapter implements IStorageAdapter {
     if (!this.redis) return new Map();
 
     try {
-      const participants = await this.redis.smembers(
-        `room:${roomId}:participants`,
-      );
+      const participants = await this.getParticipants(roomId);
       const users = new Map<string, SupabaseUserData | null>();
 
       for (const key of participants) {
@@ -558,6 +497,53 @@ export class RedisStorageAdapter implements IStorageAdapter {
     } catch (error) {
       this.logger.error(`Failed to get messages for room ${roomId}:`, error);
       return [];
+    }
+  }
+
+  private getPresenceKey(roomId: string, key: string): string {
+    return `room:${roomId}:participant:${key}:presence`;
+  }
+
+  private async touchParticipantPresence(
+    roomId: string,
+    key: string,
+  ): Promise<void> {
+    if (!this.redis) return;
+    await this.redis.set(
+      this.getPresenceKey(roomId, key),
+      '1',
+      'EX',
+      this.participantTtlSeconds,
+    );
+  }
+
+  private async isParticipantActive(
+    roomId: string,
+    key: string,
+  ): Promise<boolean> {
+    if (!this.redis) return false;
+    const exists = await this.redis.exists(this.getPresenceKey(roomId, key));
+    return exists === 1;
+  }
+
+  private async cleanupStaleParticipants(
+    roomId: string,
+    keys: string[],
+  ): Promise<void> {
+    if (!this.redis || keys.length === 0) return;
+
+    const redisKeys: string[] = [];
+    keys.forEach((key) => {
+      redisKeys.push(
+        this.getPresenceKey(roomId, key),
+        `room:${roomId}:participant:${key}:name`,
+        `room:${roomId}:participant:${key}:supabase`,
+      );
+    });
+
+    await this.redis.srem(`room:${roomId}:participants`, ...keys);
+    if (redisKeys.length > 0) {
+      await this.redis.del(...redisKeys);
     }
   }
 }

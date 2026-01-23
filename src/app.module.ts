@@ -4,7 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EventsModule } from './events/events.module';
 import { MemoryModule } from './memory/memory.module';
-import { RoomModule } from './room/room.module';
+import { RoomModule } from './rooms/room.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { HealthModule } from './health/health.module';
 import { PlatformModule } from './platform/platform.module';

@@ -22,6 +22,7 @@ import { RoomService } from './room.service';
 import { EventsService } from '../events/events.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { ApplicationService } from '../application/application.service';
+import { RoomApplicationService } from './room-application.service';
 import { User } from '@supabase/supabase-js';
 import {
   JoinRoomDto,
@@ -91,6 +92,7 @@ export class RoomGateway
     private readonly eventsService: EventsService,
     private readonly supabaseService: SupabaseService,
     private readonly applicationService: ApplicationService,
+    private readonly roomApplicationService: RoomApplicationService,
   ) {}
 
   afterInit() {
@@ -132,6 +134,7 @@ export class RoomGateway
         this.logger.log(
           `Application connected: ${application.name} (${application.id}) on ${namespace}`,
         );
+        this.setupHeartbeat(client);
         return;
       } else {
         this.logger.warn(
@@ -163,6 +166,7 @@ export class RoomGateway
         this.logger.log(
           `Cliente conectado no namespace ${namespace}: ${client.id}`,
         );
+        this.setupHeartbeat(client);
         return;
       }
     }
@@ -214,6 +218,7 @@ export class RoomGateway
       this.logger.log(
         `Cliente conectado no namespace ${namespace}: ${client.id}`,
       );
+      this.setupHeartbeat(client);
       return;
     }
 
@@ -240,6 +245,7 @@ export class RoomGateway
     this.logger.log(
       `Cliente conectado no namespace ${namespace}: ${client.id}`,
     );
+    this.setupHeartbeat(client);
   }
 
   /**
@@ -348,6 +354,51 @@ export class RoomGateway
     }
   }
 
+  private setupHeartbeat(client: AuthenticatedSocket): void {
+    if (!client.conn) {
+      return;
+    }
+
+    client.conn.on('packet', (packet: { type?: string }) => {
+      if (packet.type !== 'pong') {
+        return;
+      }
+
+      this.refreshParticipantPresenceForClient(client);
+    });
+  }
+
+  private async refreshParticipantPresenceForClient(
+    client: AuthenticatedSocket,
+  ): Promise<void> {
+    const rooms = Array.from(client.rooms).filter((room) => room !== client.id);
+    if (rooms.length === 0) {
+      return;
+    }
+
+    const userId = this.getPresenceUserId(client);
+
+    await Promise.all(
+      rooms.map((roomId) =>
+        this.roomService.refreshParticipantPresence(roomId, client.id, userId),
+      ),
+    );
+  }
+
+  private getPresenceUserId(client: AuthenticatedSocket): string | null {
+    const supabaseUser = this.extractSupabaseUserData(client);
+    if (supabaseUser?.id) {
+      return supabaseUser.id;
+    }
+
+    const application = this.extractApplicationData(client);
+    if (application) {
+      return `app_${application.id}`;
+    }
+
+    return null;
+  }
+
   /**
    * Extracts minimal Supabase user data from authenticated socket
    * @param client - Authenticated socket client
@@ -414,6 +465,29 @@ export class RoomGateway
     }
     // Fallback to socket ID
     return client.id;
+  }
+
+  private async assertApplicationRoomAccess(
+    client: AuthenticatedSocket,
+    roomId: string,
+    applicationData: ApplicationData | null,
+  ): Promise<boolean> {
+    if (!applicationData) {
+      return true;
+    }
+
+    const isAllowed = await this.roomApplicationService.isApplicationAssociated(
+      roomId,
+      applicationData.id,
+    );
+
+    if (!isAllowed) {
+      client.emit('error', {
+        message: 'Aplicação não autorizada para esta sala.',
+      });
+    }
+
+    return isAllowed;
   }
 
   async handleDisconnect(client: AuthenticatedSocket) {
@@ -520,12 +594,21 @@ export class RoomGateway
       return;
     }
 
+    const applicationData = this.extractApplicationData(client);
+    const isAllowed = await this.assertApplicationRoomAccess(
+      client,
+      roomId,
+      applicationData,
+    );
+    if (!isAllowed) {
+      return;
+    }
+
     // Get display name based on connection type
     const displayName = this.getClientDisplayName(client, participantName);
 
     // Extract data based on connection type
     const supabaseUserData = this.extractSupabaseUserData(client);
-    const applicationData = this.extractApplicationData(client);
 
     // Join no Socket.IO room
     client.join(roomId) as void;
@@ -700,6 +783,15 @@ export class RoomGateway
     const supabaseUserData = this.extractSupabaseUserData(client);
     const applicationData = this.extractApplicationData(client);
 
+    const isAllowed = await this.assertApplicationRoomAccess(
+      client,
+      roomId,
+      applicationData,
+    );
+    if (!isAllowed) {
+      return;
+    }
+
     // Adicionar mensagem ao serviço
     const roomMessage = await this.roomService.addMessage(
       roomId,
@@ -788,6 +880,17 @@ export class RoomGateway
 
     if (!room) {
       client.emit('error', { message: 'Sala não encontrada x2' });
+      return;
+    }
+
+    const authClient = client as AuthenticatedSocket;
+    const applicationData = this.extractApplicationData(authClient);
+    const isAllowed = await this.assertApplicationRoomAccess(
+      authClient,
+      roomId,
+      applicationData,
+    );
+    if (!isAllowed) {
       return;
     }
 

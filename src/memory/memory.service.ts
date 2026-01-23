@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import type { IStorageAdapter } from './interfaces';
 import { InMemoryStorageAdapter } from './adapters/in-memory-storage.adapter';
 import { RedisStorageAdapter } from './adapters/redis-storage.adapter';
-import type { Room, RoomMessage } from '../room/interfaces';
+import type { RoomMessage } from '../rooms/interfaces';
 import type { SupabaseUserData } from '../types/room.types';
 
 /**
@@ -56,26 +56,21 @@ export class MemoryService implements OnModuleInit, OnModuleDestroy {
     return this.adapter instanceof RedisStorageAdapter ? 'Redis' : 'InMemory';
   }
 
-  // Room operations
-  async setRoom(roomId: string, room: Room): Promise<void> {
-    return this.adapter.setRoom(roomId, room);
-  }
-
-  async getRoom(roomId: string): Promise<Room | null> {
-    return this.adapter.getRoom(roomId);
-  }
-
   async deleteRoom(roomId: string): Promise<boolean> {
     return this.adapter.deleteRoom(roomId);
-  }
-
-  async getAllRooms(): Promise<Room[]> {
-    return this.adapter.getAllRooms();
   }
 
   // Participant operations
   async addParticipant(roomId: string, clientId: string, userId?: string | null): Promise<void> {
     return this.adapter.addParticipant(roomId, clientId, userId);
+  }
+
+  async refreshParticipantPresence(
+    roomId: string,
+    clientId: string,
+    userId?: string | null,
+  ): Promise<void> {
+    return this.adapter.refreshParticipantPresence(roomId, clientId, userId);
   }
 
   async removeParticipant(roomId: string, clientId: string, userId?: string | null): Promise<void> {

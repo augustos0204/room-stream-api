@@ -8,6 +8,7 @@ import { SupabaseUserData } from '../../types/room.types';
 export interface Room {
   id: string;
   name: string;
+  createdBy: string | null;
   participants: string[];
   participantNames: Map<string, string | null>;
   participantSupabaseUsers: Map<string, SupabaseUserData | null>;

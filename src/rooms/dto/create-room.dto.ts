@@ -4,7 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 /**
  * DTO for creating a new chat room
  *
- * Used by POST /room endpoint
+ * Used by POST /rooms endpoint
  */
 export class CreateRoomDto {
   @ApiProperty({

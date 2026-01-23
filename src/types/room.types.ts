@@ -13,6 +13,7 @@ export interface SupabaseUserData {
 export interface Room {
   id: string;
   name: string;
+  createdBy: string | null;
   participants: string[];
   participantNames: Map<string, string | null>;
   createdAt: Date;

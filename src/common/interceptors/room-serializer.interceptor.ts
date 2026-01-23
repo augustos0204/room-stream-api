@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import type { Room } from '../../room/interfaces';
+import type { Room } from '../../rooms/interfaces';
 
 /**
  * Interceptor to serialize Room objects for JSON responses
@@ -69,6 +69,7 @@ export class RoomSerializerInterceptor implements NestInterceptor {
     return {
       id: room.id,
       name: room.name,
+      createdBy: room.createdBy,
       participants: Array.isArray(room.participants)
         ? room.participants
         : [],

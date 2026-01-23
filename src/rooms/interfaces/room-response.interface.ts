@@ -36,7 +36,7 @@ export interface UserLeftResponse {
 }
 
 /**
- * Response for GET /room/:id/messages endpoint
+ * Response for GET /rooms/:id/messages endpoint
  */
 export interface RoomMessagesResponse {
   roomId: string;
@@ -46,7 +46,7 @@ export interface RoomMessagesResponse {
 }
 
 /**
- * Response for GET /room/:id/participants endpoint
+ * Response for GET /rooms/:id/participants endpoint
  */
 export interface RoomParticipantsResponse {
   roomId: string;

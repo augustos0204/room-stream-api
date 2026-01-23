@@ -5,9 +5,11 @@ import {
   Delete,
   Body,
   Param,
+  Req,
   HttpException,
   HttpStatus,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -31,10 +33,13 @@ import {
   DeleteRoomResponseDto,
 } from './dto';
 import type { MessageResponse } from '../common/interfaces';
+import type { AuthenticatedRequest } from '../common/interfaces';
 import { RoomSerializerInterceptor } from '../common/interceptors/room-serializer.interceptor';
+import { Public } from '../common/decorators/public.decorator';
+import { RoomAccessGuard } from '../common/guards/room-access.guard';
 
 @ApiTags('rooms')
-@Controller('room')
+@Controller('rooms')
 @UseInterceptors(RoomSerializerInterceptor)
 export class RoomController {
   constructor(private readonly roomService: RoomService) {}
@@ -48,19 +53,29 @@ export class RoomController {
     type: RoomResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid room name' })
-  async createRoom(@Body() createRoomDto: CreateRoomDto): Promise<Room> {
+  async createRoom(
+    @Req() req: AuthenticatedRequest,
+    @Body() createRoomDto: CreateRoomDto,
+  ): Promise<Room> {
     // Validation is now automatic via global ValidationPipe
-    return this.roomService.createRoom(createRoomDto.name.trim());
+    const createdBy = req.user?.id || null;
+    return this.roomService.createRoom(createRoomDto.name.trim(), createdBy);
   }
 
   @Get()
+  @Public()
+  @UseGuards(RoomAccessGuard)
   @ApiOperation({ summary: 'Get all chat rooms' })
   @ApiResponse({
     status: 200,
     description: 'List of all rooms',
     type: [RoomResponseDto],
   })
-  async getAllRooms(): Promise<Room[]> {
+  async getAllRooms(@Req() req: AuthenticatedRequest): Promise<Room[]> {
+    const applicationId = req.application?.id;
+    if (applicationId) {
+      return this.roomService.getRoomsForApplication(applicationId);
+    }
     return this.roomService.getAllRooms();
   }
 

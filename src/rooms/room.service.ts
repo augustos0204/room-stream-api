@@ -1,6 +1,8 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { EventsService } from '../events/events.service';
 import { MemoryService } from '../memory/memory.service';
+import { RoomPersistenceService, RoomMetadata } from './room.persistence.service';
+import { RoomApplicationService } from './room-application.service';
 import type { Room, RoomMessage, RoomParticipant } from './interfaces';
 import type { SupabaseUserData } from '../types/room.types';
 import { RoomGateway } from './room.gateway';
@@ -12,40 +14,71 @@ export class RoomService {
   constructor(
     private readonly eventsService: EventsService,
     private readonly memoryService: MemoryService,
+    private readonly roomPersistenceService: RoomPersistenceService,
+    private readonly roomApplicationService: RoomApplicationService,
     @Inject(forwardRef(() => RoomGateway))
     private readonly roomGateway: RoomGateway,
   ) {}
 
-  async createRoom(name: string): Promise<Room> {
+  async createRoom(name: string, createdBy?: string | null): Promise<Room> {
     const roomId = this.generateRoomId();
-    const room: Room = {
-      id: roomId,
-      name,
-      participants: [],
-      participantNames: new Map(),
-      participantSupabaseUsers: new Map(),
-      createdAt: new Date(),
-      messages: [],
-    };
+    const createdAt = new Date();
 
-    await this.memoryService.setRoom(roomId, room);
+    const roomMetadata = await this.roomPersistenceService.createRoom(
+      roomId,
+      name,
+      createdAt,
+      createdBy || null,
+    );
+
+    const room = await this.buildRoomFromMetadata(roomMetadata);
     this.logger.log(`Sala criada: ${roomId} (${name})`);
 
     this.eventsService.emitMetricsEvent('metrics:room-created', {
       roomId,
       roomName: name,
-      timestamp: room.createdAt,
+      timestamp: roomMetadata.createdAt,
     });
 
     return room;
   }
 
   async getRoom(roomId: string): Promise<Room | null> {
-    return this.memoryService.getRoom(roomId);
+    const roomMetadata = await this.roomPersistenceService.getRoom(roomId);
+    if (!roomMetadata) {
+      return null;
+    }
+
+    return this.buildRoomFromMetadata(roomMetadata);
   }
 
   async getAllRooms(): Promise<Room[]> {
-    return this.memoryService.getAllRooms();
+    const roomsMetadata = await this.roomPersistenceService.getAllRooms();
+    const rooms = await Promise.all(
+      roomsMetadata.map((room) => this.buildRoomFromMetadata(room)),
+    );
+    return rooms;
+  }
+
+  async getRoomsForApplication(applicationId: string): Promise<Room[]> {
+    const roomsMetadata =
+      await this.roomApplicationService.listRoomsForApplication(applicationId);
+    const rooms = await Promise.all(
+      roomsMetadata.map((room) => this.buildRoomFromMetadata(room)),
+    );
+    return rooms;
+  }
+
+  async refreshParticipantPresence(
+    roomId: string,
+    clientId: string,
+    userId?: string | null,
+  ): Promise<void> {
+    await this.memoryService.refreshParticipantPresence(
+      roomId,
+      clientId,
+      userId,
+    );
   }
 
   async joinRoom(
@@ -54,8 +87,8 @@ export class RoomService {
     participantName?: string | null,
     supabaseUser?: SupabaseUserData | null,
   ): Promise<boolean> {
-    const room = await this.memoryService.getRoom(roomId);
-    if (!room) {
+    const roomMetadata = await this.roomPersistenceService.getRoom(roomId);
+    if (!roomMetadata) {
       this.logger.warn(`Tentativa de entrar em sala inexistente: ${roomId}`);
       return false;
     }
@@ -77,7 +110,7 @@ export class RoomService {
       this.eventsService.emitMetricsEvent('metrics:user-joined-room', {
         clientId,
         roomId,
-        roomName: room.name,
+        roomName: roomMetadata.name,
         participantName: participantName || null,
         timestamp: new Date(),
       });
@@ -91,8 +124,8 @@ export class RoomService {
   }
 
   async leaveRoom(roomId: string, clientId: string, userId?: string | null): Promise<boolean> {
-    const room = await this.memoryService.getRoom(roomId);
-    if (!room) {
+    const roomMetadata = await this.roomPersistenceService.getRoom(roomId);
+    if (!roomMetadata) {
       return false;
     }
 
@@ -114,7 +147,7 @@ export class RoomService {
       this.eventsService.emitMetricsEvent('metrics:user-left-room', {
         clientId,
         roomId,
-        roomName: room.name,
+        roomName: roomMetadata.name,
         participantName: participantName || null,
         timestamp: new Date(),
       });
@@ -130,8 +163,8 @@ export class RoomService {
     supabaseUser?: SupabaseUserData | null,
     event: string = 'message',
   ): Promise<RoomMessage | null> {
-    const room = await this.memoryService.getRoom(roomId);
-    if (!room) {
+    const roomMetadata = await this.roomPersistenceService.getRoom(roomId);
+    if (!roomMetadata) {
       this.logger.warn(
         `Tentativa de enviar mensagem para sala inexistente: ${roomId}`,
       );
@@ -155,7 +188,7 @@ export class RoomService {
       messageId: roomMessage.id,
       clientId,
       roomId,
-      roomName: room.name,
+      roomName: roomMetadata.name,
       timestamp: roomMessage.timestamp,
     });
 
@@ -163,20 +196,25 @@ export class RoomService {
   }
 
   async deleteRoom(roomId: string): Promise<boolean> {
-    const room = await this.memoryService.getRoom(roomId);
-    const deleted = await this.memoryService.deleteRoom(roomId);
-    if (deleted && room) {
+    const roomMetadata = await this.roomPersistenceService.getRoom(roomId);
+    if (!roomMetadata) {
+      return false;
+    }
+
+    const deleted = await this.roomPersistenceService.deleteRoom(roomId);
+    if (deleted) {
+      await this.memoryService.deleteRoom(roomId);
       this.logger.log(`Sala deletada: ${roomId}`);
 
       // Emit metrics event
       this.eventsService.emitMetricsEvent('metrics:room-deleted', {
         roomId,
-        roomName: room.name,
+        roomName: roomMetadata.name,
         timestamp: new Date(),
       });
 
       // Broadcast to all clients in the room via WebSocket
-      this.roomGateway.broadcastRoomDeleted(roomId, room.name);
+      this.roomGateway.broadcastRoomDeleted(roomId, roomMetadata.name);
     }
     return deleted;
   }
@@ -195,10 +233,10 @@ export class RoomService {
     name: string | null,
     userId?: string | null,
   ): Promise<boolean> {
-    const room = await this.memoryService.getRoom(roomId);
+    const roomMetadata = await this.roomPersistenceService.getRoom(roomId);
     const hasParticipant = await this.memoryService.hasParticipant(roomId, clientId, userId);
 
-    if (!room || !hasParticipant) {
+    if (!roomMetadata || !hasParticipant) {
       return false;
     }
 
@@ -210,8 +248,8 @@ export class RoomService {
   }
 
   async getParticipantsWithNames(roomId: string): Promise<RoomParticipant[]> {
-    const room = await this.memoryService.getRoom(roomId);
-    if (!room) {
+    const roomMetadata = await this.roomPersistenceService.getRoom(roomId);
+    if (!roomMetadata) {
       return [];
     }
 
@@ -224,6 +262,31 @@ export class RoomService {
       name: participantNames.get(key) || null,
       supabaseUser: participantSupabaseUsers.get(key) || undefined,
     }));
+  }
+
+  private async buildRoomFromMetadata(room: RoomMetadata): Promise<Room> {
+    const [
+      participants,
+      participantNames,
+      participantSupabaseUsers,
+      messages,
+    ] = await Promise.all([
+      this.memoryService.getParticipants(room.id),
+      this.memoryService.getAllParticipantNames(room.id),
+      this.memoryService.getAllParticipantSupabaseUsers(room.id),
+      this.memoryService.getMessages(room.id),
+    ]);
+
+    return {
+      id: room.id,
+      name: room.name,
+      createdBy: room.createdBy,
+      participants,
+      participantNames,
+      participantSupabaseUsers,
+      createdAt: room.createdAt,
+      messages,
+    };
   }
 
   private generateMessageId(): string {

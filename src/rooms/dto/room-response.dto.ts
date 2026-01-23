@@ -106,7 +106,7 @@ export class RoomParticipantDto {
 
 /**
  * DTO for Room response
- * Used by GET /room, GET /room/:id, POST /room
+ * Used by GET /rooms, GET /rooms/:id, POST /rooms
  */
 export class RoomResponseDto {
   @ApiProperty({
@@ -120,6 +120,13 @@ export class RoomResponseDto {
     example: 'General Chat',
   })
   name: string;
+
+  @ApiPropertyOptional({
+    description: 'Supabase user ID that created the room',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    nullable: true,
+  })
+  createdBy: string | null;
 
   @ApiProperty({
     description: 'List of participant IDs',
@@ -152,7 +159,7 @@ export class RoomResponseDto {
 }
 
 /**
- * DTO for GET /room/:id/messages response
+ * DTO for GET /rooms/:id/messages response
  */
 export class RoomMessagesResponseDto {
   @ApiProperty({
@@ -191,7 +198,7 @@ export class RoomMessagesResponseDto {
 }
 
 /**
- * DTO for GET /room/:id/participants response
+ * DTO for GET /rooms/:id/participants response
  */
 export class RoomParticipantsResponseDto {
   @ApiProperty({
@@ -231,7 +238,7 @@ export class RoomParticipantsResponseDto {
 }
 
 /**
- * DTO for DELETE /room/:id response
+ * DTO for DELETE /rooms/:id response
  */
 export class DeleteRoomResponseDto {
   @ApiProperty({

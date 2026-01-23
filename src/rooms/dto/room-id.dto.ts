@@ -4,7 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 /**
  * DTO for room ID parameter validation
  *
- * Used by GET/DELETE /room/:id endpoints
+ * Used by GET/DELETE /rooms/:id endpoints
  */
 export class RoomIdDto {
   @ApiProperty({

@@ -9,11 +9,11 @@
  */
 
 export const API_ROUTE_PREFIXES = [
-  '/room',      // Room API endpoints
+  '/rooms',      // Room API endpoints
   '/metrics',   // Metrics endpoints
   '/health',    // Health check endpoint
   '/api',       // Generic API prefix (if used in future)
-  '/application'
+  '/applications'
 ] as const;
 
 /**

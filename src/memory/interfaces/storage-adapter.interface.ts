@@ -1,8 +1,8 @@
-import type { Room, RoomMessage } from '../../room/interfaces';
+import type { RoomMessage } from '../../rooms/interfaces';
 import type { SupabaseUserData } from '../../types/room.types';
 
 /**
- * Storage adapter interface for room data persistence
+ * Storage adapter interface for room runtime data
  *
  * Defines the contract for storage implementations (in-memory or Redis)
  */
@@ -22,14 +22,16 @@ export interface IStorageAdapter {
    */
   close(): Promise<void>;
 
-  // Room operations
-  setRoom(roomId: string, room: Room): Promise<void>;
-  getRoom(roomId: string): Promise<Room | null>;
+  // Room runtime cleanup
   deleteRoom(roomId: string): Promise<boolean>;
-  getAllRooms(): Promise<Room[]>;
 
   // Participant operations
   addParticipant(roomId: string, clientId: string, userId?: string | null): Promise<void>;
+  refreshParticipantPresence(
+    roomId: string,
+    clientId: string,
+    userId?: string | null,
+  ): Promise<void>;
   removeParticipant(roomId: string, clientId: string, userId?: string | null): Promise<void>;
   getParticipants(roomId: string): Promise<string[]>;
   hasParticipant(roomId: string, clientId: string, userId?: string | null): Promise<boolean>;
