@@ -133,6 +133,9 @@ SUPABASE_ANON_KEY=your-anon-key
 # 💾 REDIS CONFIGURATION (optional)
 REDIS_URL=redis://localhost:6379
 
+# ⏱️ PRESENCE CONFIGURATION
+ROOM_PARTICIPANT_TTL_SECONDS=120  # Participant presence TTL in seconds
+
 # ⏱️ TOKEN VALIDATION
 TOKEN_VALIDATION_INTERVAL=300000  # 5 minutes in ms
 
@@ -183,7 +186,7 @@ The server will be available at:
 
 #### Create Room
 ```http
-POST /room
+POST /rooms
 Content-Type: application/json
 
 {
@@ -193,34 +196,34 @@ Content-Type: application/json
 
 #### List All Rooms
 ```http
-GET /room
+GET /rooms
 ```
 
 #### Get Specific Room
 ```http
-GET /room/:id
+GET /rooms/:id
 ```
 
 #### Delete Room
 ```http
-DELETE /room/:id
+DELETE /rooms/:id
 ```
 
 #### Get Room Messages
 ```http
-GET /room/:id/messages
+GET /rooms/:id/messages
 ```
 
 #### Get Room Participants
 ```http
-GET /room/:id/participants
+GET /rooms/:id/participants
 ```
 
 ### Applications (Requires Supabase Auth)
 
 #### Create Application
 ```http
-POST /application
+POST /applications
 Authorization: Bearer <supabase-jwt>
 Content-Type: application/json
 
@@ -232,19 +235,19 @@ Content-Type: application/json
 
 #### List User's Applications
 ```http
-GET /application
+GET /applications
 Authorization: Bearer <supabase-jwt>
 ```
 
 #### Get Specific Application
 ```http
-GET /application/:id
+GET /applications/:id
 Authorization: Bearer <supabase-jwt>
 ```
 
 #### Update Application
 ```http
-PATCH /application/:id
+PATCH /applications/:id
 Authorization: Bearer <supabase-jwt>
 Content-Type: application/json
 
@@ -256,13 +259,13 @@ Content-Type: application/json
 
 #### Delete Application
 ```http
-DELETE /application/:id
+DELETE /applications/:id
 Authorization: Bearer <supabase-jwt>
 ```
 
 #### Regenerate API Key
 ```http
-POST /application/:id/regenerate-key
+POST /applications/:id/regenerate-key
 Authorization: Bearer <supabase-jwt>
 ```
 
@@ -319,7 +322,7 @@ const socket = io('http://localhost:3000/ws/rooms', {
 
 ```bash
 # REST API
-curl -H "x-api-key: your-api-key" http://localhost:3000/room
+curl -H "x-api-key: your-api-key" http://localhost:3000/rooms
 
 # WebSocket
 const socket = io('http://localhost:3000/ws/rooms', {

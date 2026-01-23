@@ -44,22 +44,22 @@ The application follows NestJS modular architecture with clear separation of con
   - `RoomService`: Room operations and business logic (uses MemoryService for storage)
   - `RoomGateway`: WebSocket event handlers using Socket.IO
   - `RoomController`: REST API endpoints
-    - `POST /room` - Create new room
-    - `GET /room` - List all rooms
-    - `GET /room/:id` - Get specific room
-    - `DELETE /room/:id` - Delete room
-    - `GET /room/:id/messages` - Get all room messages
-    - `GET /room/:id/participants` - Get all room participants
+    - `POST /rooms` - Create new room
+    - `GET /rooms` - List all rooms
+    - `GET /rooms/:id` - Get specific room
+    - `DELETE /rooms/:id` - Delete room
+    - `GET /rooms/:id/messages` - Get all room messages
+    - `GET /rooms/:id/participants` - Get all room participants
 
 - **ApplicationModule** - Application/API Key management
   - `ApplicationService`: CRUD operations for applications (stored in Supabase)
   - `ApplicationController`: REST API endpoints (requires Supabase auth)
-    - `POST /application` - Create new application
-    - `GET /application` - List user's applications
-    - `GET /application/:id` - Get specific application
-    - `PATCH /application/:id` - Update application
-    - `DELETE /application/:id` - Delete application
-    - `POST /application/:id/regenerate-key` - Regenerate API key
+    - `POST /applications` - Create new application
+    - `GET /applications` - List user's applications
+    - `GET /applications/:id` - Get specific application
+    - `PATCH /applications/:id` - Update application
+    - `DELETE /applications/:id` - Delete application
+    - `POST /applications/:id/regenerate-key` - Regenerate API key
   - API Key format: `app_{64 random hex characters}`
 
 - **MemoryModule** - Storage abstraction layer (Global module)
@@ -266,12 +266,12 @@ The application includes comprehensive API documentation managed by the `DocsMod
 
 - All messages are kept in storage (in-memory or Redis)
 - When joining, clients receive last 10 messages (see `joinedRoom` event)
-- Full message history available via `GET /room/:id/messages` REST endpoint
+- Full message history available via `GET /rooms/:id/messages` REST endpoint
 - Messages include `event` field to differentiate between `message` and `emit` events
 
 ### Room Deletion
 
-- Rooms can be deleted via REST API (`DELETE /room/:id`) or by service method
+- Rooms can be deleted via REST API (`DELETE /rooms/:id`) or by service method
 - `RoomService.deleteRoom(roomId)` removes room and emits `metrics:room-deleted` event
 - **Broadcasts `roomDeleted` event** to all clients in the room via WebSocket
 - Active participants receive notification before being disconnected from room
@@ -280,7 +280,7 @@ The application includes comprehensive API documentation managed by the `DocsMod
 
 - `RoomService.getParticipantsWithNames(roomId)` returns array of `{clientId, name, supabaseUser}` objects
 - Used by REST endpoints and WebSocket events to provide participant details
-- Available via `GET /room/:id/participants` endpoint
+- Available via `GET /rooms/:id/participants` endpoint
 
 ### Event-Driven Metrics
 
@@ -427,6 +427,7 @@ Environment variables (see `.env.example`):
 - `SUPABASE_ANON_KEY` - Supabase anonymous key (optional)
 - `REDIS_URL` - Redis connection URL (optional)
 - `TOKEN_VALIDATION_INTERVAL` - Supabase token validation interval in ms (default: 300000)
+- `ROOM_PARTICIPANT_TTL_SECONDS` - TTL for participant presence data in seconds (default: 120)
 - `GITHUB_CACHE_ENABLED` - Enable GitHub API cache (default: `true`)
 - `APP_NAME` - Application name (used in Docker deployments)
 - `APP_VERSION` - Application version (used in Docker deployments)
@@ -473,10 +474,10 @@ The API key can be provided in two ways (checked in order):
 Example:
 ```bash
 # Using header (recommended)
-curl -H "x-api-key: your-api-key" http://localhost:3000/room
+curl -H "x-api-key: your-api-key" http://localhost:3000/rooms
 
 # Using query parameter
-curl http://localhost:3000/room?apiKey=your-api-key
+curl http://localhost:3000/rooms?apiKey=your-api-key
 ```
 
 **WebSocket Authentication:**
@@ -584,7 +585,7 @@ The application has a comprehensive error handling system with custom error page
 
 **Behavior**:
 - Browser requests to `/platform/*` routes → Renders custom EJS error page
-- API routes (e.g., `/room`, `/health`) → Returns JSON error response
+- API routes (e.g., `/rooms`, `/health`) → Returns JSON error response
 - Error pages include: status code, error message, timestamp, and path
 
 **Development vs Production Mode**:
