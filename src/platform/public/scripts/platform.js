@@ -130,6 +130,14 @@ function platformApp() {
         isDeletingApplication: false,
         isRegeneratingKey: false,
 
+        // ==================== ROOM APPLICATIONS ====================
+        showRoomApplicationsModal: false,
+        selectedRoomForApplications: null,
+        roomApplicationIds: [],
+        roomApplicationMeta: {},
+        isLoadingRoomApplications: false,
+        savingRoomApplicationId: null,
+
         // ==================== INITIALIZE ====================
         async init() {
             // Load configuration from window.ENV (NOT API_KEY)
@@ -217,6 +225,7 @@ function platformApp() {
                         this.showChatModal = false;
                         this.showShortcutsModal = false;
                         this.showCreateRoomModal = false;
+                        this.showRoomApplicationsModal = false;
                     }
                 });
             } else {
@@ -627,6 +636,7 @@ function platformApp() {
             this.showChatModal = false;
             this.showShortcutsModal = false;
             this.showCreateRoomModal = false;
+            this.showRoomApplicationsModal = false;
             
             // Limpa estado
             this.rooms = [];
@@ -770,7 +780,7 @@ function platformApp() {
         async listRooms() {
             this.isLoadingRooms = true;
             try {
-                const response = await this.authenticatedFetch(`${this.baseUrl}/room`);
+                const response = await this.authenticatedFetch(`${this.baseUrl}/rooms`);
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -1123,7 +1133,7 @@ function platformApp() {
 
             this.isCreatingRoom = true;
             try {
-                const response = await this.authenticatedFetch(`${this.baseUrl}/room`, {
+                const response = await this.authenticatedFetch(`${this.baseUrl}/rooms`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: this.newRoomName })
@@ -1153,7 +1163,7 @@ function platformApp() {
             if (!confirm('Tem certeza que deseja excluir esta sala?')) return;
 
             try {
-                const response = await this.authenticatedFetch(`${this.baseUrl}/room/${roomId}`, {
+                const response = await this.authenticatedFetch(`${this.baseUrl}/rooms/${roomId}`, {
                     method: 'DELETE'
                 });
 
@@ -1756,7 +1766,7 @@ function platformApp() {
 
             this.isLoadingApplications = true;
             try {
-                const response = await this.authenticatedFetch(`${this.baseUrl}/application`);
+                const response = await this.authenticatedFetch(`${this.baseUrl}/applications`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 
                 this.applications = await response.json();
@@ -1782,7 +1792,7 @@ function platformApp() {
 
             this.isSavingApplication = true;
             try {
-                const response = await this.authenticatedFetch(`${this.baseUrl}/application`, {
+                const response = await this.authenticatedFetch(`${this.baseUrl}/applications`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1828,7 +1838,7 @@ function platformApp() {
             this.isSavingApplication = true;
             try {
                 const response = await this.authenticatedFetch(
-                    `${this.baseUrl}/application/${this.selectedApplication.id}`,
+                    `${this.baseUrl}/applications/${this.selectedApplication.id}`,
                     {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
@@ -1865,7 +1875,7 @@ function platformApp() {
             this.isDeletingApplication = true;
             try {
                 const response = await this.authenticatedFetch(
-                    `${this.baseUrl}/application/${this.selectedApplication.id}`,
+                    `${this.baseUrl}/applications/${this.selectedApplication.id}`,
                     { method: 'DELETE' }
                 );
 
@@ -1895,7 +1905,7 @@ function platformApp() {
             this.isRegeneratingKey = true;
             try {
                 const response = await this.authenticatedFetch(
-                    `${this.baseUrl}/application/${this.selectedApplication.id}/regenerate-key`,
+                    `${this.baseUrl}/applications/${this.selectedApplication.id}/regenerate-key`,
                     { method: 'POST' }
                 );
 
@@ -1926,7 +1936,7 @@ function platformApp() {
         async toggleApplicationStatus(app) {
             try {
                 const response = await this.authenticatedFetch(
-                    `${this.baseUrl}/application/${app.id}`,
+                    `${this.baseUrl}/applications/${app.id}`,
                     {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
@@ -1951,7 +1961,7 @@ function platformApp() {
         async viewApplicationKey(app) {
             try {
                 const response = await this.authenticatedFetch(
-                    `${this.baseUrl}/application/${app.id}`
+                    `${this.baseUrl}/applications/${app.id}`
                 );
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1971,7 +1981,7 @@ function platformApp() {
         async copyApiKey(app) {
             try {
                 const response = await this.authenticatedFetch(
-                    `${this.baseUrl}/application/${app.id}`
+                    `${this.baseUrl}/applications/${app.id}`
                 );
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1997,6 +2007,15 @@ function platformApp() {
                 Toast.success('API Key copiada!');
             } catch (error) {
                 Toast.error('Erro ao copiar');
+            }
+        },
+
+        async copyRoomId(roomId) {
+            try {
+                await navigator.clipboard.writeText(roomId);
+                Toast.success('ID da sala copiado!');
+            } catch (error) {
+                Toast.error('Erro ao copiar ID da sala');
             }
         },
 
@@ -2048,6 +2067,109 @@ function platformApp() {
                 description: '',
                 isActive: true
             };
+        },
+
+        // ==================== ROOM APPLICATIONS ====================
+
+        async openRoomApplications(room) {
+            if (!this.supabaseToken) {
+                Toast.error('Faça login para gerenciar aplicações');
+                return;
+            }
+
+            this.selectedRoomForApplications = room;
+            this.showRoomApplicationsModal = true;
+            this.roomApplicationIds = [];
+            this.roomApplicationMeta = {};
+            this.isLoadingRoomApplications = true;
+
+            try {
+                if (this.applications.length === 0) {
+                    await this.loadApplications();
+                }
+
+                const response = await this.authenticatedFetch(
+                    `${this.baseUrl}/rooms/${room.id}/applications`
+                );
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const linkedApplications = await response.json();
+                this.roomApplicationIds = linkedApplications.map(app => app.id);
+                this.roomApplicationMeta = linkedApplications.reduce((acc, app) => {
+                    acc[app.id] = {
+                        linkedBy: app.linkedBy,
+                        linkedAt: app.linkedAt
+                    };
+                    return acc;
+                }, {});
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao carregar aplicações da sala: ${error.message}`, 'error');
+                    Toast.error('Erro ao carregar aplicações da sala');
+                }
+            } finally {
+                this.isLoadingRoomApplications = false;
+            }
+        },
+
+        closeRoomApplicationsModal() {
+            this.showRoomApplicationsModal = false;
+            this.selectedRoomForApplications = null;
+            this.roomApplicationIds = [];
+            this.roomApplicationMeta = {};
+            this.savingRoomApplicationId = null;
+        },
+
+        isApplicationLinked(applicationId) {
+            return this.roomApplicationIds.includes(applicationId);
+        },
+
+        getApplicationLinkMeta(applicationId) {
+            return this.roomApplicationMeta[applicationId] || null;
+        },
+
+        async toggleRoomApplication(app) {
+            if (!this.selectedRoomForApplications) return;
+
+            const isLinked = this.isApplicationLinked(app.id);
+            this.savingRoomApplicationId = app.id;
+
+            try {
+                const endpoint = `${this.baseUrl}/rooms/${this.selectedRoomForApplications.id}/applications`;
+                const response = isLinked
+                    ? await this.authenticatedFetch(`${endpoint}/${app.id}`, { method: 'DELETE' })
+                    : await this.authenticatedFetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ applicationId: app.id })
+                    });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                if (isLinked) {
+                    this.roomApplicationIds = this.roomApplicationIds.filter(id => id !== app.id);
+                    delete this.roomApplicationMeta[app.id];
+                    Toast.success('Aplicação removida da sala');
+                } else {
+                    this.roomApplicationIds = [...this.roomApplicationIds, app.id];
+                    this.roomApplicationMeta = {
+                        ...this.roomApplicationMeta,
+                        [app.id]: {
+                            linkedBy: this.supabaseUser?.id || null,
+                            linkedAt: new Date().toISOString()
+                        }
+                    };
+                    Toast.success('Aplicação vinculada à sala');
+                }
+            } catch (error) {
+                if (error.message !== 'Unauthorized') {
+                    this.log(`❌ Erro ao atualizar aplicação da sala: ${error.message}`, 'error');
+                    Toast.error('Erro ao atualizar associação');
+                }
+            } finally {
+                this.savingRoomApplicationId = null;
+            }
         }
     };
 }
