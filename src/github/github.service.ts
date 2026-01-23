@@ -24,11 +24,21 @@ export interface GitHubRepo {
   stargazers_count: number;
   forks_count: number;
   topics: string[];
+  updated_at?: string;
 }
 
 export interface GitHubSocialAccount {
   provider: string;
   url: string;
+}
+
+export interface GitHubLatestActivity {
+  type: string;
+  repo: {
+    name: string;
+    url: string;
+  } | null;
+  created_at: string;
 }
 
 @Injectable()
@@ -146,6 +156,54 @@ export class GithubService {
         `Failed to fetch GitHub social accounts: ${error.message}`,
       );
       return [];
+    }
+  }
+
+  /**
+   * Busca ultima atividade publica do usuario
+   */
+  async getLatestActivity(): Promise<GitHubLatestActivity | null> {
+    const cacheKey = `activity:${this.GITHUB_USERNAME}`;
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await fetch(
+        `${this.GITHUB_API}/users/${this.GITHUB_USERNAME}/events/public?per_page=1`,
+        {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'RoomStream-API',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        this.logger.error(`GitHub API error: ${response.status}`);
+        return null;
+      }
+
+      const [event] = await response.json();
+      if (!event) {
+        return null;
+      }
+
+      const activity: GitHubLatestActivity = {
+        type: event.type || 'Activity',
+        repo: event.repo
+          ? {
+              name: event.repo.name,
+              url: `https://github.com/${event.repo.name}`,
+            }
+          : null,
+        created_at: event.created_at,
+      };
+
+      this.setCache(cacheKey, activity);
+      return activity;
+    } catch (error) {
+      this.logger.error(`Failed to fetch GitHub activity: ${error.message}`);
+      return null;
     }
   }
 

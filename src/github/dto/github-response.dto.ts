@@ -137,6 +137,13 @@ export class GitHubRepoDto {
     type: [String],
   })
   topics: string[];
+
+  @ApiPropertyOptional({
+    description: 'Last update timestamp',
+    example: '2024-01-10T12:00:00Z',
+    nullable: true,
+  })
+  updated_at?: string;
 }
 
 /**
@@ -154,6 +161,33 @@ export class GitHubSocialAccountDto {
     example: 'https://linkedin.com/in/octocat',
   })
   url: string;
+}
+
+/**
+ * Latest public activity
+ */
+export class GitHubLatestActivityDto {
+  @ApiProperty({
+    description: 'Event type',
+    example: 'PushEvent',
+  })
+  type: string;
+
+  @ApiPropertyOptional({
+    description: 'Repository info related to the event',
+    example: { name: 'octocat/hello-world', url: 'https://github.com/octocat/hello-world' },
+    nullable: true,
+  })
+  repo: {
+    name: string;
+    url: string;
+  } | null;
+
+  @ApiProperty({
+    description: 'Activity timestamp',
+    example: '2024-01-10T12:00:00Z',
+  })
+  created_at: string;
 }
 
 /**
@@ -237,4 +271,11 @@ export class GithubProfileResponseDto {
     ],
   })
   socialAccounts: GitHubSocialAccountDto[];
+
+  @ApiPropertyOptional({
+    description: 'Latest public GitHub activity',
+    type: GitHubLatestActivityDto,
+    nullable: true,
+  })
+  lastActivity: GitHubLatestActivityDto | null;
 }

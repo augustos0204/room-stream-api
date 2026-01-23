@@ -23,11 +23,12 @@ export class GithubController {
     type: GithubProfileResponseDto,
   })
   async getProfile(): Promise<GithubProfileResponseDto> {
-    const [user, repos, languages, socialAccounts] = await Promise.all([
+    const [user, repos, languages, socialAccounts, lastActivity] = await Promise.all([
       this.githubService.getUser(),
       this.githubService.getRepos(6),
       this.githubService.getTopLanguages(),
       this.githubService.getSocialAccounts(),
+      this.githubService.getLatestActivity(),
     ]);
 
     return {
@@ -35,6 +36,7 @@ export class GithubController {
       repos,
       languages,
       socialAccounts,
+      lastActivity,
     };
   }
 }

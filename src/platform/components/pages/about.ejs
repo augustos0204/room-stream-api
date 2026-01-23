@@ -62,14 +62,62 @@
 
                 <!-- Profile Info -->
                 <div class="px-6 pb-6">
-                    <!-- Avatar -->
-                    <div class="relative -mt-16 mb-4">
-                        <img 
-                            :src="profile.user?.avatar_url || 'https://github.com/identicons/default.png'" 
-                            :alt="profile.user?.name || 'Desenvolvedor'"
-                            class="w-32 h-32 rounded-full border-4 border-gray-900 shadow-xl"
-                        />
-                        <div class="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-gray-900"></div>
+                    <!-- Avatar + Badges -->
+                    <div class="relative -mt-16 mb-4 flex flex-wrap items-end gap-4">
+                        <div class="relative">
+                            <img 
+                                :src="profile.user?.avatar_url || 'https://github.com/identicons/default.png'" 
+                                :alt="profile.user?.name || 'Desenvolvedor'"
+                                class="w-32 h-32 rounded-full border-4 border-gray-900 shadow-xl"
+                            />
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 pb-2">
+                            <span
+                                class="relative inline-flex"
+                                x-data="{ tooltipOpen: false }"
+                                @mouseenter="tooltipOpen = true"
+                                @mouseleave="tooltipOpen = false"
+                            >
+                                <span
+                                    class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/40"
+                                >
+                                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                                </span>
+                                <span
+                                    x-cloak
+                                    x-show="tooltipOpen"
+                                    x-transition
+                                    class="absolute left-1/2 -translate-x-1/2 -top-10 whitespace-nowrap rounded-md dark-glass text-gray-100 text-sm px-3 py-1.5 border border-purple-500/40 shadow-lg"
+                                >
+                                    <span x-text="'Anos no GitHub: ' + getYearsOnGithub()"></span>
+                                    <span class="absolute left-1/2 -bottom-1 h-2 w-2 -translate-x-1/2 rotate-45 dark-glass border border-purple-500/40"></span>
+                                    <span class="absolute left-1/2 -bottom-[5px] h-1.5 w-1.5 -translate-x-1/2 rotate-45 dark-glass border-0"></span>
+                                </span>
+                            </span>
+                            <span
+                                class="relative inline-flex"
+                                x-data="{ tooltipOpen: false }"
+                                x-show="profile.lastActivity"
+                                @mouseenter="tooltipOpen = true"
+                                @mouseleave="tooltipOpen = false"
+                            >
+                                <span
+                                    class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-blue-500/20 text-blue-200 border border-blue-500/40"
+                                >
+                                    <i data-lucide="clock" class="w-4 h-4"></i>
+                                </span>
+                                <span
+                                    x-cloak
+                                    x-show="tooltipOpen"
+                                    x-transition
+                                    class="absolute left-1/2 -translate-x-1/2 -top-10 whitespace-nowrap rounded-md dark-glass text-gray-100 text-sm px-3 py-1.5 border border-blue-500/40 shadow-lg"
+                                >
+                                    <span x-text="formatActivityTooltip()"></span>
+                                    <span class="absolute left-1/2 -bottom-1 h-2 w-2 -translate-x-1/2 rotate-45 dark-glass border border-blue-500/40"></span>
+                                    <span class="absolute left-1/2 -bottom-[5px] h-1.5 w-1.5 -translate-x-1/2 rotate-45 dark-glass border-0"></span>
+                                </span>
+                            </span>
+                        </div>
                     </div>
 
                     <!-- Name & Title -->
@@ -116,6 +164,7 @@
                             <div class="text-[10px] sm:text-xs text-gray-400 truncate">Linguagens</div>
                         </div>
                     </div>
+
 
                     <!-- Social Links -->
                     <div class="flex flex-wrap gap-3">
@@ -169,12 +218,24 @@
                     <i data-lucide="code-2" class="w-5 h-5 text-purple-400"></i>
                     Linguagens Mais Usadas
                 </h3>
-                <div class="flex flex-wrap gap-2">
-                    <template x-for="lang in profile.languages" :key="lang">
-                        <span 
-                            :class="'px-3 py-1.5 rounded-lg border text-sm font-medium ' + getLanguageColor(lang)"
-                            x-text="lang"
-                        ></span>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <template x-for="lang in profile.languages" :key="lang.name">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span
+                                    :class="'px-3 py-1 rounded-lg border text-sm font-medium ' + getLanguageColor(lang.name)"
+                                    x-text="lang.name"
+                                ></span>
+                                <span class="text-xs text-gray-400" x-text="lang.percentage + '%'"
+                                ></span>
+                            </div>
+                            <div class="h-2 rounded-full bg-gray-800/70 overflow-hidden">
+                                <div
+                                    class="h-full bg-gradient-to-r from-purple-500 to-indigo-400"
+                                    :style="`width: ${lang.percentage}%`"
+                                ></div>
+                            </div>
+                        </div>
                     </template>
                 </div>
             </div>
@@ -205,6 +266,10 @@
                                 <span class="flex items-center gap-1">
                                     <i data-lucide="git-fork" class="w-3 h-3"></i>
                                     <span x-text="repo.forks_count"></span>
+                                </span>
+                                <span x-show="repo.updated_at" class="flex items-center gap-1">
+                                    <i data-lucide="clock" class="w-3 h-3"></i>
+                                    <span x-text="formatShortDate(repo.updated_at)"></span>
                                 </span>
                             </div>
                         </a>
@@ -247,6 +312,49 @@
                 <span class="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 text-sm">Docker</span>
                 <span class="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/50 text-sm">Alpine.js</span>
                 <span class="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/50 text-sm">Tailwind CSS</span>
+            </div>
+        </div>
+
+        <!-- Architecture Highlights -->
+        <div class="mt-6">
+            <h4 class="text-sm font-semibold text-gray-400 mb-3">Arquitetura em Foco</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="bg-gray-800/40 border border-gray-700/50 rounded-lg p-4 flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                        <i data-lucide="radio" class="w-4 h-4 text-purple-300"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-white">WebSocket Real-time</div>
+                        <p class="text-xs text-gray-400">Eventos bidirecionais com Socket.IO e namespaces dedicados.</p>
+                    </div>
+                </div>
+                <div class="bg-gray-800/40 border border-gray-700/50 rounded-lg p-4 flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center">
+                        <i data-lucide="database" class="w-4 h-4 text-red-300"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-white">Redis & Presenca</div>
+                        <p class="text-xs text-gray-400">Cache de participantes e mensagens com TTL e limpeza automatica.</p>
+                    </div>
+                </div>
+                <div class="bg-gray-800/40 border border-gray-700/50 rounded-lg p-4 flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-green-500/20 flex items-center justify-center">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-green-300"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-white">Supabase Auth</div>
+                        <p class="text-xs text-gray-400">JWT validado e chaves de aplicacao para integracoes.</p>
+                    </div>
+                </div>
+                <div class="bg-gray-800/40 border border-gray-700/50 rounded-lg p-4 flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <i data-lucide="layers" class="w-4 h-4 text-blue-300"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-white">NestJS Modular</div>
+                        <p class="text-xs text-gray-400">Servicos isolados e eventos internos para metrica.</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -344,6 +452,12 @@
                 if (!this.profile?.user?.created_at) return null;
                 return new Date(this.profile.user.created_at).getFullYear();
             },
+
+            getYearsOnGithub() {
+                if (!this.profile?.user?.created_at) return 0;
+                const start = new Date(this.profile.user.created_at).getFullYear();
+                return Math.max(new Date().getFullYear() - start, 0);
+            },
             
             getSocialConfig(provider) {
                 return this.socialConfig[provider] || this.socialConfig['generic'];
@@ -351,6 +465,20 @@
             
             getLanguageColor(lang) {
                 return this.languageColors[lang] || 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+            },
+
+            formatShortDate(dateString) {
+                if (!dateString) return '';
+                return new Date(dateString).toLocaleDateString('pt-BR', {
+                    month: 'short',
+                    year: 'numeric'
+                });
+            },
+
+            formatActivityTooltip() {
+                const activity = this.profile?.lastActivity;
+                if (!activity) return '';
+                return new Date(activity.created_at).toLocaleString('pt-BR');
             },
             
             getFilteredSocials() {
