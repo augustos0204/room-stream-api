@@ -215,6 +215,8 @@ function platformApp() {
                     this.listRooms();
                 }
 
+                this.onPageChange();
+
                 // Setup keyboard shortcuts
                 this.setupKeyboardShortcuts();
 
@@ -251,6 +253,8 @@ function platformApp() {
 
             // Fetch initial data
             this.listRooms();
+
+            this.onPageChange();
             
             // Start Supabase token refresh check (if using Supabase)
             this.startTokenRefreshCheck();
@@ -331,6 +335,14 @@ function platformApp() {
                     lucide.createIcons();
                 }
             });
+
+            if (!this.isAuthenticated()) {
+                return;
+            }
+
+            if (this.currentPage === 'applications') {
+                this.loadApplications();
+            }
         },
 
         navigateTo(page) {
