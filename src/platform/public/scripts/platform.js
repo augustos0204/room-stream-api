@@ -2019,6 +2019,22 @@ function platformApp() {
             }
         },
 
+        getAppInitials(name) {
+            if (!name) return 'AP';
+            const parts = name.trim().split(/\s+/).slice(0, 2);
+            return parts.map(part => part.charAt(0).toUpperCase()).join('');
+        },
+
+        getAppColor(appId) {
+            if (!appId) return 'hsl(28, 75%, 45%)';
+            let hash = 0;
+            for (let i = 0; i < appId.length; i += 1) {
+                hash = appId.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = Math.abs(hash) % 360;
+            return `hsl(${hue}, 70%, 45%)`;
+        },
+
         /**
          * Open edit modal for an application
          */
