@@ -93,7 +93,16 @@
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-base font-bold text-white truncate group-hover:text-purple-300 transition-colors"
                                     x-text="room.name"></h3>
-                                <p class="text-xs text-gray-500 font-mono truncate mt-0.5" x-text="room.id"></p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <p class="text-xs text-gray-500 font-mono truncate" x-text="room.id"></p>
+                                    <button
+                                        @click.stop="copyRoomId(room.id)"
+                                        class="p-1 hover:bg-gray-700/60 rounded transition-colors"
+                                        title="Copiar ID da sala"
+                                    >
+                                        <i data-lucide="copy" class="w-3.5 h-3.5 text-gray-400"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -131,6 +140,15 @@
                         >
                             <i data-lucide="log-in" class="w-4 h-4"></i>
                             <span x-text="currentRoomId === room.id ? 'Abrir Chat' : 'Entrar'"></span>
+                        </button>
+
+                        <button
+                            x-show="supabaseUser"
+                            @click.stop="openRoomApplications(room)"
+                            class="p-2.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 hover:border-amber-500/50 rounded-lg transition-all duration-200"
+                            title="Gerenciar aplicacoes"
+                        >
+                            <i data-lucide="link-2" class="w-4 h-4 text-amber-300"></i>
                         </button>
 
                         <button

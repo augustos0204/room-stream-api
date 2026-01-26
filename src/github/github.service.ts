@@ -24,6 +24,7 @@ export interface GitHubRepo {
   stargazers_count: number;
   forks_count: number;
   topics: string[];
+  updated_at?: string;
 }
 
 export interface GitHubSocialAccount {
@@ -31,10 +32,20 @@ export interface GitHubSocialAccount {
   url: string;
 }
 
+export interface GitHubLatestActivity {
+  type: string;
+  repo: {
+    name: string;
+    url: string;
+  } | null;
+  created_at: string;
+}
+
 @Injectable()
 export class GithubService {
   private readonly logger = new Logger(GithubService.name);
   private readonly GITHUB_API = 'https://api.github.com';
+  private readonly GITHUB_USERNAME = 'Augustos0204';
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutos
   private readonly CACHE_ENABLED = process.env.GITHUB_CACHE_ENABLED !== 'false';
 
@@ -50,18 +61,21 @@ export class GithubService {
   /**
    * Busca dados do usuário do GitHub
    */
-  async getUser(username: string): Promise<GitHubUser | null> {
-    const cacheKey = `user:${username}`;
+  async getUser(): Promise<GitHubUser | null> {
+    const cacheKey = `user:${this.GITHUB_USERNAME}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.GITHUB_API}/users/${username}`, {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'RoomStream-API',
+      const response = await fetch(
+        `${this.GITHUB_API}/users/${this.GITHUB_USERNAME}`,
+        {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'RoomStream-API',
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         this.logger.error(`GitHub API error: ${response.status}`);
@@ -80,17 +94,14 @@ export class GithubService {
   /**
    * Busca repositórios públicos do usuário
    */
-  async getRepos(
-    username: string,
-    limit = 6,
-  ): Promise<GitHubRepo[]> {
-    const cacheKey = `repos:${username}:${limit}`;
+  async getRepos(limit = 6): Promise<GitHubRepo[]> {
+    const cacheKey = `repos:${this.GITHUB_USERNAME}:${limit}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
     try {
       const response = await fetch(
-        `${this.GITHUB_API}/users/${username}/repos?sort=updated&per_page=${limit}`,
+        `${this.GITHUB_API}/users/${this.GITHUB_USERNAME}/repos?sort=updated&per_page=${limit}`,
         {
           headers: {
             Accept: 'application/vnd.github.v3+json',
@@ -116,14 +127,14 @@ export class GithubService {
   /**
    * Busca links sociais do usuário
    */
-  async getSocialAccounts(username: string): Promise<GitHubSocialAccount[]> {
-    const cacheKey = `social:${username}`;
+  async getSocialAccounts(): Promise<GitHubSocialAccount[]> {
+    const cacheKey = `social:${this.GITHUB_USERNAME}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
     try {
       const response = await fetch(
-        `${this.GITHUB_API}/users/${username}/social_accounts`,
+        `${this.GITHUB_API}/users/${this.GITHUB_USERNAME}/social_accounts`,
         {
           headers: {
             Accept: 'application/vnd.github.v3+json',
@@ -141,21 +152,74 @@ export class GithubService {
       this.setCache(cacheKey, data);
       return data;
     } catch (error) {
-      this.logger.error(`Failed to fetch GitHub social accounts: ${error.message}`);
+      this.logger.error(
+        `Failed to fetch GitHub social accounts: ${error.message}`,
+      );
       return [];
     }
   }
 
   /**
-   * Busca linguagens mais usadas nos repositórios
+   * Busca ultima atividade publica do usuario
    */
-  async getTopLanguages(username: string): Promise<string[]> {
-    const repos = await this.getRepos(username, 30);
+  async getLatestActivity(): Promise<GitHubLatestActivity | null> {
+    const cacheKey = `activity:${this.GITHUB_USERNAME}`;
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await fetch(
+        `${this.GITHUB_API}/users/${this.GITHUB_USERNAME}/events/public?per_page=1`,
+        {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'RoomStream-API',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        this.logger.error(`GitHub API error: ${response.status}`);
+        return null;
+      }
+
+      const [event] = await response.json();
+      if (!event) {
+        return null;
+      }
+
+      const activity: GitHubLatestActivity = {
+        type: event.type || 'Activity',
+        repo: event.repo
+          ? {
+              name: event.repo.name,
+              url: `https://github.com/${event.repo.name}`,
+            }
+          : null,
+        created_at: event.created_at,
+      };
+
+      this.setCache(cacheKey, activity);
+      return activity;
+    } catch (error) {
+      this.logger.error(`Failed to fetch GitHub activity: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Busca linguagens mais usadas nos repositórios
+   * Retorna estatísticas com nome, porcentagem e contagem
+   */
+  async getTopLanguages(): Promise<
+    { name: string; percentage: number; count: number }[]
+  > {
+    const repos = await this.getRepos(30);
     const languages = repos
       .map((repo) => repo.language)
       .filter((lang): lang is string => !!lang);
 
-    // Conta ocorrências e retorna as mais usadas
+    // Conta ocorrências
     const counts = languages.reduce(
       (acc, lang) => {
         acc[lang] = (acc[lang] || 0) + 1;
@@ -164,15 +228,22 @@ export class GithubService {
       {} as Record<string, number>,
     );
 
+    const total = languages.length;
+
+    // Retorna as top 8 com estatísticas
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
-      .map(([lang]) => lang);
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+      }));
   }
 
   private getFromCache(key: string): any | null {
     if (!this.CACHE_ENABLED) return null;
-    
+
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
       return cached.data;
@@ -182,7 +253,7 @@ export class GithubService {
 
   private setCache(key: string, data: any): void {
     if (!this.CACHE_ENABLED) return;
-    
+
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 }

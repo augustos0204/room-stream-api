@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Instalar dependências do sistema necessárias
 RUN apk add --no-cache libc6-compat
@@ -26,7 +26,7 @@ RUN pnpm run build
 RUN pnpm prune --prod
 
 # Production stage
-FROM node:18-alpine AS runner
+FROM node:22-alpine AS runner
 
 # Criar usuário não-root para segurança
 RUN addgroup --system --gid 1001 nodejs && \

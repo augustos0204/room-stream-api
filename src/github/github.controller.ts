@@ -2,9 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '../common/decorators';
 import { GithubService } from './github.service';
-
-// GitHub username for the profile
-const GITHUB_USERNAME = 'Augustos0204';
+import { GithubProfileResponseDto } from './dto';
 
 @ApiTags('github')
 @Controller('api/github')
@@ -20,14 +18,17 @@ export class GithubController {
   @ApiOperation({ summary: 'Get developer GitHub profile' })
   @ApiResponse({
     status: 200,
-    description: 'Developer profile data including user info, repos, languages and social accounts',
+    description:
+      'Developer profile data including user info, repos, languages and social accounts',
+    type: GithubProfileResponseDto,
   })
-  async getProfile() {
-    const [user, repos, languages, socialAccounts] = await Promise.all([
-      this.githubService.getUser(GITHUB_USERNAME),
-      this.githubService.getRepos(GITHUB_USERNAME, 6),
-      this.githubService.getTopLanguages(GITHUB_USERNAME),
-      this.githubService.getSocialAccounts(GITHUB_USERNAME),
+  async getProfile(): Promise<GithubProfileResponseDto> {
+    const [user, repos, languages, socialAccounts, lastActivity] = await Promise.all([
+      this.githubService.getUser(),
+      this.githubService.getRepos(6),
+      this.githubService.getTopLanguages(),
+      this.githubService.getSocialAccounts(),
+      this.githubService.getLatestActivity(),
     ]);
 
     return {
@@ -35,6 +36,7 @@ export class GithubController {
       repos,
       languages,
       socialAccounts,
+      lastActivity,
     };
   }
 }

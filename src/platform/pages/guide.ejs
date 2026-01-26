@@ -76,6 +76,14 @@ const wsPath = (typeof wsNamespace !== 'undefined' && wsNamespace) ? wsNamespace
                 <i data-lucide="help-circle" class="w-4 h-4 inline mr-1"></i>
                 Troubleshooting
             </button>
+            <a 
+                href="/docs"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white hover:bg-gray-700/30 flex items-center gap-1"
+            >
+                <i data-lucide="book-open" class="w-4 h-4 inline mr-1"></i>
+                API Docs
+                <i data-lucide="external-link" class="w-3 h-3 ml-1"></i>
+            </a>
         </div>
 
         <!-- Tab: Conexão -->
@@ -375,12 +383,12 @@ socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'c
                                 <td class="py-3 px-4 text-gray-300">Atualizar nome do participante</td>
                             </tr>
                             <tr>
-                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">participantJoined</code></td>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">userJoined</code></td>
                                 <td class="py-3 px-4"><span class="text-orange-400">Server → Broadcast</span></td>
                                 <td class="py-3 px-4 text-gray-300">Novo participante entrou na sala</td>
                             </tr>
                             <tr>
-                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">participantLeft</code></td>
+                                <td class="py-3 px-4"><code class="text-purple-300 bg-gray-800/50 px-2 py-0.5 rounded">userLeft</code></td>
                                 <td class="py-3 px-4"><span class="text-orange-400">Server → Broadcast</span></td>
                                 <td class="py-3 px-4 text-gray-300">Participante saiu da sala</td>
                             </tr>
@@ -391,6 +399,55 @@ socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'c
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Eventos de Sistema -->
+            <div class="dark-glass rounded-xl border border-gray-700/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>
+                    Eventos de Sistema
+                </h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-700/50">
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Evento</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Direção</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700/30">
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-red-300 bg-gray-800/50 px-2 py-0.5 rounded">error</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Client</span></td>
+                                <td class="py-3 px-4 text-gray-300">Erro de operação (autenticação, sala não encontrada, etc.)</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-yellow-300 bg-gray-800/50 px-2 py-0.5 rounded">roomDeleted</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Broadcast</span></td>
+                                <td class="py-3 px-4 text-gray-300">Sala foi deletada (todos participantes são notificados)</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4"><code class="text-yellow-300 bg-gray-800/50 px-2 py-0.5 rounded">tokenExpired</code></td>
+                                <td class="py-3 px-4"><span class="text-orange-400">Server → Client</span></td>
+                                <td class="py-3 px-4 text-gray-300">Token Supabase expirou (cliente será desconectado)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <h4 class="text-yellow-300 font-medium mb-2 flex items-center gap-2">
+                        <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                        Tratamento de Erros
+                    </h4>
+                    <p class="text-gray-400 text-sm">
+                        Sempre implemente listeners para os eventos <code class="bg-gray-800 px-1 rounded text-red-300">error</code>, 
+                        <code class="bg-gray-800 px-1 rounded text-yellow-300">roomDeleted</code> e 
+                        <code class="bg-gray-800 px-1 rounded text-yellow-300">tokenExpired</code> para garantir uma boa experiência do usuário.
+                    </p>
                 </div>
             </div>
 
@@ -543,7 +600,7 @@ socket.on('connect_error', (error) => {
 
 // Eventos de sala
 socket.on('joinedRoom', (data) => {
-  console.log('🚪 Entrou na sala:', data.room.name);
+  console.log('🚪 Entrou na sala:', data.roomName);
   console.log('👥 Participantes:', data.participants);
   console.log('💬 Mensagens recentes:', data.recentMessages);
 });
@@ -554,12 +611,25 @@ socket.on('message', (data) => {
 });
 
 // Eventos de participantes
-socket.on('participantJoined', (data) => {
+socket.on('userJoined', (data) => {
   console.log(\`➡️ \${data.participantName} entrou\`);
 });
 
-socket.on('participantLeft', (data) => {
+socket.on('userLeft', (data) => {
   console.log(\`⬅️ \${data.participantName} saiu\`);
+});
+
+// Eventos de sistema
+socket.on('error', (data) => {
+  console.error('❌ Erro:', data.message);
+});
+
+socket.on('roomDeleted', (data) => {
+  console.warn(\`🗑️ Sala \${data.roomName} foi deletada\`);
+});
+
+socket.on('tokenExpired', (data) => {
+  console.warn('⏰ Sessão expirada, reconectando...');
 });
 
 // Enviar mensagem (evento customizável)
@@ -606,7 +676,7 @@ socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'c
 
 <span class="text-gray-500">// Eventos de sala</span>
 socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'joinedRoom'</span>, (data) => {
-  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'🚪 Entrou na sala:'</span>, data.room.name);
+  console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'🚪 Entrou na sala:'</span>, data.roomName);
   console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'👥 Participantes:'</span>, data.participants);
   console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">'💬 Mensagens recentes:'</span>, data.recentMessages);
 });
@@ -617,12 +687,25 @@ socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'m
 });
 
 <span class="text-gray-500">// Eventos de participantes</span>
-socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'participantJoined'</span>, (data) => {
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'userJoined'</span>, (data) => {
   console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">`➡️ ${data.participantName} entrou`</span>);
 });
 
-socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'participantLeft'</span>, (data) => {
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'userLeft'</span>, (data) => {
   console.<span class="text-yellow-300">log</span>(<span class="text-emerald-300">`⬅️ ${data.participantName} saiu`</span>);
+});
+
+<span class="text-gray-500">// Eventos de sistema</span>
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'error'</span>, (data) => {
+  console.<span class="text-yellow-300">error</span>(<span class="text-emerald-300">'❌ Erro:'</span>, data.message);
+});
+
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'roomDeleted'</span>, (data) => {
+  console.<span class="text-yellow-300">warn</span>(<span class="text-emerald-300">`🗑️ Sala ${data.roomName} foi deletada`</span>);
+});
+
+socket.<span class="text-yellow-300">on</span>(<span class="text-emerald-300">'tokenExpired'</span>, (data) => {
+  console.<span class="text-yellow-300">warn</span>(<span class="text-emerald-300">'⏰ Sessão expirada, reconectando...'</span>);
 });
 
 <span class="text-gray-500">// Enviar mensagem (evento customizável)</span>

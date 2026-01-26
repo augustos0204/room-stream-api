@@ -186,6 +186,14 @@
                 <% } %>
             <% }); %>
 
+            <footer class="mt-10 pt-6 border-t border-gray-700/50 text-sm text-gray-500 flex flex-wrap items-center justify-between gap-3">
+                <span><%= appName || 'RoomStream' %> • <%= new Date().getFullYear() %></span>
+                <div class="flex items-center gap-4">
+                    <a href="/platform/about" class="hover:text-gray-200 transition-colors">Sobre o Criador</a>
+                    <a href="/docs/api" class="hover:text-gray-200 transition-colors">Docs</a>
+                </div>
+            </footer>
+
         </div>
     </main>
 
@@ -252,6 +260,7 @@
     <%- include('../components/modals/create-room') %>
     <%- include('../components/modals/chat') %>
     <%- include('../components/modals/shortcuts') %>
+    <%- include('../components/modals/room-applications') %>
 
     </div>
     <!-- End Platform Interface -->

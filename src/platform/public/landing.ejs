@@ -74,7 +74,7 @@
 
                 <!-- Nav Links -->
                 <div class="hidden md:flex items-center gap-6">
-                    <a href="/api-docs" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                    <a href="/docs/api" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
                         <i data-lucide="book-open" class="w-4 h-4"></i>
                         <span>API Docs</span>
                     </a>
@@ -130,7 +130,7 @@
                         <span>Acessar Dashboard</span>
                         <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
                     </a>
-                    <a href="/api-docs" class="px-8 py-4 glass-effect border border-purple-500/50 hover:border-purple-400 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                    <a href="/docs" class="px-8 py-4 glass-effect border border-purple-500/50 hover:border-purple-400 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
                         <i data-lucide="book-open" class="w-5 h-5"></i>
                         <span>Ver Documentação</span>
                     </a>
@@ -413,10 +413,10 @@
                                         'C#': 'bg-purple-500/20 text-purple-300 border-purple-500/50',
                                         'PHP': 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50',
                                     };
-                                    const colorClass = colors[lang] || 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+                                    const colorClass = colors[lang.name] || 'bg-gray-500/20 text-gray-300 border-gray-500/50';
                                 %>
                                 <span class="px-2.5 py-1 rounded-lg border text-xs font-medium <%= colorClass %>">
-                                    <%= lang %>
+                                    <%= lang.name %>
                                 </span>
                                 <% }); %>
                             </div>
@@ -425,6 +425,13 @@
 
                         <!-- Links -->
                         <div class="flex flex-wrap gap-3">
+                            <a 
+                                href="/platform/about" 
+                                class="flex items-center gap-2 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 rounded-lg transition-colors text-sm"
+                            >
+                                <i data-lucide="user-circle" class="w-4 h-4"></i>
+                                <span>Sobre o Criador</span>
+                            </a>
                             <a 
                                 href="<%= devGithubUrl %>" 
                                 target="_blank"
@@ -463,6 +470,7 @@
     </section>
     <% } %>
 
+
     <!-- CTA Section -->
     <section class="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
         <div class="max-w-4xl mx-auto">
@@ -474,9 +482,9 @@
                     Explore a documentação da API ou acesse o dashboard para criar sua primeira sala.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a href="/api-docs" class="px-8 py-4 glass-effect border border-purple-500/50 hover:border-purple-400 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                    <a href="/docs" class="px-8 py-4 glass-effect border border-purple-500/50 hover:border-purple-400 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
                         <i data-lucide="book-open" class="w-5 h-5"></i>
-                        <span>Documentação API</span>
+                        <span>Abrir Documentação</span>
                     </a>
                     <a href="/platform" class="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center justify-center gap-2">
                         <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
@@ -506,7 +514,7 @@
                         <i data-lucide="activity" class="w-4 h-4"></i>
                         <span>Métricas</span>
                     </a>
-                    <a href="/api-docs" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                    <a href="/docs/api" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
                         <i data-lucide="book-open" class="w-4 h-4"></i>
                         <span>Docs</span>
                     </a>

@@ -4,13 +4,14 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EventsModule } from './events/events.module';
 import { MemoryModule } from './memory/memory.module';
-import { RoomModule } from './room/room.module';
+import { RoomModule } from './rooms/room.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { HealthModule } from './health/health.module';
 import { PlatformModule } from './platform/platform.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { ApplicationModule } from './application/application.module';
 import { GithubModule } from './github/github.module';
+import { DocsModule } from './docs/docs.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { GithubModule } from './github/github.module';
     SupabaseModule,
     ApplicationModule,
     GithubModule,
+    DocsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

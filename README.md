@@ -1,8 +1,6 @@
 # 🔌 RoomStream - API
 
-A robust and scalable WebSocket API built with **NestJS** and **Socket.IO** for creating and managing real-time chat rooms.
-
-> **⚠️ Note**: This project focuses on **backend implementation**. The web interface at `/view` is a **basic prototype** for development testing and API validation purposes only.
+A robust and scalable WebSocket API built with **NestJS** and **Socket.IO** for creating and managing real-time chat rooms. Includes a **complete web platform** for managing rooms, applications, and more.
 
 ## 📋 Table of Contents
 
@@ -13,7 +11,7 @@ A robust and scalable WebSocket API built with **NestJS** and **Socket.IO** for 
 - [Usage](#-usage)
 - [API Endpoints](#-api-endpoints)
 - [WebSocket Events](#-websocket-events)
-- [Web Interface](#-web-interface)
+- [Web Platform](#-web-platform)
 - [Project Structure](#-project-structure)
 - [Testing](#-testing)
 - [Contributing](#-contributing)
@@ -28,6 +26,7 @@ A robust and scalable WebSocket API built with **NestJS** and **Socket.IO** for 
 - **Multiple simultaneous rooms** per user
 - **Join/leave events** with notifications
 - **Comprehensive metrics system** for monitoring
+- **Application/API Key management** for integrations
 
 ### 🛠️ Backend Architecture  
 - **Isolated WebSocket namespace** (`/ws/rooms`)
@@ -38,9 +37,24 @@ A robust and scalable WebSocket API built with **NestJS** and **Socket.IO** for 
 - **Modular NestJS architecture** for scalability
 - **Event-driven system** with @nestjs/event-emitter
 - **TypeScript implementation** for type safety
+- **Flexible storage** (Redis or in-memory)
+
+### 🌐 Web Platform
+- **Complete SPA dashboard** at `/platform`
+- **Room management interface**
+- **Real-time chat interface**
+- **Application/API Key management**
+- **User profile** (with Supabase auth)
+- **GitHub integration** for about page
+- **PWA-ready** with manifest files
+
+### 🔐 Authentication
+- **Multiple auth methods**: Supabase JWT, API Key, Application Key
+- **Per-application API keys** for integrations
+- **Periodic token validation** for Supabase
 
 ### 🧪 Development Tools
-- **Basic web interface** for API testing
+- **Interactive Swagger docs** at `/docs/api`
 - **HTTP request files** for endpoint validation  
 - **Health checks** and **metrics endpoints**
 - **Comprehensive logging** for debugging
@@ -53,27 +67,32 @@ A robust and scalable WebSocket API built with **NestJS** and **Socket.IO** for 
 - **[TypeScript](https://www.typescriptlang.org/)** - Typed JavaScript
 - **[@nestjs/event-emitter](https://docs.nestjs.com/techniques/events)** - Event system
 - **[@nestjs/config](https://docs.nestjs.com/techniques/configuration)** - Configuration management
+- **[ioredis](https://github.com/redis/ioredis)** - Redis client (optional)
+- **[Supabase](https://supabase.com/)** - Authentication & Database (optional)
 
-### Development Interface
-- **[Tailwind CSS](https://tailwindcss.com/)** - For basic styling
-- **[Alpine.js](https://alpinejs.dev/)** - For simple interactivity
-- **HTML5 & JavaScript** - Basic web technologies for testing interface
+### Frontend (Platform)
+- **[EJS](https://ejs.co/)** - Template engine
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS (via CDN)
+- **Custom CSS** - For complex components and animations
+- **Vanilla JavaScript** - For interactivity
 
 ### DevTools
 - **[ESLint](https://eslint.org/)** & **[Prettier](https://prettier.io/)** - Code quality
 - **[Jest](https://jestjs.io/)** - Testing framework
-- **[TypeScript](https://www.typescriptlang.org/)** - Static typing
+- **[Swagger](https://swagger.io/)** - API documentation
 
 ## 📦 Installation
 
 ### Prerequisites
 - **Node.js** >= 18.x
 - **pnpm** >= 8.x (recommended) or npm/yarn
+- **Redis** (optional, for persistent storage)
+- **Supabase** project (optional, for authentication)
 
 ### Clone Repository
 ```bash
-git clone https://github.com/your-username/nest-websocket-api.git
-cd nest-websocket-api
+git clone https://github.com/augustos0204/room-stream-api.git
+cd room-stream-api
 ```
 
 ### Install Dependencies
@@ -104,12 +123,27 @@ CORS_ORIGIN=*               # Allowed origin (* for development)
 WEBSOCKET_NAMESPACE=/ws/rooms # Socket.IO namespace
 
 # 🔐 SECURITY CONFIGURATION
-# API_KEY=your-secret-key    # Optional API key for authentication
-                              # If not set, authentication is disabled
-                              # Generate with: openssl rand -hex 32
+API_KEY=your-secret-key     # Global API key (optional)
+                            # Generate with: openssl rand -hex 32
+
+# 🔑 SUPABASE CONFIGURATION (optional)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+
+# 💾 REDIS CONFIGURATION (optional)
+REDIS_URL=redis://localhost:6379
+
+# ⏱️ PRESENCE CONFIGURATION
+ROOM_PARTICIPANT_TTL_SECONDS=120  # Participant presence TTL in seconds
+
+# ⏱️ TOKEN VALIDATION
+TOKEN_VALIDATION_INTERVAL=300000  # 5 minutes in ms
+
+# 🐙 GITHUB CONFIGURATION (optional)
+GITHUB_CACHE_ENABLED=true   # Enable GitHub API cache
 
 # 📱 APPLICATION SETTINGS
-APP_NAME="NestJS WebSocket Room API"
+APP_NAME="RoomStream API"
 APP_VERSION=1.0.0
 ```
 
@@ -143,7 +177,8 @@ pnpm run start:dev
 The server will be available at:
 - **🎯 REST API**: `http://localhost:3000`
 - **🔌 WebSocket**: `ws://localhost:3000/ws/rooms`
-- **🧪 Testing Interface**: `http://localhost:3000/view` (development tool)
+- **🌐 Web Platform**: `http://localhost:3000/platform`
+- **📚 API Docs**: `http://localhost:3000/docs/api`
 
 ## 📚 API Endpoints
 
@@ -151,7 +186,7 @@ The server will be available at:
 
 #### Create Room
 ```http
-POST /room
+POST /rooms
 Content-Type: application/json
 
 {
@@ -161,27 +196,77 @@ Content-Type: application/json
 
 #### List All Rooms
 ```http
-GET /room
+GET /rooms
 ```
 
 #### Get Specific Room
 ```http
-GET /room/:id
+GET /rooms/:id
 ```
 
 #### Delete Room
 ```http
-DELETE /room/:id
+DELETE /rooms/:id
 ```
 
 #### Get Room Messages
 ```http
-GET /room/:id/messages
+GET /rooms/:id/messages
 ```
 
 #### Get Room Participants
 ```http
-GET /room/:id/participants
+GET /rooms/:id/participants
+```
+
+### Applications (Requires Supabase Auth)
+
+#### Create Application
+```http
+POST /applications
+Authorization: Bearer <supabase-jwt>
+Content-Type: application/json
+
+{
+  "name": "My App",
+  "description": "Optional description"
+}
+```
+
+#### List User's Applications
+```http
+GET /applications
+Authorization: Bearer <supabase-jwt>
+```
+
+#### Get Specific Application
+```http
+GET /applications/:id
+Authorization: Bearer <supabase-jwt>
+```
+
+#### Update Application
+```http
+PATCH /applications/:id
+Authorization: Bearer <supabase-jwt>
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "isActive": true
+}
+```
+
+#### Delete Application
+```http
+DELETE /applications/:id
+Authorization: Bearer <supabase-jwt>
+```
+
+#### Regenerate API Key
+```http
+POST /applications/:id/regenerate-key
+Authorization: Bearer <supabase-jwt>
 ```
 
 ### Monitoring
@@ -196,78 +281,71 @@ GET /health
 GET /metrics
 ```
 
+#### GitHub Profile (for about page)
+```http
+GET /api/github/profile
+```
+
 ## 🔐 Authentication
 
-### API Key Authentication (Optional)
+### Authentication Methods
 
-The API supports optional API key authentication for enhanced security. If `API_KEY` is set in your environment variables, all REST API requests and WebSocket connections will require authentication.
+The API supports multiple authentication methods:
 
-#### REST API
+| Method | Use Case | Header/Auth |
+|--------|----------|-------------|
+| **Application Key** | Server-to-server | `auth.applicationKey` |
+| **Supabase JWT** | User authentication | `Authorization: Bearer` |
+| **Global API Key** | Simple API access | `x-api-key` header |
 
-Provide the API key in one of three ways:
+### Application Key Authentication
 
-**1. Header (Recommended)**
-```bash
-curl -H "x-api-key: your-api-key" http://localhost:3000/room
-```
+Create an application via the API or Platform to get an API key:
 
-**2. Authorization Header**
-```bash
-curl -H "Authorization: Bearer your-api-key" http://localhost:3000/room
-```
-
-**3. Query Parameter**
-```bash
-curl http://localhost:3000/room?apiKey=your-api-key
-```
-
-#### WebSocket
-
-Provide the API key when connecting:
-
-**1. Auth Option (Recommended)**
 ```javascript
+// WebSocket connection with application key
+const socket = io('http://localhost:3000/ws/rooms', {
+  auth: { applicationKey: 'app_your64hexcharacters...' }
+});
+```
+
+### Supabase Authentication
+
+```javascript
+// WebSocket connection with Supabase token
+const socket = io('http://localhost:3000/ws/rooms', {
+  auth: { token: 'supabase-jwt-token' }
+});
+```
+
+### Global API Key Authentication
+
+```bash
+# REST API
+curl -H "x-api-key: your-api-key" http://localhost:3000/rooms
+
+# WebSocket
 const socket = io('http://localhost:3000/ws/rooms', {
   auth: { apiKey: 'your-api-key' }
 });
 ```
 
-**2. Query Parameter**
-```javascript
-const socket = io('http://localhost:3000/ws/rooms?apiKey=your-api-key');
-```
-
-**3. Header**
-```javascript
-const socket = io('http://localhost:3000/ws/rooms', {
-  extraHeaders: { 'x-api-key': 'your-api-key' }
-});
-```
-
-#### Swagger/OpenAPI
-
-Access the interactive API documentation at `http://localhost:3000/api-docs`. When API key authentication is enabled, click the "Authorize" button (lock icon) and enter your API key to test endpoints.
-
-#### Generate Secure Key
-
-```bash
-# Generate a random 32-byte hex key
-openssl rand -hex 32
-```
-
-> **Note**: If `API_KEY` is not set, authentication is **disabled** (useful for development). Set it in production for security.
+> **Note**: If no authentication is configured, the API is open (useful for development).
 
 ## 🔌 WebSocket Events
 
 ### Connection
-Connect to the `/ws/rooms` namespace:
 
 ```javascript
 const socket = io('http://localhost:3000/ws/rooms');
 
-// With API key authentication (if enabled)
+// With authentication
 const socket = io('http://localhost:3000/ws/rooms', {
-  auth: { apiKey: 'your-api-key' }
+  auth: { 
+    token: 'supabase-jwt',        // OR
+    applicationKey: 'app_...',     // OR
+    apiKey: 'global-api-key'
+  }
 });
 ```
 
@@ -293,6 +371,13 @@ socket.emit('leaveRoom', {
 socket.emit('sendMessage', {
   roomId: 'room-id',
   message: 'Your message here'
+});
+
+// Or use 'emit' for custom events
+socket.emit('emit', {
+  roomId: 'room-id',
+  message: 'Custom event data',
+  event: 'custom-event-name' // optional, defaults to 'message'
 });
 ```
 
@@ -341,7 +426,7 @@ socket.on('userLeft', (data) => {
 ```javascript
 socket.on('newMessage', (data) => {
   console.log('New message:', data);
-  // { id, clientId, message, timestamp, roomId }
+  // { id, clientId, message, timestamp, roomId, event }
 });
 ```
 
@@ -361,6 +446,14 @@ socket.on('participantNameUpdated', (data) => {
 });
 ```
 
+#### Room Deleted
+```javascript
+socket.on('roomDeleted', (data) => {
+  console.log('Room deleted:', data);
+  // { roomId, roomName, message }
+});
+```
+
 #### Errors
 ```javascript
 socket.on('error', (error) => {
@@ -369,54 +462,96 @@ socket.on('error', (error) => {
 });
 ```
 
-## 🧪 Development Testing Interface
+## 🌐 Web Platform
 
-### Basic WebSocket Tester (`/view`)
-Simple testing interface for API validation during development:
+The web platform at `/platform` provides a complete interface for:
 
-- **Connection testing** - Verify WebSocket connectivity
-- **Room operations** - Test creation, joining, and leaving rooms
-- **Message flow** - Validate real-time messaging functionality
-- **Event monitoring** - View transmitted data and debug issues
-- **API endpoint testing** - Quick validation of REST endpoints
+### Available Pages
 
-> **⚠️ Purpose**: This is a **development tool** for testing backend functionality, not a production UI solution. The interface provides basic visualization to help developers validate API implementation and identify integration issues.
+| Route | Description |
+|-------|-------------|
+| `/platform` | Dashboard with overview |
+| `/platform/rooms` | Room listing and management |
+| `/platform/chat` | Real-time chat interface |
+| `/platform/applications` | API Key management |
+| `/platform/profile` | User profile (requires auth) |
+| `/platform/login` | Authentication page |
+| `/platform/about` | About page with GitHub integration |
+| `/platform/guide` | Documentation and usage guide |
+| `/platform/landing` | Landing page |
+
+### Features
+
+- **SPA Architecture**: Smooth navigation without page reloads
+- **Responsive Design**: Works on desktop and mobile
+- **Real-time Updates**: Live room and message updates
+- **Dark Mode Ready**: CSS custom properties for theming
+- **PWA Support**: Manifest files for installation
 
 ## 📁 Project Structure
 
 ```
 src/
-├── 📁 common/              # Shared utilities
-│   └── utils/
-│       └── uptime.util.ts
-├── 📁 events/              # Event system
+├── 📁 application/           # Application/API Key management
+│   ├── application.controller.ts
+│   ├── application.module.ts
+│   ├── application.service.ts
+│   └── dto/
+├── 📁 common/                # Shared utilities
+│   ├── config/              # Configuration helpers
+│   ├── decorators/          # Custom decorators (@Public)
+│   ├── dto/                 # Shared DTOs
+│   ├── filters/             # Exception filters
+│   ├── guards/              # Auth guards
+│   ├── interceptors/        # Request interceptors
+│   ├── interfaces/          # Shared interfaces
+│   └── utils/               # Utility functions
+├── 📁 events/                # Event system
 │   ├── events.module.ts
 │   ├── events.service.ts
 │   └── metrics.events.ts
-├── 📁 health/              # Health checks
+├── 📁 github/                # GitHub integration
+│   ├── github.controller.ts
+│   ├── github.module.ts
+│   └── github.service.ts
+├── 📁 health/                # Health checks
 │   ├── health.controller.ts
 │   ├── health.module.ts
 │   └── health.service.ts
-├── 📁 metrics/             # System metrics
+├── 📁 memory/                # Storage abstraction
+│   ├── adapters/            # In-memory & Redis adapters
+│   ├── interfaces/
+│   ├── memory.module.ts
+│   └── memory.service.ts
+├── 📁 metrics/               # System metrics
 │   ├── metrics.controller.ts
 │   ├── metrics.module.ts
 │   └── metrics.service.ts
-├── 📁 room/                # Core - Chat rooms
-│   ├── room.controller.ts  # REST endpoints
-│   ├── room.gateway.ts     # WebSocket gateway
-│   ├── room.module.ts      # Room module
-│   └── room.service.ts     # Business logic
-├── 📁 views/               # Web interface
-│   ├── public/             # Static files
-│   │   ├── *.html         # HTML pages
-│   │   ├── scripts/       # JavaScript
-│   │   └── styles/        # CSS
-│   ├── views.controller.ts # Views controller
-│   └── views.module.ts     # Views module
-├── app.controller.ts       # Main controller
-├── app.module.ts          # Root module
-├── app.service.ts         # Main service
-└── main.ts               # Entry point
+├── 📁 platform/              # Web platform
+│   ├── pages/               # SPA pages (EJS)
+│   ├── components/          # Reusable components
+│   ├── public/              # Static assets & error pages
+│   │   ├── styles/          # CSS files
+│   │   ├── scripts/         # JavaScript files
+│   │   └── media/           # Images, icons
+│   ├── platform.controller.ts
+│   ├── platform.module.ts
+│   └── pages.service.ts
+├── 📁 room/                  # Core - Chat rooms
+│   ├── dto/                 # Room DTOs
+│   ├── interfaces/          # Room interfaces
+│   ├── room.controller.ts   # REST endpoints
+│   ├── room.gateway.ts      # WebSocket gateway
+│   ├── room.module.ts
+│   └── room.service.ts      # Business logic
+├── 📁 supabase/              # Supabase integration
+│   ├── supabase.module.ts
+│   └── supabase.service.ts
+├── 📁 types/                 # Shared types
+├── app.controller.ts
+├── app.module.ts
+├── app.service.ts
+└── main.ts                  # Entry point
 ```
 
 ## 🧪 Testing
@@ -438,25 +573,7 @@ pnpm run test:cov
 
 ### Manual API Testing
 
-You can test the REST API using any HTTP client or the provided `.http` files in the `requests/` folder:
-
-```http
-### Create a room
-POST http://localhost:3000/room
-Content-Type: application/json
-
-{
-  "name": "Test Room"
-}
-
-### List all rooms
-GET http://localhost:3000/room
-
-### Get specific room
-GET http://localhost:3000/room/{{roomId}}
-```
-
-The `/view` interface can also be used for quick visual testing during development.
+Use the Swagger UI at `/docs/api` or the provided `.http` files in the `requests/` folder.
 
 ## 📊 Monitoring
 
@@ -501,25 +618,25 @@ NODE_ENV=production
 PORT=3000
 CORS_ORIGIN=https://your-domain.com
 WEBSOCKET_NAMESPACE=/ws/rooms
-API_KEY=your-secure-api-key-here  # Generate with: openssl rand -hex 32
+API_KEY=your-secure-api-key-here
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+REDIS_URL=redis://your-redis-host:6379
 ```
 
-### Docker (Optional)
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "run", "start:prod"]
+### Docker
+```bash
+# Build
+docker build -t roomstream-api .
+
+# Run
+docker run -p 3000:3000 --env-file .env roomstream-api
 ```
 
 ## 📞 Support
 
-- **Documentation**: Check this README
-- **Issues**: Use [GitHub Issues](https://github.com/augustos0204/nest-websocket-api/issues)
+- **Documentation**: Check this README and `/docs/api`
+- **Issues**: Use [GitHub Issues](https://github.com/augustos0204/room-stream-api/issues)
 - **Contact**: Start a discussion in the repository
 
 ---

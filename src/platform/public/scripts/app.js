@@ -725,7 +725,7 @@ function socketTester() {
 
             try {
                 const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
-                const response = await fetch(`${baseUrl}/room`, {
+                const response = await fetch(`${baseUrl}/rooms`, {
                     method: 'POST',
                     headers: this.getFetchHeaders(),
                     body: JSON.stringify({ name: this.newRoomName.trim() })
@@ -764,7 +764,7 @@ function socketTester() {
 
             try {
                 const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
-                const response = await fetch(`${baseUrl}/room`, {
+                const response = await fetch(`${baseUrl}/rooms`, {
                     headers: this.getFetchHeaders()
                 });
                 if (response.ok) {
@@ -806,7 +806,7 @@ function socketTester() {
 
             try {
                 const baseUrl = this.baseUrl.trim().replace(/\/$/, '');
-                const response = await fetch(`${baseUrl}/room/${targetRoomId}`, {
+                const response = await fetch(`${baseUrl}/rooms/${targetRoomId}`, {
                     method: 'DELETE',
                     headers: this.getFetchHeaders()
                 });

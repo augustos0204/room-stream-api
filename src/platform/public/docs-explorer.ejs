@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation Explorer | RoomStream</title>
+    <link rel="icon" type="image/svg+xml" href="/platform/assets/media/favicon.svg">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'slide-in': 'slideIn 0.3s ease-out',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideIn: {
+                            '0%': { opacity: '0', transform: 'translateY(-10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-sidebar {
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .method-get { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .method-post { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .method-put { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+        .method-patch { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+        .method-delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+        .event-pub { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .event-sub { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .endpoint-card:hover {
+            border-color: rgba(139, 92, 246, 0.5);
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-active {
+            background: rgba(139, 92, 246, 0.3);
+            border-color: rgba(139, 92, 246, 0.5);
+        }
+
+        pre {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+
+        .search-highlight {
+            background: rgba(234, 179, 8, 0.3);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        /* JSON Syntax Highlighting */
+        .json-key { color: #7dd3fc; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-boolean { color: #c084fc; }
+        .json-null { color: #94a3b8; font-style: italic; }
+        .json-bracket { color: #94a3b8; }
+        .json-colon { color: #94a3b8; }
+        .json-comma { color: #94a3b8; }
+
+        /* Code Block Container */
+        .code-block {
+            position: relative;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6));
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        .code-block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        .code-block-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .code-block-content {
+            padding: 0.75rem 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+        .code-block-content pre {
+            margin: 0;
+            background: transparent !important;
+            padding: 0 !important;
+        }
+
+        /* Mobile Sidebar Drawer */
+        @media (max-width: 1023px) {
+            .sidebar-drawer {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            .sidebar-drawer.open {
+                transform: translateX(0);
+            }
+            .sidebar-overlay {
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease-in-out;
+            }
+            .sidebar-overlay.open {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .endpoint-card pre {
+                font-size: 11px;
+            }
+            .code-block-content {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.7rem;
+            }
+            .code-block-header {
+                padding: 0.375rem 0.5rem;
+            }
+            .code-block-label {
+                font-size: 0.65rem;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-indigo-950 text-white font-sans">
+    
+    <!-- Background animated elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow"></div>
+        <div class="absolute top-1/3 right-1/4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow" style="animation-delay: 1s;"></div>
+        <div class="absolute bottom-1/4 left-1/3 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Global Header -->
+    <header class="fixed top-0 left-0 right-0 z-30 glass-effect border-b border-gray-800 h-14 lg:h-16">
+        <div class="flex items-center justify-between h-full px-3 sm:px-4 lg:px-6">
+            <!-- Left: Menu + Logo -->
+            <div class="flex items-center gap-2 lg:gap-3">
+                <!-- Mobile Menu Button -->
+                <button 
+                    onclick="toggleSidebar()"
+                    class="lg:hidden p-2 rounded-lg hover:bg-gray-800/50 transition-colors"
+                    aria-label="Toggle menu"
+                >
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                
+                <!-- Logo -->
+                <a href="/platform" class="flex items-center gap-2 lg:gap-3">
+                    <div class="w-8 h-8 lg:w-9 lg:h-9">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-full h-full">
+                            <defs>
+                                <linearGradient id="logoGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                                    <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+                                </linearGradient>
+                                <linearGradient id="logoGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <rect width="100" height="100" rx="20" fill="url(#logoGrad1)"/>
+                            <rect x="35" y="35" width="30" height="30" transform="rotate(45 50 50)" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9"/>
+                            <circle cx="50" cy="50" r="5" fill="#ffffff">
+                                <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+                            </circle>
+                            <path d="M 20 30 Q 35 30 50 50" stroke="url(#logoGrad2)" stroke-width="2" fill="none" opacity="0.6"/>
+                            <path d="M 80 30 Q 65 30 50 50" stroke="url(#logoGrad2)" stroke-width="2" fill="none" opacity="0.6"/>
+                            <path d="M 50 50 Q 50 65 30 80" stroke="url(#logoGrad2)" stroke-width="2" fill="none" opacity="0.6"/>
+                            <path d="M 50 50 Q 50 65 70 80" stroke="url(#logoGrad2)" stroke-width="2" fill="none" opacity="0.6"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-sm sm:text-base lg:text-lg leading-tight">RoomStream</h1>
+                        <p class="text-xs text-gray-500 leading-tight"><span class="sm:hidden">Documentation</span><span class="hidden sm:inline">Documentation</span></p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Center: Search Bar (Desktop only) -->
+            <div class="hidden lg:flex flex-1 justify-center mx-8">
+                <button 
+                    onclick="openSearchModal()"
+                    class="w-full max-w-xl flex items-center gap-3 bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-400 hover:border-purple-500 hover:text-gray-300 transition-colors"
+                >
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                    <span class="flex-1 text-left">Buscar endpoints, eventos...</span>
+                    <kbd class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-800 rounded text-xs text-gray-500 border border-gray-700">
+                        <span class="text-xs">⌘</span>K
+                    </kbd>
+                </button>
+            </div>
+
+            <!-- Right Actions -->
+            <div class="flex items-center gap-1 sm:gap-2 lg:gap-3">
+                <!-- External Links (Tablet/Desktop) -->
+                <a href="/docs/api" target="_blank" class="hidden sm:flex px-2 lg:px-3 py-1.5 text-sm glass-effect rounded-lg hover:border-purple-500 transition-colors items-center gap-1 lg:gap-2">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    <span class="hidden lg:inline">Swagger</span>
+                </a>
+                <a href="/docs/async-api" target="_blank" class="hidden sm:flex px-2 lg:px-3 py-1.5 text-sm glass-effect rounded-lg hover:border-purple-500 transition-colors items-center gap-1 lg:gap-2">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    <span class="hidden lg:inline">AsyncAPI</span>
+                </a>
+                
+                <!-- Mobile Search Button -->
+                <button 
+                    onclick="openSearchModal()"
+                    class="lg:hidden p-2 rounded-lg hover:bg-gray-800/50 transition-colors"
+                    aria-label="Search"
+                >
+                    <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Search Modal -->
+    <div id="searchModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeSearchModal()"></div>
+        <div class="relative max-w-2xl mx-auto mt-16 sm:mt-24 px-4 sm:px-0 animate-slide-in">
+            <div class="glass-effect rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
+                <!-- Search Input -->
+                <div class="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-700">
+                    <i data-lucide="search" class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400"></i>
+                    <input 
+                        type="text" 
+                        id="searchInput"
+                        placeholder="Buscar endpoints, eventos..."
+                        class="flex-1 bg-transparent text-white text-base sm:text-lg focus:outline-none placeholder-gray-500"
+                        autofocus
+                    >
+                    <kbd class="hidden sm:block px-2 py-1 bg-gray-800 rounded text-xs text-gray-500 border border-gray-700">ESC</kbd>
+                    <button onclick="closeSearchModal()" class="sm:hidden p-1 text-gray-400">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <!-- Search Results -->
+                <div id="searchResults" class="max-h-[60vh] sm:max-h-96 overflow-y-auto scrollbar-thin p-2">
+                    <div class="text-center py-8 text-gray-500">
+                        <p class="text-sm">Digite para buscar...</p>
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div class="hidden sm:flex items-center justify-between px-4 py-2 border-t border-gray-700 bg-gray-900/50 text-xs text-gray-500">
+                    <div class="flex items-center gap-4">
+                        <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↑</kbd><kbd class="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↓</kbd> navegar</span>
+                        <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↵</kbd> abrir</span>
+                    </div>
+                    <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">ESC</kbd> fechar</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay (Mobile) -->
+    <div id="sidebarOverlay" class="sidebar-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-20 lg:hidden" onclick="closeSidebar()"></div>
+
+    <div class="flex pt-14 lg:pt-16 h-screen relative">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar-drawer w-72 glass-sidebar flex flex-col fixed left-0 top-14 lg:top-16 bottom-0 z-20 lg:transform-none">
+            <!-- Mobile Header -->
+            <div class="lg:hidden flex items-center justify-between p-4 border-b border-gray-800">
+                <span class="font-semibold text-sm">Navigation</span>
+                <button onclick="closeSidebar()" class="p-1 rounded hover:bg-gray-800/50">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <!-- Navigation Tabs -->
+            <div class="p-3 lg:p-4 border-b border-gray-800">
+                <div class="flex gap-2">
+                    <button onclick="switchTab('rest')" id="tab-rest" class="flex-1 px-2 lg:px-3 py-2 text-xs lg:text-sm rounded-lg border border-gray-700 transition-all tab-active">
+                        REST API
+                    </button>
+                    <button onclick="switchTab('ws')" id="tab-ws" class="flex-1 px-2 lg:px-3 py-2 text-xs lg:text-sm rounded-lg border border-gray-700 transition-all">
+                        WebSocket
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navigation List -->
+            <nav class="flex-1 overflow-y-auto scrollbar-thin p-3 lg:p-4" id="sidebarNav">
+                <div id="restNav" class="space-y-3 lg:space-y-4">
+                    <!-- REST navigation will be populated by JS -->
+                </div>
+                <div id="wsNav" class="space-y-3 lg:space-y-4 hidden">
+                    <!-- WebSocket navigation will be populated by JS -->
+                </div>
+            </nav>
+            
+            <!-- Mobile External Links -->
+            <div class="lg:hidden p-3 border-t border-gray-800 flex gap-2">
+                <a href="/docs/api" target="_blank" class="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs glass-effect rounded-lg hover:border-purple-500 transition-colors">
+                    <span>Swagger</span>
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                </a>
+                <a href="/docs/async-api" target="_blank" class="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs glass-effect rounded-lg hover:border-purple-500 transition-colors">
+                    <span>AsyncAPI</span>
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                </a>
+            </div>
+            
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-gray-800 text-xs text-gray-500">
+                <div class="flex items-center justify-between">
+                    <span>RoomStream API</span>
+                    <span>v<%= version %></span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 lg:ml-72 overflow-y-auto scrollbar-thin">
+            <!-- Section Header -->
+            <header class="sticky top-0 z-10 glass-effect border-b border-gray-800 px-4 sm:px-6 lg:px-8 py-3 lg:py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg lg:text-xl font-bold" id="mainTitle">REST API</h2>
+                        <p class="text-xs lg:text-sm text-gray-400" id="mainSubtitle">Endpoints para gerenciamento de salas e recursos</p>
+                    </div>
+                    <span class="text-xs lg:text-sm text-gray-400">
+                        <span id="itemCount">0</span> itens
+                    </span>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="p-4 sm:p-6 lg:p-8">
+                <!-- Loading State -->
+                <div id="loadingState" class="flex items-center justify-center py-12 sm:py-20">
+                    <div class="flex flex-col items-center gap-3 sm:gap-4">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p class="text-gray-400 text-sm sm:text-base">Carregando documentação...</p>
+                    </div>
+                </div>
+
+                <!-- REST Content -->
+                <div id="restContent" class="hidden space-y-6">
+                    <!-- Will be populated by JS -->
+                </div>
+
+                <!-- WebSocket Content -->
+                <div id="wsContent" class="hidden space-y-6">
+                    <!-- Will be populated by JS -->
+                </div>
+
+                <!-- No Results -->
+                <div id="noResults" class="hidden flex items-center justify-center py-12 sm:py-20">
+                    <div class="flex flex-col items-center gap-3 sm:gap-4 text-gray-400">
+                        <i data-lucide="search-x" class="w-12 h-12 sm:w-16 sm:h-16"></i>
+                        <p class="text-sm sm:text-base">Nenhum resultado encontrado</p>
+                    </div>
+                </div>
+                
+                <!-- Mobile Footer -->
+                <footer class="lg:hidden mt-8 pt-4 border-t border-gray-800 text-center text-xs text-gray-500">
+                    <p>RoomStream API v<%= version %></p>
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast for copy feedback -->
+    <div id="toast" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-auto bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center justify-center sm:justify-start gap-2 text-sm">
+        <i data-lucide="check" class="w-4 h-4"></i>
+        <span>Copiado!</span>
+    </div>
+
+    <script>
+        // State
+        let swaggerData = null;
+        let asyncApiData = null;
+        let currentTab = 'rest';
+        let searchQuery = '';
+        let selectedResultIndex = -1;
+        let searchResults = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            lucide.createIcons();
+            await loadData();
+            setupSearch();
+            setupKeyboardShortcuts();
+        });
+
+        // Keyboard shortcuts
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // CTRL+K or CMD+K to open search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    openSearchModal();
+                }
+                
+                // ESC to close search
+                if (e.key === 'Escape') {
+                    closeSearchModal();
+                }
+
+                // Arrow navigation in search results
+                if (document.getElementById('searchModal').classList.contains('hidden')) return;
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigateResults(1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigateResults(-1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    selectCurrentResult();
+                }
+            });
+        }
+
+        // Open search modal
+        function openSearchModal() {
+            const modal = document.getElementById('searchModal');
+            modal.classList.remove('hidden');
+            const input = document.getElementById('searchInput');
+            input.focus();
+            input.select();
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close search modal
+        function closeSearchModal() {
+            const modal = document.getElementById('searchModal');
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+            selectedResultIndex = -1;
+        }
+
+        // Navigate search results
+        function navigateResults(direction) {
+            const results = document.querySelectorAll('#searchResults .search-result-item');
+            if (results.length === 0) return;
+
+            selectedResultIndex += direction;
+            if (selectedResultIndex < 0) selectedResultIndex = results.length - 1;
+            if (selectedResultIndex >= results.length) selectedResultIndex = 0;
+
+            results.forEach((r, i) => {
+                r.classList.toggle('bg-purple-500/20', i === selectedResultIndex);
+                r.classList.toggle('border-purple-500/50', i === selectedResultIndex);
+            });
+
+            results[selectedResultIndex]?.scrollIntoView({ block: 'nearest' });
+        }
+
+        // Select current result
+        function selectCurrentResult() {
+            const results = document.querySelectorAll('#searchResults .search-result-item');
+            if (selectedResultIndex >= 0 && results[selectedResultIndex]) {
+                const href = results[selectedResultIndex].getAttribute('data-href');
+                if (href) {
+                    closeSearchModal();
+                    // Switch tab if needed
+                    if (href.startsWith('ws-')) {
+                        switchTab('ws');
+                    } else {
+                        switchTab('rest');
+                    }
+                    // Scroll to element
+                    setTimeout(() => {
+                        const el = document.getElementById(href);
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            toggleEndpoint(href);
+                        }
+                    }, 100);
+                }
+            }
+        }
+
+        // Render search results in modal
+        function renderSearchResults() {
+            const container = document.getElementById('searchResults');
+            const query = searchQuery.toLowerCase();
+
+            if (!query) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <p class="text-sm">Digite para buscar...</p>
+                    </div>
+                `;
+                return;
+            }
+
+            searchResults = [];
+
+            // Search REST endpoints
+            if (swaggerData?.paths) {
+                Object.keys(swaggerData.paths).forEach(path => {
+                    Object.keys(swaggerData.paths[path]).forEach(method => {
+                        const endpoint = swaggerData.paths[path][method];
+                        const id = `${method}-${path.replace(/\//g, '-').replace(/[{}:]/g, '')}`;
+                        const searchText = `${method} ${path} ${endpoint.summary || ''} ${endpoint.description || ''}`.toLowerCase();
+                        
+                        if (searchText.includes(query)) {
+                            searchResults.push({
+                                type: 'rest',
+                                id,
+                                method: method.toUpperCase(),
+                                path,
+                                title: endpoint.summary || path,
+                                description: endpoint.description || ''
+                            });
+                        }
+                    });
+                });
+            }
+
+            // Search WebSocket events
+            if (asyncApiData?.channels) {
+                Object.keys(asyncApiData.channels).forEach(channel => {
+                    const channelData = asyncApiData.channels[channel];
+                    
+                    ['publish', 'subscribe'].forEach(type => {
+                        if (channelData[type]) {
+                            const event = channelData[type];
+                            const searchText = `${channel} ${event.summary || ''} ${event.description || ''}`.toLowerCase();
+                            
+                            if (searchText.includes(query)) {
+                                searchResults.push({
+                                    type: 'ws',
+                                    id: `ws-${channel}`,
+                                    eventType: type === 'publish' ? 'PUB' : 'SUB',
+                                    channel,
+                                    title: event.summary || channel,
+                                    description: event.description || ''
+                                });
+                            }
+                        }
+                    });
+                });
+            }
+
+            if (searchResults.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                        <p class="text-sm">Nenhum resultado para "${query}"</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = searchResults.map((result, index) => `
+                <div 
+                    class="search-result-item flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-800/50 border border-transparent transition-colors"
+                    data-href="${result.id}"
+                    onclick="selectSearchResult('${result.id}', '${result.type}')"
+                >
+                    ${result.type === 'rest' ? `
+                        <span class="text-xs font-mono font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded method-${result.method.toLowerCase()} flex-shrink-0">${result.method}</span>
+                    ` : `
+                        <span class="text-xs font-mono font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded event-${result.eventType === 'PUB' ? 'pub' : 'sub'} flex-shrink-0">${result.eventType}</span>
+                    `}
+                    <div class="flex-1 min-w-0">
+                        <div class="font-mono text-xs sm:text-sm text-white truncate">${result.type === 'rest' ? result.path : result.channel}</div>
+                        <div class="text-xs text-gray-500 truncate">${result.title}</div>
+                    </div>
+                    <span class="hidden sm:inline text-xs text-gray-600 px-2 py-0.5 bg-gray-800 rounded flex-shrink-0">${result.type === 'rest' ? 'REST' : 'WS'}</span>
+                </div>
+            `).join('');
+
+            selectedResultIndex = -1;
+        }
+
+        // Select search result
+        function selectSearchResult(id, type) {
+            closeSearchModal();
+            closeSidebar();
+            switchTab(type === 'rest' ? 'rest' : 'ws');
+            setTimeout(() => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    toggleEndpoint(id);
+                }
+            }, 100);
+        }
+
+        // Toggle sidebar (mobile)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+            document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+        }
+
+        // Close sidebar (mobile)
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        // Handle navigation click (close sidebar on mobile and scroll)
+        function handleNavClick(event, elementId) {
+            event.preventDefault();
+            
+            // Close sidebar on mobile
+            if (window.innerWidth < 1024) {
+                closeSidebar();
+            }
+            
+            // Scroll to element after a short delay to allow sidebar to close
+            setTimeout(() => {
+                const el = document.getElementById(elementId);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    toggleEndpoint(elementId);
+                }
+            }, window.innerWidth < 1024 ? 150 : 0);
+        }
+
+        // Load documentation data
+        async function loadData() {
+            try {
+                const [swaggerRes, asyncApiRes] = await Promise.all([
+                    fetch('/docs/api-json'),
+                    fetch('/docs/async-api-json')
+                ]);
+
+                swaggerData = await swaggerRes.json();
+                asyncApiData = await asyncApiRes.json();
+
+                renderNavigation();
+                renderContent();
+                document.getElementById('loadingState').classList.add('hidden');
+            } catch (error) {
+                console.error('Error loading documentation:', error);
+                document.getElementById('loadingState').innerHTML = `
+                    <div class="flex flex-col items-center gap-3 sm:gap-4 text-red-400">
+                        <i data-lucide="alert-circle" class="w-12 h-12 sm:w-16 sm:h-16"></i>
+                        <p class="text-sm sm:text-base">Erro ao carregar documentação</p>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+        }
+
+        // Setup search
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                renderSearchResults();
+                renderContent();
+            });
+        }
+
+        // Switch tabs
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Close sidebar on mobile when switching tabs
+            if (window.innerWidth < 1024) {
+                closeSidebar();
+            }
+            
+            // Update tab styles
+            document.getElementById('tab-rest').classList.toggle('tab-active', tab === 'rest');
+            document.getElementById('tab-ws').classList.toggle('tab-active', tab === 'ws');
+            
+            // Update navigation
+            document.getElementById('restNav').classList.toggle('hidden', tab !== 'rest');
+            document.getElementById('wsNav').classList.toggle('hidden', tab !== 'ws');
+            
+            // Update content
+            document.getElementById('restContent').classList.toggle('hidden', tab !== 'rest');
+            document.getElementById('wsContent').classList.toggle('hidden', tab !== 'ws');
+            
+            // Update header
+            if (tab === 'rest') {
+                document.getElementById('mainTitle').textContent = 'REST API';
+                document.getElementById('mainSubtitle').textContent = 'Endpoints para gerenciamento de salas e recursos';
+            } else {
+                document.getElementById('mainTitle').textContent = 'WebSocket Events';
+                document.getElementById('mainSubtitle').textContent = 'Eventos em tempo real para comunicação bidirecional';
+            }
+            
+            renderContent();
+        }
+
+        // Render navigation sidebar
+        function renderNavigation() {
+            // REST Navigation
+            const restNav = document.getElementById('restNav');
+            const tags = swaggerData.tags || [];
+            
+            restNav.innerHTML = tags.map(tag => `
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">${tag.name}</h3>
+                    <ul class="space-y-0.5 lg:space-y-1" id="nav-${tag.name}">
+                        ${getEndpointsByTag(tag.name).map(ep => `
+                            <li>
+                                <a href="#${ep.id}" onclick="handleNavClick(event, '${ep.id}')" class="flex items-center gap-1.5 lg:gap-2 px-2 py-1 lg:py-1.5 rounded text-xs lg:text-sm text-gray-400 hover:text-white hover:bg-gray-800/50 transition-colors">
+                                    <span class="text-xs font-mono px-1 lg:px-1.5 py-0.5 rounded method-${ep.method} flex-shrink-0">${ep.method.toUpperCase()}</span>
+                                    <span class="truncate">${ep.path}</span>
+                                </a>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `).join('');
+
+            // WebSocket Navigation
+            const wsNav = document.getElementById('wsNav');
+            const channels = Object.keys(asyncApiData.channels || {});
+            
+            const publishEvents = [];
+            const subscribeEvents = [];
+            
+            channels.forEach(channel => {
+                const channelData = asyncApiData.channels[channel];
+                if (channelData.publish) {
+                    publishEvents.push({ channel, ...channelData.publish });
+                }
+                if (channelData.subscribe) {
+                    subscribeEvents.push({ channel, ...channelData.subscribe });
+                }
+            });
+
+            wsNav.innerHTML = `
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Client → Server</h3>
+                    <ul class="space-y-0.5 lg:space-y-1">
+                        ${publishEvents.map(ev => `
+                            <li>
+                                <a href="#ws-${ev.channel}" onclick="handleNavClick(event, 'ws-${ev.channel}')" class="flex items-center gap-1.5 lg:gap-2 px-2 py-1 lg:py-1.5 rounded text-xs lg:text-sm text-gray-400 hover:text-white hover:bg-gray-800/50 transition-colors">
+                                    <span class="text-xs font-mono px-1 lg:px-1.5 py-0.5 rounded event-pub flex-shrink-0">PUB</span>
+                                    <span class="truncate">${ev.channel}</span>
+                                </a>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Server → Client</h3>
+                    <ul class="space-y-0.5 lg:space-y-1">
+                        ${subscribeEvents.map(ev => `
+                            <li>
+                                <a href="#ws-${ev.channel}" onclick="handleNavClick(event, 'ws-${ev.channel}')" class="flex items-center gap-1.5 lg:gap-2 px-2 py-1 lg:py-1.5 rounded text-xs lg:text-sm text-gray-400 hover:text-white hover:bg-gray-800/50 transition-colors">
+                                    <span class="text-xs font-mono px-1 lg:px-1.5 py-0.5 rounded event-sub flex-shrink-0">SUB</span>
+                                    <span class="truncate">${ev.channel}</span>
+                                </a>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Get endpoints by tag
+        function getEndpointsByTag(tagName) {
+            const endpoints = [];
+            const paths = swaggerData.paths || {};
+            
+            Object.keys(paths).forEach(path => {
+                Object.keys(paths[path]).forEach(method => {
+                    const endpoint = paths[path][method];
+                    if (endpoint.tags && endpoint.tags.includes(tagName)) {
+                        endpoints.push({
+                            id: `${method}-${path.replace(/\//g, '-').replace(/[{}:]/g, '')}`,
+                            method,
+                            path,
+                            ...endpoint
+                        });
+                    }
+                });
+            });
+            
+            return endpoints;
+        }
+
+        // Render main content
+        function renderContent() {
+            if (currentTab === 'rest') {
+                renderRestContent();
+            } else {
+                renderWsContent();
+            }
+        }
+
+        // Render REST content
+        function renderRestContent() {
+            const container = document.getElementById('restContent');
+            const tags = swaggerData.tags || [];
+            let totalItems = 0;
+            let hasResults = false;
+            
+            let html = '';
+            
+            tags.forEach(tag => {
+                const endpoints = getEndpointsByTag(tag.name).filter(ep => {
+                    if (!searchQuery) return true;
+                    return ep.path.toLowerCase().includes(searchQuery) ||
+                           ep.summary?.toLowerCase().includes(searchQuery) ||
+                           ep.description?.toLowerCase().includes(searchQuery) ||
+                           ep.method.toLowerCase().includes(searchQuery);
+                });
+                
+                if (endpoints.length === 0) return;
+                hasResults = true;
+                totalItems += endpoints.length;
+                
+                html += `
+                    <div class="mb-6 sm:mb-8">
+                        <h3 class="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"></span>
+                            ${tag.name}
+                            <span class="text-xs sm:text-sm text-gray-500 font-normal">${tag.description || ''}</span>
+                        </h3>
+                        <div class="space-y-3 sm:space-y-4">
+                            ${endpoints.map(ep => renderEndpointCard(ep)).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+            document.getElementById('itemCount').textContent = totalItems;
+            document.getElementById('noResults').classList.toggle('hidden', hasResults);
+            lucide.createIcons();
+        }
+
+        // Render endpoint card
+        function renderEndpointCard(endpoint) {
+            const requestBody = endpoint.requestBody?.content?.['application/json']?.schema;
+            const responses = endpoint.responses || {};
+            const successResponse = responses['200'] || responses['201'];
+            const responseSchema = successResponse?.content?.['application/json']?.schema;
+            
+            return `
+                <div id="${endpoint.id}" class="glass-effect rounded-lg sm:rounded-xl border border-gray-700 endpoint-card transition-colors">
+                    <div class="p-3 sm:p-4 cursor-pointer" onclick="toggleEndpoint('${endpoint.id}')">
+                        <div class="flex items-start sm:items-center justify-between gap-2">
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
+                                <span class="text-xs font-mono font-bold px-2 py-1 rounded method-${endpoint.method} w-fit">
+                                    ${endpoint.method.toUpperCase()}
+                                </span>
+                                <span class="font-mono text-xs sm:text-sm break-all">${highlightSearch(endpoint.path)}</span>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 transition-transform flex-shrink-0" id="icon-${endpoint.id}"></i>
+                        </div>
+                        <p class="text-xs sm:text-sm text-gray-400 mt-2">${highlightSearch(endpoint.summary || '')}</p>
+                    </div>
+                    
+                    <div id="details-${endpoint.id}" class="hidden border-t border-gray-700">
+                        <div class="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                            ${endpoint.description ? `<p class="text-xs sm:text-sm text-gray-400">${endpoint.description}</p>` : ''}
+                            
+                            ${endpoint.parameters?.length ? `
+                                <div>
+                                    <h4 class="text-xs sm:text-sm font-semibold mb-2 flex items-center gap-2">
+                                        <i data-lucide="settings-2" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400"></i>
+                                        Parâmetros
+                                    </h4>
+                                    <div class="bg-gray-900/50 rounded-lg p-2 sm:p-3 space-y-2 overflow-x-auto">
+                                        ${endpoint.parameters.map(p => `
+                                            <div class="flex flex-wrap items-start gap-1 sm:gap-2 text-xs sm:text-sm">
+                                                <span class="font-mono text-purple-400">${p.name}</span>
+                                                <span class="text-gray-500">(${p.in})</span>
+                                                ${p.required ? '<span class="text-red-400 text-xs">required</span>' : ''}
+                                                <span class="text-gray-400 w-full sm:w-auto">- ${p.description || p.schema?.type || ''}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${requestBody ? `
+                                <div class="code-block">
+                                    <div class="code-block-header">
+                                        <div class="code-block-label">
+                                            <i data-lucide="upload" class="w-3.5 h-3.5 text-blue-400"></i>
+                                            <span>Request Body</span>
+                                            <span class="text-blue-400/60 text-xs font-normal normal-case">application/json</span>
+                                        </div>
+                                        <button onclick="copySchema('${endpoint.id}-request')" class="copy-btn p-1.5 rounded-md transition-colors hover:bg-white/10" title="Copy to clipboard">
+                                            <i data-lucide="copy" class="w-3.5 h-3.5 text-gray-400"></i>
+                                        </button>
+                                    </div>
+                                    <div class="code-block-content scrollbar-thin">
+                                        <pre id="${endpoint.id}-request">${formatSchema(requestBody)}</pre>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${responseSchema ? `
+                                <div class="code-block">
+                                    <div class="code-block-header">
+                                        <div class="code-block-label">
+                                            <i data-lucide="download" class="w-3.5 h-3.5 text-green-400"></i>
+                                            <span>Response</span>
+                                            <span class="px-1.5 py-0.5 rounded text-xs font-medium ${Object.keys(responses)[0].startsWith('2') ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}">${Object.keys(responses)[0]}</span>
+                                        </div>
+                                        <button onclick="copySchema('${endpoint.id}-response')" class="copy-btn p-1.5 rounded-md transition-colors hover:bg-white/10" title="Copy to clipboard">
+                                            <i data-lucide="copy" class="w-3.5 h-3.5 text-gray-400"></i>
+                                        </button>
+                                    </div>
+                                    <div class="code-block-content scrollbar-thin">
+                                        <pre id="${endpoint.id}-response">${formatSchema(responseSchema)}</pre>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render WebSocket content
+        function renderWsContent() {
+            const container = document.getElementById('wsContent');
+            const channels = asyncApiData.channels || {};
+            let totalItems = 0;
+            let hasResults = false;
+            
+            const publishEvents = [];
+            const subscribeEvents = [];
+            
+            Object.keys(channels).forEach(channel => {
+                const channelData = channels[channel];
+                if (channelData.publish) {
+                    const ev = { channel, type: 'publish', ...channelData.publish };
+                    if (!searchQuery || 
+                        channel.toLowerCase().includes(searchQuery) ||
+                        ev.summary?.toLowerCase().includes(searchQuery) ||
+                        ev.description?.toLowerCase().includes(searchQuery)) {
+                        publishEvents.push(ev);
+                        hasResults = true;
+                        totalItems++;
+                    }
+                }
+                if (channelData.subscribe) {
+                    const ev = { channel, type: 'subscribe', ...channelData.subscribe };
+                    if (!searchQuery || 
+                        channel.toLowerCase().includes(searchQuery) ||
+                        ev.summary?.toLowerCase().includes(searchQuery) ||
+                        ev.description?.toLowerCase().includes(searchQuery)) {
+                        subscribeEvents.push(ev);
+                        hasResults = true;
+                        totalItems++;
+                    }
+                }
+            });
+            
+            let html = '';
+            
+            if (publishEvents.length > 0) {
+                html += `
+                    <div class="mb-6 sm:mb-8">
+                        <h3 class="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                            <span>Client → Server</span>
+                            <span class="text-xs sm:text-sm text-gray-500 font-normal w-full sm:w-auto">Eventos enviados pelo cliente</span>
+                        </h3>
+                        <div class="space-y-3 sm:space-y-4">
+                            ${publishEvents.map(ev => renderEventCard(ev)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (subscribeEvents.length > 0) {
+                html += `
+                    <div class="mb-6 sm:mb-8">
+                        <h3 class="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+                            <span>Server → Client</span>
+                            <span class="text-xs sm:text-sm text-gray-500 font-normal w-full sm:w-auto">Eventos recebidos pelo cliente</span>
+                        </h3>
+                        <div class="space-y-3 sm:space-y-4">
+                            ${subscribeEvents.map(ev => renderEventCard(ev)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+            document.getElementById('itemCount').textContent = totalItems;
+            document.getElementById('noResults').classList.toggle('hidden', hasResults);
+            lucide.createIcons();
+        }
+
+        // Render event card
+        function renderEventCard(event) {
+            const message = event.message || {};
+            const payload = message.payload;
+            
+            return `
+                <div id="ws-${event.channel}" class="glass-effect rounded-lg sm:rounded-xl border border-gray-700 endpoint-card transition-colors">
+                    <div class="p-3 sm:p-4 cursor-pointer" onclick="toggleEndpoint('ws-${event.channel}')">
+                        <div class="flex items-start sm:items-center justify-between gap-2">
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
+                                <span class="text-xs font-mono font-bold px-2 py-1 rounded event-${event.type === 'publish' ? 'pub' : 'sub'} w-fit">
+                                    ${event.type === 'publish' ? 'PUB' : 'SUB'}
+                                </span>
+                                <span class="font-mono text-xs sm:text-sm break-all">${highlightSearch(event.channel)}</span>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 transition-transform flex-shrink-0" id="icon-ws-${event.channel}"></i>
+                        </div>
+                        <p class="text-xs sm:text-sm text-gray-400 mt-2">${highlightSearch(event.summary || '')}</p>
+                    </div>
+                    
+                    <div id="details-ws-${event.channel}" class="hidden border-t border-gray-700">
+                        <div class="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                            ${event.description ? `<p class="text-xs sm:text-sm text-gray-400">${event.description}</p>` : ''}
+                            
+                            ${payload ? `
+                                <div class="code-block">
+                                    <div class="code-block-header">
+                                        <div class="code-block-label">
+                                            <i data-lucide="braces" class="w-3.5 h-3.5 text-purple-400"></i>
+                                            <span>Payload</span>
+                                            <span class="text-purple-400/60 text-xs font-normal normal-case">JSON</span>
+                                        </div>
+                                        <button onclick="copySchema('ws-${event.channel}-payload')" class="copy-btn p-1.5 rounded-md transition-colors hover:bg-white/10" title="Copy to clipboard">
+                                            <i data-lucide="copy" class="w-3.5 h-3.5 text-gray-400"></i>
+                                        </button>
+                                    </div>
+                                    <div class="code-block-content scrollbar-thin">
+                                        <pre id="ws-${event.channel}-payload">${formatAsyncApiPayload(payload)}</pre>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="code-block">
+                                <div class="code-block-header">
+                                    <div class="code-block-label">
+                                        <i data-lucide="terminal" class="w-3.5 h-3.5 text-green-400"></i>
+                                        <span>Usage Example</span>
+                                        <span class="text-green-400/60 text-xs font-normal normal-case">JavaScript</span>
+                                    </div>
+                                </div>
+                                <div class="code-block-content scrollbar-thin">
+                                    <pre class="text-green-400">${event.type === 'publish' 
+                                        ? `socket.emit('${event.channel}', payload);` 
+                                        : `socket.on('${event.channel}', (data) => {\n  console.log(data);\n});`}</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Toggle endpoint details
+        function toggleEndpoint(id) {
+            const details = document.getElementById(`details-${id}`);
+            const icon = document.getElementById(`icon-${id}`);
+            
+            if (details.classList.contains('hidden')) {
+                details.classList.remove('hidden');
+                details.classList.add('animate-fade-in');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                details.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+            
+            lucide.createIcons();
+        }
+
+        // Format schema for display
+        // JSON Syntax Highlighter
+        function highlightJson(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, null, 2);
+            }
+            
+            // Escape HTML first
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            
+            // Apply syntax highlighting
+            return json.replace(
+                /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+                (match) => {
+                    let cls = 'json-number';
+                    if (/^"/.test(match)) {
+                        if (/:$/.test(match)) {
+                            // Key
+                            const key = match.slice(0, -1);
+                            return `<span class="json-key">${key}</span><span class="json-colon">:</span>`;
+                        } else {
+                            cls = 'json-string';
+                        }
+                    } else if (/true|false/.test(match)) {
+                        cls = 'json-boolean';
+                    } else if (/null/.test(match)) {
+                        cls = 'json-null';
+                    }
+                    return `<span class="${cls}">${match}</span>`;
+                }
+            ).replace(/([{}\[\]])/g, '<span class="json-bracket">$1</span>')
+             .replace(/,(?=\s*[\n\r])/g, '<span class="json-comma">,</span>');
+        }
+
+        function formatSchema(schema) {
+            if (!schema) return highlightJson({});
+            
+            try {
+                // Resolve $ref if present
+                if (schema.$ref) {
+                    const refPath = schema.$ref.replace('#/components/schemas/', '');
+                    schema = swaggerData.components?.schemas?.[refPath] || schema;
+                }
+                
+                // Build example object from properties
+                const example = buildExample(schema);
+                return highlightJson(example);
+            } catch {
+                return highlightJson(schema);
+            }
+        }
+
+        // Format AsyncAPI payload
+        function formatAsyncApiPayload(payload) {
+            if (!payload) return highlightJson({});
+            
+            try {
+                // Handle different payload formats
+                if (payload.properties) {
+                    const example = buildExample(payload);
+                    return highlightJson(example);
+                }
+                return highlightJson(payload);
+            } catch {
+                return highlightJson(payload);
+            }
+        }
+
+        // Build example from schema
+        function buildExample(schema) {
+            if (!schema) return {};
+            
+            if (schema.example) return schema.example;
+            
+            if (schema.type === 'array') {
+                return [buildExample(schema.items)];
+            }
+            
+            if (schema.properties) {
+                const obj = {};
+                Object.keys(schema.properties).forEach(key => {
+                    const prop = schema.properties[key];
+                    if (prop.example !== undefined) {
+                        obj[key] = prop.example;
+                    } else if (prop.type === 'string') {
+                        obj[key] = prop.format === 'date-time' ? '2024-01-15T10:30:00.000Z' : 'string';
+                    } else if (prop.type === 'number' || prop.type === 'integer') {
+                        obj[key] = 0;
+                    } else if (prop.type === 'boolean') {
+                        obj[key] = true;
+                    } else if (prop.type === 'array') {
+                        obj[key] = [];
+                    } else if (prop.type === 'object' || prop.properties) {
+                        obj[key] = buildExample(prop);
+                    } else {
+                        obj[key] = null;
+                    }
+                });
+                return obj;
+            }
+            
+            return {};
+        }
+
+        // Highlight search terms
+        function highlightSearch(text) {
+            if (!searchQuery || !text) return text;
+            const regex = new RegExp(`(${searchQuery})`, 'gi');
+            return text.replace(regex, '<span class="search-highlight">$1</span>');
+        }
+
+        // Copy schema to clipboard
+        async function copySchema(id) {
+            const element = document.getElementById(id);
+            if (!element) return;
+            
+            try {
+                await navigator.clipboard.writeText(element.textContent);
+                showToast();
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        }
+
+        // Show toast notification
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

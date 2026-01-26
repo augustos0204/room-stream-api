@@ -10,10 +10,12 @@ import { User } from '@supabase/supabase-js';
 export interface AuthenticatedRequest extends Request {
   headers: Request['headers'] & {
     'x-api-key'?: string;
+    'x-app-key'?: string;
     authorization?: string;
   };
   query: Request['query'] & {
     apiKey?: string;
   };
   user?: User;
+  application?: { id: string };
 }

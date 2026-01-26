@@ -79,20 +79,27 @@
     <template x-if="!isLoadingApplications && applications.length > 0">
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             <template x-for="app in applications" :key="app.id">
-                <div class="dark-glass rounded-xl border border-gray-700/50 p-5 hover:border-orange-500/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+                <div class="dark-glass rounded-xl border border-gray-700/50 p-5 relative overflow-hidden hover:border-orange-500/50 transition-all duration-200 hover:scale-[1.02]">
                     <!-- Header -->
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3">
-                            <div 
-                                class="w-10 h-10 rounded-lg flex items-center justify-center"
-                                :class="app.isActive 
-                                    ? 'bg-gradient-to-br from-orange-500 to-amber-500' 
-                                    : 'bg-gray-700'"
-                            >
-                                <i data-lucide="key" class="w-5 h-5 text-white"></i>
+                            <div class="relative w-11 h-11">
+                                <div
+                                    class="absolute inset-0 rounded-xl opacity-20"
+                                    :style="`background: ${getAppColor(app.id)}`"
+                                ></div>
+                                <div
+                                    class="relative w-11 h-11 rounded-xl flex items-center justify-center border border-white/10"
+                                    :style="`background: ${getAppColor(app.id)}`"
+                                >
+                                    <span class="text-xs font-semibold tracking-wide text-white" x-text="getAppInitials(app.name)"></span>
+                                </div>
                             </div>
                             <div>
-                                <h3 class="font-semibold text-white" x-text="app.name"></h3>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-semibold text-white" x-text="app.name"></h3>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-300 border border-orange-500/20">APP</span>
+                                </div>
                                 <span 
                                     class="text-xs px-2 py-0.5 rounded-full"
                                     :class="app.isActive 
@@ -167,12 +174,15 @@
                     ></p>
                     
                     <!-- API Key Preview -->
-                    <div class="bg-gray-900/50 rounded-lg p-3 mb-4">
+                    <div class="bg-gradient-to-br from-gray-900/70 to-gray-950/70 rounded-lg p-3 mb-4 border border-gray-800/80">
                         <div class="flex items-center justify-between">
-                            <code class="text-xs text-gray-400 font-mono" x-text="app.keyPreview"></code>
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="key" class="w-4 h-4 text-amber-300"></i>
+                                <code class="text-xs text-gray-300 font-mono" x-text="app.keyPreview"></code>
+                            </div>
                             <button 
                                 @click="copyApiKey(app)"
-                                class="p-1.5 hover:bg-gray-700 rounded transition-colors"
+                                class="p-1.5 hover:bg-gray-800/70 rounded transition-colors"
                                 title="Copiar API Key completa"
                             >
                                 <i data-lucide="copy" class="w-4 h-4 text-gray-400"></i>
@@ -181,8 +191,9 @@
                     </div>
                     
                     <!-- Footer -->
-                    <div class="text-xs text-gray-500">
-                        Criado em <span x-text="new Date(app.createdAt).toLocaleDateString('pt-BR')"></span>
+                    <div class="flex items-center justify-between text-xs text-gray-500">
+                        <span>Criado em <span x-text="new Date(app.createdAt).toLocaleDateString('pt-BR')"></span></span>
+                        <span class="text-gray-600 font-mono" x-text="app.id.slice(0, 8)"></span>
                     </div>
                 </div>
             </template>

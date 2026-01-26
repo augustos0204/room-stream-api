@@ -41,7 +41,7 @@ function getUserId(req: { user?: { id: string } }): string {
 
 @ApiTags('applications')
 @ApiBearerAuth()
-@Controller('application')
+@Controller('applications')
 @UseGuards(SupabaseAuthGuard)
 export class ApplicationController {
   constructor(private readonly applicationService: ApplicationService) {}
